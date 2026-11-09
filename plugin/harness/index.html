@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Banco de pruebas · pane editor de vídeo</title>
+    <style>
+      :root {
+        --ui-text-primary: #e9e9ee;
+        --ui-text-tertiary: #9a9aa4;
+        --ui-accent: #6f9dff;
+        --ui-stroke-tertiary: #2b2b33;
+        --ui-bg-editor: #15151a;
+        --ui-bg-quaternary: #1d1d24;
+        --ui-surface-2: #22222a;
+        --ui-danger: #e5484d;
+      }
+      body.light {
+        --ui-text-primary: #1b1b1f;
+        --ui-text-tertiary: #6b6b76;
+        --ui-accent: #2f6fed;
+        --ui-stroke-tertiary: #e3e3e8;
+        --ui-bg-editor: #ffffff;
+        --ui-bg-quaternary: #f5f5f7;
+        --ui-surface-2: #efeff2;
+      }
+      html, body { margin: 0; height: 100%; background: var(--ui-bg-editor); font-family: "Segoe UI", system-ui, sans-serif; }
+      #root { height: 100%; }
+      #boot { color: var(--ui-text-tertiary); font: 12px/1.4 sans-serif; padding: 10px; }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "./react-shim.js",
+          "react/jsx-runtime": "./jsx-shim.js",
+          "@hermes/plugin-sdk": "./sdk-shim.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"><p id="boot">cargando pane…</p></div>
+    <script>
+      const params = new URLSearchParams(location.search)
+      window.__VE_SERVICE__ = params.get('svc') || 'http://127.0.0.1:8765'
+      if (params.get('theme') === 'light') document.body.classList.add('light')
+      window.__VE_ERRORS__ = []
+      window.addEventListener('error', (event) => window.__VE_ERRORS__.push(String(event.message)))
+      window.addEventListener('unhandledrejection', (event) => window.__VE_ERRORS__.push(String(event.reason)))
+    </script>
+    <script src="./vendor/react.js"></script>
+    <script src="./vendor/react-dom.js"></script>
+    <script type="module">
+      import plugin from '../plugin.js'
+
+      const params = new URLSearchParams(location.search)
+      const captured = {}
+
+      const store = new Map()
+      if (params.get('open')) store.set('lastProjectId', params.get('open'))
+
+      let files = null
+      if (params.get('media')) {
+        try {
+          const listing = await fetch('./media.json').then((response) => response.json())
+          files = {
+            folders: async () => [{ id: 'fx', path: listing.root }],
+            requestFolder: async () => ({ ok: true, folder: { id: 'fx', path: listing.root } }),
+            list: async () => ({
+              ok: true,
+              truncated: false,
+              entries: listing.entries.map((entry) => ({ path: entry.name, size: entry.size }))
+            }),
+            stat: async (_id, path) => ({ ok: true, size: 1, mtimeMs: Date.now(), path })
+          }
+        } catch (error) {
+          window.__VE_ERRORS__.push('media.json: ' + error.message)
+        }
+      }
+
+      const contributions = []
+      const ctx = {
+        storage: {
+          get: (key, fallback) => (store.has(key) ? store.get(key) : fallback),
+          set: (key, value) => store.set(key, value)
+        },
+        files,
+        session: {
+          sessionId: params.get('session') || 'sess_harness',
+          cwd: params.get('cwd') || 'C:/proyectos/harness'
+        },
+        os: {
+          openExternal: (target) => { window.__VE_OPENED__ = String(target) },
+          writeClipboard: async (text) => { window.__VE_CLIPBOARD__ = String(text); return true }
+        },
+        onDispose: () => {},
+        register: (spec) => {
+          contributions.push(spec)
+          if (spec && spec.area === 'panes') captured.spec = spec
+          return () => {}
+        }
+      }
+
+      plugin.register(ctx)
+      if (!captured.spec || typeof captured.spec.render !== 'function') {
+        document.getElementById('root').innerHTML = '<p id="boot">el plugin no registró un pane</p>'
+        throw new Error('registro vacío')
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'))
+      root.render(React.createElement(captured.spec.render))
+      window.__VE_API__ = { ctx, captured, store, contributions }
+      window.__VE_READY__ = true
+    </script>
+  </body>
+</html>

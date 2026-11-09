@@ -1,0 +1,2 @@
+file 'C:/Users/EgtYP/AppData/Local/hermes/fleet-workspace/video-editor/spike/fixtures/clipA.mp4'
+file 'C:/Users/EgtYP/AppData/Local/hermes/fleet-workspace/video-editor/spike/work/clip_24fps.mp4'

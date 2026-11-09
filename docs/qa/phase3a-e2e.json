@@ -1,0 +1,74 @@
+{
+  "base": "http://127.0.0.1:56788",
+  "steps": {
+    "health": {
+      "service": "0.3.4",
+      "providers": {
+        "image": true,
+        "music": true
+      },
+      "modes": {
+        "image": {
+          "http": false,
+          "local": true
+        },
+        "music": {
+          "http": false,
+          "local": true
+        }
+      }
+    },
+    "create": {
+      "status": 201,
+      "projectId": "prj_1a581337ba0630b3"
+    },
+    "media": {
+      "status": 201
+    },
+    "generate_image": {
+      "status": 202,
+      "jobId": "gf3d0468176",
+      "job": "succeeded"
+    },
+    "generate_music": {
+      "status": 202,
+      "jobId": "g9233f59eda",
+      "job": "succeeded"
+    },
+    "http_unconfigured": {
+      "status": 400,
+      "error": "proveedor no configurado: define VE_PROVIDER_IMAGE_URL para generar image por HTTP"
+    },
+    "insert_image": {
+      "status": 201
+    },
+    "put": {
+      "status": 200,
+      "revision": 5
+    },
+    "export": {
+      "status": 202,
+      "job": "succeeded",
+      "error": null
+    }
+  },
+  "assets": {
+    "image": {
+      "id": "md_32095838",
+      "path": "generated/prj_1a581337ba0630b3/fondo-azul-para-intro-b02f32f9.png",
+      "rights": "generated"
+    },
+    "music": {
+      "id": "md_4ddf6780",
+      "path": "generated/prj_1a581337ba0630b3/cama-suave-310577f2.wav",
+      "rights": "generated"
+    }
+  },
+  "output": {
+    "bytes": 3782245,
+    "duration": 11.0,
+    "size": "1280x720",
+    "audio": "aac"
+  },
+  "verdict": "PASS"
+}

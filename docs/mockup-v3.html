@@ -1,0 +1,1746 @@
+<!doctype html>
+<html lang="es" data-theme="dark" data-state="edit">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de vídeo · maqueta v3 · NLE 1440×900</title>
+<style>
+/* ============================================================
+   TOKENS — simulación del tema de Hermes.
+   En la app los cinco tokens los inyecta el prelude de ::preview
+   (--foreground, --muted-foreground, --accent, --border, --card).
+   Aquí solo se declaran para poder capturar claro y oscuro.
+   Todo lo demás DERIVA de ellos: el pane no tiene un solo color
+   literal (ver docs/qa/v3-checks.txt).
+   ============================================================ */
+:root{
+  color-scheme:dark;
+  --foreground:#e6e7ea;
+  --muted-foreground:#9b9ca3;   /* solo ≥14px: 6.68:1 */
+  --accent:#4d8df6;
+  --border:#33353a;
+  --card:#141517;
+
+  /* superficies (oscuras neutras tipo Resolve: del fondo hacia arriba) */
+  --surf-1:color-mix(in oklab,var(--card) 96.5%,var(--foreground));
+  --surf-2:color-mix(in oklab,var(--card) 93.5%,var(--foreground));
+  --surf-3:color-mix(in oklab,var(--card) 89%,var(--foreground));
+  --surf-4:color-mix(in oklab,var(--card) 84%,var(--foreground));
+  --line-soft:color-mix(in oklab,var(--border) 70%,transparent);
+
+  /* tinta: nunca por debajo de 4.5:1; secundario a 12 px (rev3 §2) */
+  --ink-2:color-mix(in oklab,var(--foreground) 82%,transparent);  /* 10.15:1 */
+  --ink-3:color-mix(in oklab,var(--foreground) 76%,transparent);  /*  8.85:1 */
+  --accent-1:color-mix(in oklab,var(--accent) 14%,transparent);
+  --accent-2:color-mix(in oklab,var(--accent) 32%,transparent);
+  --accent-deep:color-mix(in oklab,var(--accent) 88%,var(--foreground));
+
+  /* el visor es negro en los dos temas: se calcula, no se escribe */
+  --stage:var(--card);
+  --stage:oklch(from var(--card) 0.19 0 0);
+  --scrim:color-mix(in oklab,var(--stage) 68%,transparent);
+  --shadow:0 30px 70px -34px color-mix(in oklab,var(--stage) 90%,transparent),
+           0 2px 8px -4px color-mix(in oklab,var(--stage) 55%,transparent);
+
+  --pw:1440px; --ph:900px; --tl:280px;
+  --r:4px; --rlg:7px;
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --foreground:#1a1b1f;
+  --muted-foreground:#5f6169;   /*  5.97:1 */
+  --accent:#2f5fe0;
+  --border:#d5d7dd;
+  --card:#fbfbfc;
+  --stage:var(--card);
+  --stage:oklch(from var(--card) 0.19 0 0);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--card); color:var(--foreground);
+  font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+:where(h1,h2,h3,h4,p,ul,ol){margin:0}
+:where(ul,ol){padding:0;list-style:none}
+svg{display:block}
+.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.i--f{fill:currentColor;stroke:none}
+.i--14{width:14px;height:14px}
+.i--18{width:18px;height:18px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- chrome de la maqueta (no es UI del producto) ---------- */
+.doc{padding:22px 24px 72px;display:grid;gap:14px;justify-items:start;background:var(--card)}
+.doc__bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;width:var(--pw);max-width:100%}
+.doc__t{font-size:14px;font-weight:650;letter-spacing:.005em}
+.doc__s{font-size:12px;color:var(--ink-2)}
+.doc__sp{flex:1}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--surf-1)}
+.seg input{position:absolute;width:1px;height:1px;opacity:0}
+.seg label{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;font-size:12px;font-weight:500;
+  color:var(--ink-2);cursor:pointer;border-left:1px solid var(--border);white-space:nowrap;user-select:none}
+.seg label:first-of-type{border-left:0}
+.seg label:hover{color:var(--foreground);background:var(--surf-2)}
+.seg input:checked+label{background:var(--accent-1);color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent)}
+.seg input:focus-visible+label{outline:2px solid var(--accent);outline-offset:-2px}
+.doc__notes{width:var(--pw);max-width:100%;display:grid;gap:10px;font-size:12px;color:var(--ink-2);line-height:1.55}
+.doc__notes h2{font-size:13px;color:var(--foreground);font-weight:650;letter-spacing:.01em}
+.doc__notes code{font:12px/1.4 ui-monospace,"Cascadia Mono",Consolas,monospace;color:var(--foreground);
+  background:var(--surf-2);border:1px solid var(--line-soft);border-radius:3px;padding:1px 5px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px}
+.legend b{color:var(--foreground);font-weight:600}
+.doc__bar [data-theme-btn][aria-pressed="true"]{background:var(--accent-1);color:var(--accent);font-weight:650}
+
+/* ============================================================
+   PANE · rejilla 1440×900
+   40 topbar / 1fr / 280 timeline ; 220 · 1fr · 300
+   ============================================================ */
+.pane{
+  width:var(--pw);height:var(--ph);display:none;
+  grid-template-columns:220px minmax(0,1fr) 300px;
+  grid-template-rows:40px minmax(0,1fr) var(--tl);
+  grid-template-areas:"top top top" "lib view insp" "time time insp";
+  background:var(--card);border:1px solid var(--border);overflow:hidden;position:relative;
+  box-shadow:var(--shadow);font-size:13px;contain:layout paint;
+}
+.cap .pane{--pw:100vw;--ph:100vh;border:0;box-shadow:none}
+:root[data-state="edit"] .pane--edit,
+:root[data-state="export"] .pane--edit,
+:root[data-state="conflict"] .pane--edit,
+:root[data-state="relink"] .pane--edit,
+:root[data-state="projects"] .pane--edit,
+:root[data-state="settings"] .pane--edit,
+:root[data-state="help"] .pane--edit,
+:root[data-state="empty"] .pane--empty,
+:root[data-state="import"] .pane--import,
+:root[data-state="down"] .pane--down,
+:root[data-state="closed"] .pane--closed{display:grid}
+
+/* ---------- barra superior 40 ---------- */
+.topbar{grid-area:top;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;
+  background:var(--surf-2);border-bottom:1px solid var(--border);min-width:0}
+.brand{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:650;white-space:nowrap}
+.plate{width:22px;height:22px;border-radius:4px;display:grid;place-items:center;flex:none;
+  background:var(--accent-1);color:var(--accent)}
+.vr{width:1px;height:20px;background:var(--border);flex:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 10px;flex:none;
+  border:1px solid transparent;border-radius:var(--r);background:transparent;color:var(--foreground);
+  font:inherit;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;
+  transition:background-color .1s linear,color .1s linear,border-color .1s linear}
+.btn:hover{background:var(--surf-3)}
+.btn--icon{width:32px;padding:0}
+.btn--outline{border-color:var(--border)}
+.btn--outline:hover{border-color:var(--accent-2);background:var(--accent-1)}
+.btn--primary{background:var(--accent);color:var(--card);font-weight:650}
+.btn--primary:hover{background:var(--accent-deep)}
+.btn--ghost:hover{background:var(--surf-3)}
+.btn[disabled],.btn[aria-disabled="true"]{opacity:.42;cursor:not-allowed}
+.btn:focus-visible,.chipbtn:focus-visible,.asset:focus-visible,.clip:focus-visible,
+input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px}
+.btn--sm{height:32px;font-size:12.5px;padding:0 9px}
+.chipbtn{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 9px;max-width:250px;
+  border:1px solid var(--border);border-radius:var(--r);background:var(--surf-1);color:var(--foreground);
+  font:inherit;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap;overflow:hidden;min-width:0}
+.chipbtn:hover{border-color:var(--accent-2);background:var(--accent-1)}
+.chipbtn__n{overflow:hidden;text-overflow:ellipsis}
+.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 7px;border-radius:3px;
+  border:1px solid var(--border);font-size:12px;font-variant-numeric:tabular-nums;
+  color:var(--ink-2);white-space:nowrap;background:transparent}
+.chip--a{border-color:var(--accent-2);background:var(--accent-1);color:var(--accent);font-weight:600}
+.chip--solid{background:var(--foreground);color:var(--card);border-color:transparent;font-weight:600}
+.chip--dash{border-style:dashed}
+.dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--accent)}
+.dot--idle{background:var(--ink-3)}
+.dot--ring{box-shadow:0 0 0 3px var(--accent-1)}
+.mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+.save{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);white-space:nowrap}
+.save b{color:var(--foreground);font-weight:600}
+
+/* ---------- biblioteca 220 ---------- */
+.lib{grid-area:lib;display:flex;flex-direction:column;background:var(--surf-1);
+  border-right:1px solid var(--border);min-width:0;min-height:0}
+.panelhd{display:flex;align-items:center;gap:6px;height:36px;padding:0 8px 0 12px;flex:none;
+  border-bottom:1px solid var(--line-soft);background:var(--surf-1)}
+.panelhd__t{font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);
+  display:flex;align-items:center;gap:6px}
+.panelhd__n{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums;font-weight:600}
+.panelhd .btn--icon{width:32px;height:32px}
+.search{display:flex;align-items:center;gap:7px;margin:8px 10px 6px;height:32px;padding:0 8px;
+  border:1px solid var(--border);border-radius:var(--r);background:var(--card);color:var(--ink-3);font-size:12px;flex:none}
+.search input{all:unset;flex:1;min-width:0;color:var(--foreground);font-size:13px}
+.search input::placeholder{color:var(--ink-3)}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:0 10px 8px;flex:none}
+.filters .chip{cursor:pointer;height:26px;font-size:12px;padding:0 6px;justify-content:flex-start}
+.filters .chip b{margin-left:auto;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.filters .chip--a{font-weight:600}
+.drop{display:flex;align-items:center;gap:9px;margin:0 10px 10px;padding:9px 10px;flex:none;
+  border:1px dashed var(--border);border-radius:var(--r);color:var(--ink-2);font-size:12px;line-height:1.3;
+  background:color-mix(in oklab,var(--accent) 3%,transparent)}
+.drop--hot{border-color:var(--accent);background:var(--accent-1);color:var(--accent);border-style:solid;box-shadow:inset 0 0 0 1px var(--accent)}
+.drop__t{font-weight:600;color:var(--foreground);font-size:12px}
+.drop__s{font-size:12px;color:var(--ink-3)}
+.drop--hot .drop__t,.drop--hot .drop__s{color:var(--accent)}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 10px 10px;overflow:auto;min-height:0;align-content:start}
+.asset{display:flex;flex-direction:column;gap:5px;padding:5px;border:1px solid transparent;border-radius:5px;
+  cursor:pointer;min-width:0;text-align:left;font:inherit;color:inherit}
+  background:var(--surf-2)}
+.asset:hover{background:var(--surf-3);border-color:var(--border)}
+.asset--sel{border-color:var(--accent);background:var(--accent-1)}
+.asset__th{position:relative;aspect-ratio:16/9;border-radius:3px;overflow:hidden;background:var(--stage)}
+.asset__th::after{content:"";position:absolute;inset:0;border-radius:3px;
+  box-shadow:inset 0 0 0 1px color-mix(in oklab,var(--foreground) 12%,transparent)}
+.asset__n{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 1px}
+.asset__m{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;padding:0 1px;
+  display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden}
+.asset__tag{position:absolute;left:3px;bottom:3px;height:18px;padding:0 5px;border-radius:2px;
+  font-size:12px;font-weight:600;display:inline-flex;align-items:center;
+  background:color-mix(in oklab,var(--stage) 78%,transparent);color:var(--ink-2);font-variant-numeric:tabular-nums}
+.art{position:absolute;inset:0}
+.art::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(120% 90% at 20% 15%,color-mix(in oklab,var(--accent) 42%,transparent),transparent 60%),
+             radial-gradient(80% 80% at 85% 80%,color-mix(in oklab,var(--foreground) 22%,transparent),transparent 62%),
+             linear-gradient(160deg,#0000,#0000)}
+.art::after{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(115deg,color-mix(in oklab,var(--foreground) 6%,transparent) 0 1px,transparent 1px 9px)}
+.art--b::before{background:radial-gradient(110% 100% at 70% 20%,color-mix(in oklab,var(--accent) 30%,transparent),transparent 58%),
+  radial-gradient(90% 90% at 15% 85%,color-mix(in oklab,var(--foreground) 26%,transparent),transparent 60%)}
+.art--c::before{background:linear-gradient(180deg,color-mix(in oklab,var(--foreground) 18%,transparent),transparent 55%),
+  radial-gradient(90% 120% at 50% 110%,color-mix(in oklab,var(--accent) 36%,transparent),transparent 62%)}
+.art--d::before{background:radial-gradient(70% 70% at 30% 40%,color-mix(in oklab,var(--foreground) 30%,transparent),transparent 60%),
+  radial-gradient(90% 90% at 90% 90%,color-mix(in oklab,var(--accent) 24%,transparent),transparent 60%)}
+.libft{margin-top:auto;display:flex;align-items:center;gap:6px;padding:7px 10px;flex:none;
+  border-top:1px solid var(--line-soft);font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;background:var(--surf-1)}
+.libnote{padding:0 10px 8px;font-size:11px;line-height:1.35;color:var(--ink-3);flex:none}
+/* marcador honesto: la miniatura no es un fotograma real del clip */
+.phb{position:absolute;left:3px;top:3px;height:16px;padding:0 4px;border-radius:2px;display:inline-flex;align-items:center;
+  font-size:11px;font-weight:600;letter-spacing:.01em;color:var(--ink-2);
+  background:color-mix(in oklab,var(--stage) 74%,transparent);border:1px dashed color-mix(in oklab,var(--foreground) 30%,transparent)}
+
+/* ---------- visor ---------- */
+.view{grid-area:view;display:grid;grid-template-rows:36px minmax(0,1fr) 56px;min-width:0;min-height:0;background:var(--card);position:relative}
+.viewhd{display:flex;align-items:center;gap:9px;padding:0 12px;border-bottom:1px solid var(--line-soft);background:var(--surf-1);min-width:0}
+.viewhd__t{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.viewhd__n{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.stage{position:relative;display:grid;place-items:center;padding:14px;background:var(--stage);min-height:0;container-type:size}
+.frame{position:relative;width:100%;max-width:100%;aspect-ratio:16/9;
+  width:min(100cqw,calc(100cqh * 16 / 9));overflow:hidden;background:var(--stage);
+  box-shadow:0 0 0 1px color-mix(in oklab,var(--foreground) 9%,transparent),0 10px 30px -18px #0000}
+.safe{position:absolute;border:1px dashed color-mix(in oklab,var(--foreground) 26%,transparent);pointer-events:none}
+.safe--t{inset:5%}
+.safe--a{inset:10%}
+.safe--cross{inset:0;border:0;background:
+  linear-gradient(90deg,transparent calc(50% - .5px),color-mix(in oklab,var(--foreground) 16%,transparent) 50%,transparent calc(50% + .5px)),
+  linear-gradient(0deg,transparent calc(50% - .5px),color-mix(in oklab,var(--foreground) 16%,transparent) 50%,transparent calc(50% + .5px))}
+.cap-over{position:absolute;left:8%;right:8%;bottom:7%;text-align:center;padding:6px 12px;border-radius:3px;
+  background:color-mix(in oklab,var(--stage) 66%,transparent);color:var(--foreground);font-size:13px;
+  font-weight:600;line-height:1.35;text-shadow:0 1px 2px var(--stage)}
+.frame__tag{position:absolute;left:10px;top:9px;display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;
+  border-radius:3px;background:color-mix(in oklab,var(--stage) 74%,transparent);color:var(--ink-2);font-size:11px}
+.frame__tc{position:absolute;right:10px;bottom:9px;height:24px;padding:0 8px;border-radius:3px;display:inline-flex;
+  align-items:center;background:color-mix(in oklab,var(--stage) 74%,transparent);color:var(--ink-2);
+  font-size:11px;font-variant-numeric:tabular-nums}
+.transport{display:flex;align-items:center;gap:8px;padding:0 12px;border-top:1px solid var(--border);background:var(--surf-1);min-width:0}
+.tc{display:flex;align-items:baseline;gap:5px;font-size:15px;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:.01em;white-space:nowrap}
+.tc small{font-size:12px;font-weight:500;color:var(--ink-3)}
+.scrub{flex:1;min-width:60px;display:flex;align-items:center}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:32px;background:transparent;margin:0;cursor:pointer;color:var(--accent)}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;
+  background:linear-gradient(90deg,var(--accent) var(--fill,0%),var(--surf-4) var(--fill,0%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--card);margin-top:-4px;box-shadow:0 0 0 1px var(--accent)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--surf-4)}
+input[type=range]::-moz-range-progress{height:4px;border-radius:2px;background:var(--accent)}
+input[type=range]::-moz-range-thumb{width:10px;height:10px;border:2px solid var(--card);border-radius:50%;background:var(--accent)}
+.meters{display:flex;align-items:flex-end;gap:3px;height:34px;flex:none}
+.meter{width:4px;height:100%;border-radius:2px;background:var(--surf-4);position:relative;overflow:hidden}
+.meter i{position:absolute;left:0;right:0;bottom:0;background:var(--accent);height:var(--lv);border-radius:2px}
+.meter i::after{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--foreground);opacity:.85}
+.meterlab{font-size:12px;color:var(--ink-3);display:flex;flex-direction:column;justify-content:space-between;
+  line-height:1;height:100%;font-variant-numeric:tabular-nums;margin-left:1px}
+
+/* ---------- inspector 300 ---------- */
+.insp{grid-area:insp;display:flex;flex-direction:column;background:var(--surf-1);border-left:1px solid var(--border);min-width:0;min-height:0}
+.tabs{display:flex;flex:none;border-bottom:1px solid var(--border);background:var(--surf-2);height:40px}
+.tabs input{position:absolute;width:1px;height:1px;opacity:0}
+.tabs label{flex:1;display:inline-flex;align-items:center;justify-content:center;min-height:40px;font-size:13px;font-weight:500;
+  color:var(--ink-2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;user-select:none}
+.tabs label:hover{color:var(--foreground);background:var(--surf-1)}
+.tabs input:checked+label{color:var(--foreground);border-bottom-color:var(--accent);font-weight:650}
+.tabs input:focus-visible+label{outline:2px solid var(--accent);outline-offset:-4px}
+.panels{flex:1;min-height:0;overflow:auto;display:block}
+.panel{display:none;flex-direction:column}
+.insp:has(#tb-esc:checked) .panel--esc,
+.insp:has(#tb-txt:checked) .panel--txt,
+.insp:has(#tb-aud:checked) .panel--aud,
+.insp:has(#tb-exp:checked) .panel--exp{display:flex}
+.grp{display:grid;gap:9px;padding:12px;border-bottom:1px solid var(--line-soft)}
+.grp__t{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+.field{display:grid;gap:5px;min-width:0}
+.field>span{font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:5px}
+.inp{height:32px;width:100%;border:1px solid var(--border);border-radius:var(--r);background:var(--card);
+  color:var(--foreground);font:inherit;font-size:13px;padding:0 8px;font-variant-numeric:tabular-nums;min-width:0}
+.inp:hover{border-color:var(--accent-2)}
+.inp--ro{background:var(--surf-2);color:var(--ink-2)}
+textarea.inp{height:auto;min-height:76px;padding:7px 8px;resize:vertical;line-height:1.45;font-variant-numeric:normal}
+select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-2) 50%),linear-gradient(135deg,var(--ink-2) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 14px,calc(100% - 10px) 14px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:26px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0}
+.row{display:flex;align-items:center;gap:8px;min-width:0}
+.row__l{flex:1;font-size:12px;color:var(--ink-2);min-width:0}
+.hint{font-size:12px;color:var(--ink-3);line-height:1.4}
+.count{font-size:12px;color:var(--ink-2);font-variant-numeric:tabular-nums;font-weight:600}
+.segctl{display:flex;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--card)}
+.segctl input{position:absolute;width:1px;height:1px;opacity:0}
+.segctl label{flex:1;display:inline-flex;align-items:center;justify-content:center;height:30px;font-size:12px;
+  color:var(--ink-2);cursor:pointer;border-left:1px solid var(--border)}
+.segctl label:first-of-type{border-left:0}
+.segctl input:checked+label{background:var(--accent-1);color:var(--accent);font-weight:600}
+.segctl input:focus-visible+label{outline:2px solid var(--accent);outline-offset:-2px}
+.sw{display:flex;align-items:center;gap:9px;min-height:32px;cursor:pointer}
+.sw__t{width:34px;height:18px;border-radius:9px;background:var(--surf-4);position:relative;flex:none;transition:background .12s linear}
+.sw__t::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--card);transition:transform .12s linear}
+.sw input{position:absolute;opacity:0;width:1px;height:1px}
+.sw input:checked+.sw__t{background:var(--accent)}
+.sw input:checked+.sw__t::after{transform:translateX(16px)}
+.sw input:focus-visible+.sw__t{outline:2px solid var(--accent);outline-offset:2px}
+.sw__l{font-size:12px;color:var(--foreground);flex:1;min-width:0}
+.cbx{display:flex;align-items:center;gap:9px;min-height:32px;cursor:pointer;font-size:12px}
+.cbx input{appearance:none;width:16px;height:16px;border:1px solid var(--border);border-radius:3px;background:var(--card);flex:none;margin:0}
+.cbx input:checked{background:var(--accent);border-color:var(--accent);
+  box-shadow:inset 0 0 0 3px var(--card)}
+.cbx input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.assetrow{display:flex;align-items:center;gap:9px;padding:7px;border:1px solid var(--line-soft);border-radius:var(--r);background:var(--surf-2);min-width:0}
+.assetrow__th{width:56px;height:32px;border-radius:3px;overflow:hidden;position:relative;background:var(--stage);flex:none}
+.assetrow__n{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.assetrow__m{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.divider{height:1px;background:var(--line-soft);margin:2px 0}
+.kv{display:flex;align-items:baseline;gap:8px;font-size:12px}
+.kv dt{color:var(--ink-3);flex:none;font-size:12px}
+.kv dd{margin:0 auto 0 0;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.meterline{height:4px;border-radius:2px;background:var(--surf-4);overflow:hidden;position:relative;margin-top:2px}
+.meterline i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);width:var(--w)}
+.needbe{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 5px;border-radius:2px;
+  border:1px dashed var(--border);color:var(--ink-3);font-size:12px;font-weight:500;letter-spacing:0}
+.panel .foot{margin-top:auto;padding:10px 12px;border-top:1px solid var(--line-soft);display:grid;gap:8px;background:var(--surf-1)}
+
+/* ---------- timeline 280 ---------- */
+.tl{grid-area:time;display:grid;grid-template-rows:40px 22px minmax(0,1fr) 40px;background:var(--card);
+  border-top:1px solid var(--border);min-width:0;min-height:0}
+.tlhd{display:flex;align-items:center;gap:6px;padding:0 8px 0 10px;background:var(--surf-2);border-bottom:1px solid var(--border);min-width:0}
+.toolseg{display:flex;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--card);flex:none}
+.toolseg button{width:32px;height:32px;display:grid;place-items:center;border:0;background:transparent;color:var(--ink-2);cursor:pointer}
+.toolseg button+button{border-left:1px solid var(--border)}
+.toolseg button[aria-pressed="true"]{background:var(--accent-1);color:var(--accent)}
+.toolseg button:hover{background:var(--surf-3)}
+.tlhd .btn--sm{height:32px}
+.tlhd .vr{height:16px;margin:0 2px}
+.tlrule{display:grid;grid-template-columns:116px minmax(0,1fr);background:var(--surf-1);border-bottom:1px solid var(--border);min-width:0}
+.tlcorner{border-right:1px solid var(--border);display:flex;align-items:center;padding:0 8px;font-size:12px;color:var(--ink-2);
+  font-variant-numeric:tabular-nums;letter-spacing:.03em}
+.ruler{position:relative;overflow:hidden}
+.tick{position:absolute;top:0;bottom:0;width:1px;background:color-mix(in oklab,var(--border) 90%,transparent)}
+.tick--maj{background:color-mix(in oklab,var(--ink-3) 55%,transparent)}
+.tick b{position:absolute;left:4px;top:3px;font-size:12px;font-weight:500;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.inout{position:absolute;top:0;bottom:0;background:var(--accent-1);border-left:2px solid var(--accent);border-right:2px solid var(--accent)}
+.tlbody{display:grid;grid-template-columns:116px minmax(0,1fr);overflow:hidden;min-height:0}
+.tkcol{border-right:1px solid var(--border);display:grid;grid-template-rows:78px 54px 46px;background:var(--surf-1);min-width:0;overflow:hidden}
+.tkh{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);grid-template-rows:auto auto;gap:0 7px;
+  align-content:center;padding:0 6px 0 8px;border-bottom:1px solid var(--line-soft);min-width:0}
+.tkh__b{grid-column:1;grid-row:1/3;width:22px;height:22px;border-radius:3px;display:grid;place-items:center;align-self:center;
+  font-size:12px;font-weight:700;letter-spacing:.02em;background:var(--surf-3);color:var(--ink-2);border:1px solid var(--border)}
+.tkh__n{grid-column:2;grid-row:1;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;align-self:end}
+.tkh__m{grid-column:2;grid-row:2;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;align-self:start}
+.tkh__ic{position:absolute;right:3px;top:3px;display:flex;gap:2px;align-items:center;padding:1px 2px;
+  border-radius:3px;background:var(--surf-1);opacity:0;transition:opacity .1s linear}
+.tkh:hover .tkh__ic,.tkh:focus-within .tkh__ic{opacity:1}
+.tkh__ic .btn--icon{width:28px;height:28px;border-radius:3px}
+.tkh__ic .i{width:13px;height:13px}
+.tkh__ic .on{color:var(--accent)}
+.tracks{display:grid;grid-template-rows:78px 54px 46px;min-width:0;min-height:0}
+.lane{position:relative;overflow:hidden;border-bottom:1px solid var(--line-soft);min-width:0}
+.lane--v1{background:color-mix(in oklab,var(--foreground) 2.2%,var(--card))}
+.lane--a1{background:color-mix(in oklab,var(--foreground) 1.1%,var(--card))}
+.lane--t1{background:color-mix(in oklab,var(--foreground) 0.4%,var(--card))}
+.lane__empty{position:absolute;inset:6px 8px;border:1px dashed var(--border);border-radius:4px;display:flex;
+  align-items:center;justify-content:center;font-size:12px;color:var(--ink-3)}
+.clips{position:absolute;inset:0;display:flex}
+.clip{position:relative;height:100%;flex:none;border-radius:4px;overflow:hidden;background:var(--surf-2);
+  border:1px solid var(--border);display:flex;flex-direction:column;cursor:pointer;min-width:0}
+.clip:hover{border-color:var(--accent-2)}
+.clip__bar{display:flex;align-items:center;gap:6px;height:24px;padding:0 6px;flex:none;
+  background:var(--surf-3);border-bottom:1px solid var(--line-soft);min-width:0}
+.clip__n{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.clip__d{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;margin-left:auto;flex:none;
+.clip__strip{flex:1;display:flex;position:relative;overflow:hidden;background:var(--stage);min-height:0}
+.clip__strip i{flex:1;min-width:0;border-right:1px solid color-mix(in oklab,var(--stage) 60%,transparent);
+  background:radial-gradient(80% 120% at 30% 20%,color-mix(in oklab,var(--accent) 26%,transparent),transparent 60%),
+             radial-gradient(90% 90% at 80% 90%,color-mix(in oklab,var(--foreground) 18%,transparent),transparent 62%)}
+.clip__strip i:nth-child(2n){background:radial-gradient(80% 120% at 60% 30%,color-mix(in oklab,var(--foreground) 24%,transparent),transparent 62%),
+  radial-gradient(90% 90% at 20% 80%,color-mix(in oklab,var(--accent) 20%,transparent),transparent 60%)}
+.clip__strip i:nth-child(3n){background:radial-gradient(70% 100% at 45% 60%,color-mix(in oklab,var(--accent) 30%,transparent),transparent 58%),
+  linear-gradient(180deg,color-mix(in oklab,var(--foreground) 12%,transparent),transparent 70%)}
+.clip--sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.clip--sel .clip__bar{background:var(--accent-1);color:var(--accent)}
+.clip--sel .clip__d{color:var(--accent)}
+.clip--multi{border-color:var(--accent-2);background-color:var(--accent-1)}
+.clip--multi::after{content:"";position:absolute;inset:0;background:var(--accent-1);pointer-events:none}
+.clip--ghost{opacity:.45;border-style:dashed}
+.clip--missing{border-color:var(--foreground);border-style:dashed;background:repeating-linear-gradient(135deg,
+  color-mix(in oklab,var(--foreground) 10%,transparent) 0 6px,transparent 6px 12px)}
+.clip__flag{position:absolute;right:4px;bottom:5px;display:inline-flex;align-items:center;gap:3px;height:20px;padding:0 5px;
+  border-radius:2px;background:var(--foreground);color:var(--card);font-size:12px;font-weight:700;z-index:2}
+.trim{position:absolute;top:0;bottom:0;width:6px;background:var(--accent);opacity:.9}
+.trim--l{left:0;border-radius:3px 0 0 3px}
+.trim--r{right:0;border-radius:0 3px 3px 0}
+.aclip{position:absolute;top:6px;bottom:6px;border-radius:4px;border:1px solid var(--border);background:var(--surf-2);
+  overflow:hidden;display:flex;align-items:center}
+.aclip svg{position:absolute;inset:0;width:100%;height:100%;color:var(--accent);opacity:.5}
+.aclip__n{position:relative;z-index:1;font-size:12px;color:var(--foreground);padding:1px 6px;font-variant-numeric:tabular-nums;
+  background:color-mix(in oklab,var(--card) 76%,transparent);border-radius:3px;
+  text-shadow:0 1px 3px var(--card);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aclip--sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.aclip--sel svg{opacity:.85}
+.cclip{position:absolute;top:7px;bottom:7px;border-radius:4px;border:1px dashed var(--accent-2);background:var(--accent-1);
+  display:flex;align-items:center;gap:5px;padding:0 6px;overflow:hidden}
+.cclip__t{font-size:12px;color:var(--foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.cclip__tag{font-size:12px;color:var(--accent);border:1px solid var(--accent-2);border-radius:2px;padding:0 4px;flex:none;
+  line-height:16px;height:18px;display:inline-flex;align-items:center}
+.ph{position:absolute;top:0;bottom:0;width:1px;background:var(--accent);z-index:5;pointer-events:none}
+.ph::before{content:"";position:absolute;top:0;left:-5px;width:11px;height:9px;background:var(--accent);
+  clip-path:polygon(0 0,100% 0,50% 100%)}
+.ph--rule::before{top:2px}
+.tlft{display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--surf-2);border-top:1px solid var(--border);
+  font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;min-width:0}
+.tlft b{color:var(--ink-2);font-weight:600}
+.zoom{display:flex;align-items:center;gap:6px;margin-left:auto;flex:none}
+.zoom input[type=range]{width:96px;height:28px}
+.zoom__v{font-size:12px;color:var(--ink-2);width:40px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- overlays / modales ---------- */
+.ov{position:absolute;inset:0;display:none;place-items:center;z-index:20;background:var(--scrim);
+  backdrop-filter:blur(1.5px);padding:24px}
+:root[data-state="export"] .ov--export,
+:root[data-state="conflict"] .ov--conflict,
+:root[data-state="relink"] .ov--relink,
+:root[data-state="projects"] .ov--projects,
+:root[data-state="settings"] .ov--settings,
+:root[data-state="help"] .ov--help{display:grid}
+.modal{width:var(--mw,560px);max-height:100%;background:var(--surf-1);border:1px solid var(--border);
+  border-radius:var(--rlg);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
+.modal--wide{--mw:760px}
+.modal__hd{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line-soft);flex:none;background:var(--surf-2)}
+.modal__t{font-size:15px;font-weight:650;letter-spacing:.005em}
+.modal__s{font-size:12px;color:var(--ink-3);margin-top:1px}
+.modal__b{padding:16px;display:grid;gap:14px;overflow:auto;min-height:0;font-size:13px}
+.modal__ft{display:flex;align-items:center;gap:8px;padding:12px 16px;border-top:1px solid var(--line-soft);background:var(--surf-2);flex:none}
+.modal__ft .sp{flex:1}
+.x{margin-left:auto}
+.notice{display:flex;gap:10px;padding:11px 12px;border-radius:var(--r);border:1px solid var(--border);
+  background:var(--surf-2);font-size:12px;line-height:1.45;color:var(--ink-2)}
+.notice--inv{background:var(--foreground);color:var(--card);border-color:transparent}
+.notice--inv b{color:var(--card)}
+.notice--accent{border-color:var(--accent-2);background:var(--accent-1)}
+.notice b{color:var(--foreground);font-weight:650}
+.notice__i{flex:none;margin-top:1px}
+.pbar{position:relative;height:6px;border-radius:3px;background:var(--surf-4);overflow:hidden}
+.pbar i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:3px;transition:width .2s linear}
+.steps{display:grid;gap:0}
+.step{display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line-soft);font-size:13px}
+.step:last-child{border-bottom:0}
+.step__d{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);display:grid;place-items:center;
+  font-size:12px;color:var(--ink-3);flex:none}
+.step--done .step__d{background:var(--accent);border-color:var(--accent);color:var(--card)}
+.step--now .step__d{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 3px var(--accent-1)}
+.step__l{color:var(--ink-2)}
+.step--now .step__l{color:var(--foreground);font-weight:600}
+.step--done .step__l{color:var(--foreground)}
+.step__m{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.big{font-size:22px;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.tlist{display:grid;gap:0;border:1px solid var(--line-soft);border-radius:var(--r);overflow:hidden}
+.trow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:9px 11px;
+  border-bottom:1px solid var(--line-soft);font-size:13px;background:var(--surf-2)}
+.trow:last-child{border-bottom:0}
+.trow--on{background:var(--accent-1)}
+.trow__t{font-weight:600;display:flex;align-items:center;gap:7px;min-width:0}
+.trow__m{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.kbd{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 5px;
+  border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;background:var(--surf-2);
+  font-size:12px;font-weight:600;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.kbds{display:flex;gap:4px;align-items:center;flex:none}
+.kbds span{font-size:12px;color:var(--ink-3)}
+table.tt{width:100%;border-collapse:collapse;font-size:12px}
+table.tt th{text-align:left;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);
+  font-weight:650;padding:0 8px 7px;border-bottom:1px solid var(--border)}
+table.tt td{padding:7px 8px;border-bottom:1px solid var(--line-soft);color:var(--ink-2);vertical-align:top}
+table.tt td:first-child{color:var(--foreground);font-weight:500;white-space:nowrap}
+table.tt tr:last-child td{border-bottom:0}
+
+/* ---------- estados vacíos / avisos dentro del pane ---------- */
+.es{display:grid;place-items:center;gap:0;padding:24px;text-align:center;min-height:0}
+.es__in{display:grid;justify-items:center;gap:10px;max-width:420px}
+.es__ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--surf-2);
+  border:1px solid var(--border);color:var(--ink-3)}
+.es__t{font-size:15px;font-weight:650}
+.es__d{font-size:12px;color:var(--ink-2);line-height:1.5;max-width:380px}
+.es__a{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:2px}
+.steps3{display:grid;gap:8px;width:100%;max-width:380px;text-align:left;margin-top:4px}
+.step3{display:grid;grid-template-columns:22px 1fr;gap:9px;align-items:start;font-size:12px;color:var(--ink-2);line-height:1.4}
+.step3 b{display:block;color:var(--foreground);font-size:12px;font-weight:600}
+.step3 span{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--border);
+  font-size:11px;color:var(--ink-3);font-weight:600;margin-top:1px}
+.banner{display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:12px;line-height:1.4;
+  border-bottom:1px solid var(--border);background:var(--surf-2);flex:none;min-width:0}
+.banner--inv{background:var(--foreground);color:var(--card);border-color:transparent}
+.banner--inv b{color:var(--card)}
+.banner--inv .btn{color:var(--card);border-color:color-mix(in oklab,var(--card) 35%,transparent)}
+.banner--inv .btn:hover{background:color-mix(in oklab,var(--card) 14%,transparent)}
+.banner b{font-weight:650}
+.banner .sp{flex:1}
+.skel{border-radius:4px;background:linear-gradient(90deg,var(--surf-2),var(--surf-3),var(--surf-2));
+  background-size:200% 100%;animation:sh 1.6s linear infinite}
+@keyframes sh{0%{background-position:0 0}100%{background-position:-200% 0}}
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(var(--tl) + 16px);z-index:15;
+  display:flex;align-items:center;gap:10px;height:42px;padding:0 8px 0 14px;border-radius:6px;
+  background:var(--foreground);color:var(--card);font-size:12px;box-shadow:var(--shadow);white-space:nowrap}
+.toast b{font-weight:650}
+.toast .btn{color:var(--card);height:28px}
+.toast .btn:hover{background:color-mix(in oklab,var(--card) 14%,transparent)}
+
+/* ---------- pane «editor cerrado» ---------- */
+.pane--closed{grid-template-columns:256px minmax(0,1fr);grid-template-rows:40px minmax(0,1fr);
+  grid-template-areas:"top top" "side main"}
+.apptl{grid-area:top;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;background:var(--surf-2);
+  border-bottom:1px solid var(--border);min-width:0}
+.apptl__tabs{display:flex;gap:2px;margin-left:6px;min-width:0}
+.apptl__tab{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:4px;font-size:12px;color:var(--ink-2)}
+.apptl__tab--on{background:var(--surf-3);color:var(--foreground);font-weight:600}
+.side{grid-area:side;background:var(--surf-1);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:0;padding:10px;min-width:0}
+.main{grid-area:main;background:var(--card);display:grid;grid-template-rows:minmax(0,1fr) auto;min-width:0;padding:18px 22px}
+.chat{display:grid;gap:12px;align-content:start;max-width:720px}
+.bub{display:grid;gap:6px;padding:10px 12px;border-radius:8px;background:var(--surf-1);border:1px solid var(--line-soft);font-size:13px}
+.bub--me{margin-left:auto;background:var(--accent-1);border-color:var(--accent-2);max-width:70%}
+.bub__m{font-size:11px;color:var(--ink-3)}
+.composer{display:flex;align-items:center;gap:8px;margin-top:14px;padding:8px;border:1px solid var(--border);
+  border-radius:8px;background:var(--surf-1);max-width:720px}
+.tip{position:absolute;top:34px;right:12px;z-index:30;display:grid;gap:2px;padding:8px 10px;border-radius:6px;
+  background:var(--foreground);color:var(--card);font-size:11px;box-shadow:var(--shadow);white-space:nowrap}
+.tip b{font-size:12px;font-weight:650}
+.tip::before{content:"";position:absolute;top:-5px;right:22px;width:9px;height:9px;background:var(--foreground);transform:rotate(45deg)}
+.callout{position:absolute;left:50%;transform:translateX(-50%);bottom:24px;max-width:620px;padding:12px 14px;
+  border-radius:6px;border:1px dashed var(--accent-2);background:var(--accent-1);font-size:12px;line-height:1.5;color:var(--ink-2)}
+.callout b{color:var(--accent)}
+
+/* ---------- medio faltante (needsRelink) ---------- */
+.miss{display:none}
+.relinkbar{display:none;position:absolute;left:0;right:0;top:36px;z-index:9}
+:root[data-state="relink"] .relinkbar{display:flex}
+:root[data-state="relink"] .js-esc2{border-style:dashed;border-color:var(--foreground);
+  background:repeating-linear-gradient(135deg,color-mix(in oklab,var(--foreground) 9%,transparent) 0 7px,transparent 7px 14px)}
+:root[data-state="relink"] .js-esc2 .clip__strip{opacity:.3}
+:root[data-state="relink"] .js-esc2 .trim{display:none}
+:root[data-state="relink"] .js-esc2 .miss{display:inline-flex}
+
+/* ---------- responsive: 1024×700 mínimo soportado ---------- */
+@media (max-width:1180px){
+  .pane{grid-template-columns:180px minmax(0,1fr) 264px}
+  .hide-md{display:none!important}
+  .mgrid{grid-template-columns:1fr 1fr}
+  .tabs label{font-size:12px}
+  .tlhd .hide-sm{display:none}
+  .clip__strip i:nth-child(n+5){display:none}
+}
+@media (max-height:800px){
+  .pane{--tl:220px}
+  .tkcol{grid-template-rows:60px 36px 32px}
+  .tkh__m{display:none}
+  .clip__bar{height:20px}
+}
+@media (max-height:740px){
+  .pane{--tl:190px}
+  .tkcol{grid-template-rows:52px 30px 26px}
+  .transport{height:48px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+/* ---------- modo captura: 0,0 sin chrome ---------- */
+body.cap{overflow:hidden}
+body.cap .doc{padding:0;gap:0}
+body.cap .doc__bar,body.cap .doc__notes{display:none}
+body.cap .pane{border:0;box-shadow:none}
+
+/* ---------- botones/etiquetas que dependen del estado ---------- */
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9h4M17 9h4M3 15h4M17 15h4"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5l12 7.5-12 7.5z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><rect x="7" y="5" width="3.5" height="14" rx="1" fill="currentColor" stroke="none"/><rect x="13.5" y="5" width="3.5" height="14" rx="1" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-prev" viewBox="0 0 24 24"><path d="M18 5v14L8 12zM6 5v14"/></symbol>
+<symbol id="i-next" viewBox="0 0 24 24"><path d="M6 5v14l10-7zM18 5v14"/></symbol>
+<symbol id="i-split" viewBox="0 0 24 24"><path d="M12 3v18M7 8h10M7 16h10"/></symbol>
+<symbol id="i-cursor" viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.4L10 19z"/></symbol>
+<symbol id="i-razor" viewBox="0 0 24 24"><path d="M4 20L20 4M4 4l16 16"/><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/></symbol>
+<symbol id="i-magnet" viewBox="0 0 24 24"><path d="M6 4v8a6 6 0 0012 0V4h-4v8a2 2 0 01-4 0V4z"/></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5M4 9h9a6 6 0 010 12H8"/></symbol>
+<symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5M20 9h-9a6 6 0 000 12h5"/></symbol>
+<symbol id="i-save" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5zM8 4v6h7V4M8 20v-6h8v6"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M15.5 15.5L20 20"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7a2 2 0 002 2h3"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6.5 5.5 12 5.5 21.5 12 21.5 12 17.5 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.6"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8.5 10V7.5a3.5 3.5 0 017 0V10"/></symbol>
+<symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/><path d="M15.5 9a4 4 0 010 6M18 6.5a7.5 7.5 0 010 11"/></symbol>
+<symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/><path d="M16 10l4 4M20 10l-4 4"/></symbol>
+<symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13.5a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1.5 1.5"/><path d="M14 10.5a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1.5-1.5"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.4v.1"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5L20 6.5"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5h6l2 2.5h10v9.5H3z"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.2M12 18.3v2.2M4.9 7.8l1.9 1.1M17.2 15.1l1.9 1.1M4.9 16.2l1.9-1.1M17.2 8.9l1.9-1.1"/></symbol>
+<symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.4a2.5 2.5 0 114 2.1c-.8.6-1.6 1-1.6 2.1M12 16.6v.1"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5.5h16v11H9l-5 4z"/></symbol>
+<symbol id="i-expand" viewBox="0 0 24 24"><path d="M9 4H4v5M15 4h5v5M15 20h5v-5M9 20H4v-5"/></symbol>
+<symbol id="i-caps" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M6 15h4M13 15h5M6 9h12"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></symbol>
+<symbol id="i-retry" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1113.7 5.6M20 20v-5h-5"/></symbol>
+<symbol id="i-music" viewBox="0 0 24 24"><path d="M9 17V6l10-2v10"/><circle cx="7" cy="17.5" r="2.2"/><circle cx="17" cy="14.5" r="2.2"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v10M8 10.5l4 4 4-4M4.5 19.5h15"/></symbol>
+<symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-8.5 8.5M18 14v5.5H4.5V5H10"/></symbol>
+<symbol id="i-scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4"/><circle cx="6" cy="18" r="2.4"/><path d="M8.2 7.4L20 18M8.2 16.6L20 6"/></symbol>
+<symbol id="i-zoomfit" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><rect x="9" y="9" width="6" height="6" rx="1"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15M14 7l5 5-5 5"/></symbol>
+<symbol id="i-plusbox" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M12 8.5v7M8.5 12h7"/></symbol>
+</defs></svg>
+
+<main class="doc">
+  <header class="doc__bar">
+    <div>
+      <div class="doc__t">Editor de vídeo · maqueta v3 · NLE profesional</div>
+      <div class="doc__s">1440 × 900 · tipografía base 13 px · mínimo 11 px · assets de 32 px · 11 estados · claro y oscuro</div>
+    </div>
+    <span class="doc__sp"></span>
+    <div class="seg" role="group" aria-label="Estado de la maqueta">
+      <input type="radio" name="estado" id="st-edit" checked><label for="st-edit">Edición</label>
+      <input type="radio" name="estado" id="st-empty"><label for="st-empty">Sin proyecto</label>
+      <input type="radio" name="estado" id="st-import"><label for="st-import">Importando</label>
+      <input type="radio" name="estado" id="st-export"><label for="st-export">Exportando</label>
+      <input type="radio" name="estado" id="st-conflict"><label for="st-conflict">Conflicto 409</label>
+      <input type="radio" name="estado" id="st-relink"><label for="st-relink">Sin fuente</label>
+      <input type="radio" name="estado" id="st-down"><label for="st-down">Servicio caído</label>
+      <input type="radio" name="estado" id="st-projects"><label for="st-projects">Proyectos</label>
+      <input type="radio" name="estado" id="st-settings"><label for="st-settings">Ajustes</label>
+      <input type="radio" name="estado" id="st-help"><label for="st-help">Ayuda</label>
+      <input type="radio" name="estado" id="st-closed"><label for="st-closed">Editor cerrado</label>
+    </div>
+    <div class="seg" role="group" aria-label="Tema">
+      <button class="btn btn--sm" type="button" data-theme-btn="dark">Oscuro</button>
+      <button class="btn btn--sm" type="button" data-theme-btn="light">Claro</button>
+    </div>
+  </header>
+
+  <div class="panes">
+    <!-- ==================== PANE · EDICIÓN (héroe) ==================== -->
+    <section class="pane pane--edit" aria-label="Editor de vídeo">
+      <header class="topbar">
+        <span class="brand"><span class="plate"><svg class="i i--14"><use href="#i-film"/></svg></span>Editor de vídeo</span>
+        <span class="vr"></span>
+        <button class="chipbtn" type="button" title="Cambiar de proyecto (Ctrl+O)">
+          <svg class="i i--14"><use href="#i-folder"/></svg>
+          <span class="chipbtn__n">Lanzamiento Q4</span>
+          <svg class="i i--14" style="color:var(--ink-3)"><use href="#i-chev"/></svg>
+        </button>
+        <span class="chip chip--a">Rev 7</span>
+        <span class="save hide-md"><span class="dot dot--ring"></span>Guardado hace 12 s</span>
+        <span class="doc__sp"></span>
+        <button class="btn btn--icon" type="button" aria-label="Deshacer (Ctrl+Z)" title="Deshacer · Ctrl+Z"><svg class="i"><use href="#i-undo"/></svg></button>
+        <button class="btn btn--icon" type="button" aria-label="Rehacer (Ctrl+Y)" title="Rehacer · Ctrl+Y" disabled><svg class="i"><use href="#i-redo"/></svg></button>
+        <span class="vr"></span>
+        <button class="btn btn--primary" type="button"><svg class="i i--14"><use href="#i-save"/></svg>Guardar</button>
+        <button class="btn btn--icon" type="button" aria-label="Más acciones"><svg class="i"><use href="#i-more"/></svg></button>
+        <button class="btn btn--icon" type="button" aria-label="Cerrar el editor y volver al chat" title="Cerrar el editor · vuelve al chat"><svg class="i"><use href="#i-x"/></svg></button>
+      </header>
+
+      <!-- ---------- biblioteca 220 ---------- -->
+      <aside class="lib" aria-label="Biblioteca de medios">
+        <div class="panelhd">
+          <span class="panelhd__t">Medios <span class="panelhd__n">6</span></span>
+          <span class="doc__sp" style="flex:1"></span>
+          <button class="btn btn--icon" type="button" aria-label="Abrir proyectos" title="Proyectos (Ctrl+O)"><svg class="i i--14"><use href="#i-layers"/></svg></button>
+          <button class="btn btn--icon" type="button" aria-label="Importar medios" title="Importar medios"><svg class="i i--14"><use href="#i-plus"/></svg></button>
+        </div>
+        <label class="search">
+          <svg class="i i--14"><use href="#i-search"/></svg>
+          <input type="search" placeholder="Buscar medio o hash…" aria-label="Buscar en la biblioteca">
+          <span class="chip" style="height:20px;font-size:11px;padding:0 5px">/</span>
+        </label>
+        <div class="filters" role="group" aria-label="Filtrar por tipo">
+          <span class="chip chip--a">Todos <b>6</b></span>
+          <span class="chip">Vídeo <b>3</b></span>
+          <span class="chip">Audio <b>1</b></span>
+          <span class="chip">Imagen <b>2</b></span>
+        </div>
+        <div class="drop" title="Arrastrar está desactivado en esta versión: se importa con el botón +">
+          <svg class="i i--18" style="color:var(--ink-3)"><use href="#i-download"/></svg>
+          <span>
+            <span class="drop__t">Importar medios</span>
+            <span class="drop__s">MP4, MOV, PNG, JPG, MP3, WAV · arrastrar está desactivado</span>
+          </span>
+        </div>
+        <div class="mgrid">
+          <button class="asset" type="button" title="clipA.mp4 · 00:00:12:12 · sha256 4f9c…">
+            <span class="asset__th"><span class="phb">sin fotograma</span><span class="art"></span><span class="asset__tag">00:00:12:12</span></span>
+            <span class="asset__n">clipA.mp4</span>
+            <span class="asset__m">1920×1080</span>
+          </button>
+          <button class="asset asset--sel" type="button" aria-pressed="true" title="clipB.mp4 · 00:00:08:03 · en la escena 02">
+            <span class="asset__th"><span class="phb">sin fotograma</span><span class="art art--b"></span><span class="asset__tag">00:00:08:03</span></span>
+            <span class="asset__n">clipB.mp4</span>
+            <span class="asset__m">1920×1080</span>
+          </button>
+          <button class="asset" type="button" title="producto.png · 2400×1350">
+            <span class="asset__th"><span class="phb">sin fotograma</span><span class="art art--c"></span><span class="asset__tag">PNG</span></span>
+            <span class="asset__n">producto.png</span>
+            <span class="asset__m">2400×1350</span>
+          </button>
+          <button class="asset" type="button" title="entrevista.mp3 · 00:00:06:06">
+            <span class="asset__th"><span class="phb">sin fotograma</span><span class="art art--d"></span><span class="asset__tag">00:00:06:06</span></span>
+            <span class="asset__n">entrevista.mp3</span>
+            <span class="asset__m">48 kHz</span>
+          </button>
+          <button class="asset" type="button" title="cierre.mp4 · 00:00:03:00">
+            <span class="asset__th"><span class="phb">sin fotograma</span><span class="art"></span><span class="asset__tag">00:00:03:00</span></span>
+            <span class="asset__n">cierre.mp4</span>
+            <span class="asset__m">1920×1080</span>
+          </button>
+          <button class="asset" type="button" title="logo.svg · 512×512">
+            <span class="asset__th"><span class="phb">sin fotograma</span><span class="art art--c"></span><span class="asset__tag">SVG</span></span>
+            <span class="asset__n">logo.svg</span>
+            <span class="asset__m">512×512</span>
+          </button>
+        </div>
+        <div class="libnote">Miniaturas de ejemplo · el panel aún no pide <span class="mono">/thumbnails</span></div>
+        <div class="libft"><span>6 medios · 41,8 MB</span><span class="doc__sp" style="flex:1"></span><span>media/</span></div>
+      </aside>
+
+      <!-- ---------- visor ---------- -->
+      <section class="view" aria-label="Visor">
+        <div class="viewhd">
+          <span class="viewhd__t">02 · Producto en mano</span>
+          <span class="chip">Vista previa</span>
+          <span class="chip hide-md">1280×720 · 30 fps</span>
+          <span class="doc__sp"></span>
+          <button class="btn btn--icon" type="button" aria-pressed="true" aria-label="Guías de márgenes seguros: activadas" title="Márgenes seguros"><svg class="i i--14"><use href="#i-grid"/></svg></button>
+          <button class="btn btn--icon" type="button" aria-label="Pantalla completa" title="Pantalla completa"><svg class="i i--14"><use href="#i-expand"/></svg></button>
+        </div>
+        <div class="banner banner--inv relinkbar">
+          <svg class="i"><use href="#i-link"/></svg>
+          <span><b>Falta el archivo de la escena 02</b> · el proyecto sigue completo; solo se perdió la ruta a clipB.mp4</span>
+          <span class="sp"></span>
+          <button class="btn btn--sm" type="button"><svg class="i i--14"><use href="#i-link"/></svg>Volver a vincular</button>
+        </div>
+        <div class="stage">
+          <div class="frame">
+            <span class="art art--b"></span>
+            <span class="safe safe--t"></span>
+            <span class="safe safe--a"></span>
+            <span class="safe safe--cross"></span>
+            <span class="frame__tag"><svg class="i i--14"><use href="#i-film"/></svg>clipB.mp4 · escena 02 · fotograma de ejemplo</span>
+            <span class="frame__tc">00:00:03:12</span>
+            <span class="cap-over">Edita por escenas y exporta en 720p.</span>
+          </div>
+        </div>
+        <div class="transport">
+          <button class="btn btn--icon" type="button" aria-label="Escena anterior" title="Escena anterior"><svg class="i"><use href="#i-prev"/></svg></button>
+          <button class="btn btn--icon btn--primary" type="button" aria-label="Reproducir" title="Reproducir · Espacio"><svg class="i"><use href="#i-play"/></svg></button>
+          <button class="btn btn--icon" type="button" aria-label="Escena siguiente" title="Escena siguiente"><svg class="i"><use href="#i-next"/></svg></button>
+          <button class="btn btn--icon" type="button" aria-label="Partir en el cursor" title="Partir · S"><svg class="i"><use href="#i-split"/></svg></button>
+          <span class="tc">00:00:03:12<small>/ 00:00:16:06</small></span>
+          <div class="scrub">
+            <input type="range" min="0" max="16.2" step="0.0333" value="3.4" style="--fill:21%"
+                   aria-label="Posición de reproducción" aria-valuetext="00:00:03:12 de 00:00:16:06">
+          </div>
+          <button class="btn btn--icon" type="button" aria-label="Silenciar" title="Silenciar"><svg class="i i--14"><use href="#i-vol"/></svg></button>
+          <div class="meters" aria-hidden="true" title="Medidores L/R">
+            <span class="meter"><i style="--lv:62%"></i></span>
+            <span class="meter"><i style="--lv:54%"></i></span>
+            <span class="meterlab"><span>L</span><span>R</span></span>
+          </div>
+        </div>
+      </section>
+      <!-- ---------- inspector 300 ---------- -->
+      <aside class="insp" aria-label="Inspector">
+        <div class="tabs" role="tablist" aria-label="Paneles del inspector">
+          <input type="radio" name="insp" id="tb-esc" checked><label for="tb-esc" role="tab">Escena</label>
+          <input type="radio" name="insp" id="tb-txt"><label for="tb-txt" role="tab">Texto</label>
+          <input type="radio" name="insp" id="tb-aud"><label for="tb-aud" role="tab">Audio</label>
+          <input type="radio" name="insp" id="tb-exp"><label for="tb-exp" role="tab">Export</label>
+        </div>
+
+        <div class="panels">
+          <div class="panel panel--esc" role="tabpanel" aria-labelledby="t-esc">
+            <div class="grp">
+              <div class="assetrow">
+                <span class="assetrow__th"><span class="art art--b"></span></span>
+                <span style="min-width:0;display:grid;gap:2px">
+                  <span class="assetrow__n">clipB.mp4</span>
+                  <span class="assetrow__m">1920×1080 · 30 fps · 24,6 MB</span>
+                  <span class="assetrow__m">sha256 7b3c…e91a</span>
+                </span>
+              </div>
+              <div class="row">
+                <button class="btn btn--sm btn--outline" type="button">Reemplazar</button>
+                <button class="btn btn--sm btn--ghost" type="button"><svg class="i i--14"><use href="#i-folder"/></svg>Abrir carpeta</button>
+              </div>
+            </div>
+
+            <div class="grp">
+              <div class="grp__t">Tiempo en la secuencia <span class="count">00:00:05:18</span></div>
+              <div class="row2">
+                <label class="field"><span>Entrada</span><input class="inp mono" value="00:00:03:06" aria-label="Entrada de la escena"></label>
+                <label class="field"><span>Salida</span><input class="inp mono" value="00:00:08:24" aria-label="Salida de la escena"></label>
+              </div>
+              <div class="meterline"><i style="--w:35%"></i></div>
+              <div class="hint">Ocupa el 35 % de la secuencia · total 00:00:16:06</div>
+              <div class="row">
+                <button class="btn btn--sm btn--outline" type="button"><svg class="i i--14"><use href="#i-split"/></svg>Partir aquí</button>
+                <button class="btn btn--sm btn--ghost" type="button">Restablecer</button>
+              </div>
+            </div>
+
+            <div class="grp">
+              <label class="field"><span>Transición de entrada</span>
+                <select class="inp" aria-label="Transición de entrada">
+                  <option>Fundido · 00:00:00:09</option>
+                  <option>Deslizar · 00:00:00:12</option>
+                  <option>Sin transición</option>
+                </select>
+              </label>
+              <div class="hint">Se dibuja en el corte con la escena 01 y se marca en la línea de tiempo.</div>
+            </div>
+
+            <div class="grp">
+              <div class="grp__t">Encuadre</div>
+              <div class="segctl" role="group" aria-label="Orientación">
+                <input type="radio" name="ori" id="ori-h" checked><label for="ori-h">16:9</label>
+                <input type="radio" name="ori" id="ori-v"><label for="ori-v">9:16</label>
+              </div>
+              <div class="hint">Vertical recorta los bordes laterales; no cambia el archivo original.</div>
+            </div>
+
+            <div class="grp">
+              <div class="grp__t">Orden</div>
+              <div class="row">
+                <button class="btn btn--sm btn--outline" type="button">Subir</button>
+                <button class="btn btn--sm btn--outline" type="button">Bajar</button>
+                <span style="flex:1"></span>
+                <button class="btn btn--sm btn--ghost" type="button"><svg class="i i--14"><use href="#i-trash"/></svg>Quitar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel panel--txt" role="tabpanel" aria-labelledby="t-txt">
+            <div class="grp">
+              <div class="grp__t">Texto en pantalla <span class="count">38 / 500</span></div>
+              <textarea class="inp" aria-label="Texto de la escena">Edita por escenas y exporta en 720p.</textarea>
+              <div class="hint">Se muestra de 00:00:00:00 a 00:00:03:00 dentro de la escena.</div>
+            </div>
+            <div class="grp">
+              <div class="grp__t">Aparición</div>
+              <div class="row2">
+                <label class="field"><span>Desde</span><input class="inp mono" value="00:00:00:00"></label>
+                <label class="field"><span>Hasta</span><input class="inp mono" value="00:00:03:00"></label>
+              </div>
+              <div class="hint">Relativo al inicio de la escena. Máximo 50 textos por escena.</div>
+            </div>
+            <div class="grp">
+              <div class="grp__t">Posición</div>
+              <div class="segctl" role="group" aria-label="Posición del texto">
+                <input type="radio" name="pos" id="pos-t"><label for="pos-t">Arriba</label>
+                <input type="radio" name="pos" id="pos-c"><label for="pos-c">Centro</label>
+                <input type="radio" name="pos" id="pos-b" checked><label for="pos-b">Abajo</label>
+              </div>
+              <div class="hint">Tres posiciones del motor. Se refleja en el visor al instante.</div>
+            </div>
+            <div class="grp">
+              <div class="grp__t">Estilo <span class="needbe" title="Requiere cambio de esquema en el backend">requiere backend</span></div>
+              <div class="row2">
+                <label class="field"><span>Tamaño</span><input class="inp inp--ro" value="100 %" disabled aria-disabled="true"></label>
+                <label class="field"><span>Tipografía</span><input class="inp inp--ro" value="Motor" disabled aria-disabled="true"></label>
+              </div>
+              <label class="sw"><input type="checkbox" checked><span class="sw__t"></span><span class="sw__l">Mostrar márgenes seguros</span></label>
+              <div class="hint">La posición y los tiempos ya viajan en `scene.text[]`. Tamaño y familia no existen en el esquema: se diseñan aquí y quedan bloqueados hasta que el modelo los acepte.</div>
+            </div>
+          </div>
+
+          <div class="panel panel--aud" role="tabpanel" aria-labelledby="t-aud">
+            <div class="grp">
+              <div class="grp__t">Fuente</div>
+              <div class="assetrow">
+                <span class="assetrow__th"><span class="art art--d"></span></span>
+                <span style="min-width:0;display:grid;gap:2px">
+                  <span class="assetrow__n">Audio del clip</span>
+                  <span class="assetrow__m">AAC · 48 kHz · estéreo</span>
+                </span>
+              </div>
+            </div>
+            <div class="grp">
+              <div class="grp__t">Escena <span class="count">80 %</span></div>
+              <div class="row">
+                <svg class="i i--14" style="color:var(--ink-3)"><use href="#i-vol"/></svg>
+                <input type="range" min="0" max="100" value="80" style="--fill:80%" aria-label="Volumen de la escena" aria-valuetext="80 %">
+                <button class="btn btn--icon" type="button" aria-pressed="false" aria-label="Silenciar escena"><svg class="i i--14"><use href="#i-mute"/></svg></button>
+              </div>
+              <div class="row2">
+                <label class="field"><span>Fundido de entrada</span><input class="inp mono" value="00:00:00:00"></label>
+                <label class="field"><span>Fundido de salida</span><input class="inp mono" value="00:00:00:09"></label>
+              </div>
+            </div>
+            <div class="grp">
+              <div class="grp__t">Proyecto <span class="count">80 %</span></div>
+              <input type="range" min="0" max="100" value="80" style="--fill:80%" aria-label="Volumen maestro" aria-valuetext="80 %">
+              <div class="hint">El volumen maestro se guarda en `project.audio.masterVolume`. Los medidores L/R del visor leen el elemento de vídeo; no piden nada al servicio.</div>
+            </div>
+          </div>
+
+          <div class="panel panel--exp" role="tabpanel" aria-labelledby="t-exp">
+            <div class="grp">
+              <div class="grp__t">Ajustes de salida</div>
+              <label class="field"><span>Preajuste</span>
+                <select class="inp" aria-label="Preajuste de exportación" disabled>
+                  <option>MP4 · H.264 + AAC · 720p30</option>
+                </select>
+              </label>
+              <dl style="display:grid;gap:5px;margin:0">
+                <div class="kv"><dt>Duración</dt><dd>00:00:16:06</dd></div>
+                <div class="kv"><dt>Estimado</dt><dd>~8,3 MB</dd></div>
+                <div class="kv"><dt>Motor</dt><dd>ffmpeg-9.0.1</dd></div>
+              </dl>
+              <div class="hint">Único preajuste del MVP. 4K, H.265 y GIF no están soportados.</div>
+            </div>
+            <div class="grp">
+              <label class="sw"><input type="checkbox" checked><span class="sw__t"></span><span class="sw__l">Incluir subtítulos (T1)</span></label>
+              <label class="cbx"><input type="checkbox" checked> Abrir el MP4 al terminar</label>
+            </div>
+            <div class="grp">
+              <div class="grp__t">Última exportación</div>
+              <div class="trow" style="border:1px solid var(--line-soft);border-radius:4px">
+                <span class="trow__t"><svg class="i i--14" style="color:var(--accent)"><use href="#i-check"/></svg>lanzamiento-q4.mp4</span>
+                <span class="trow__m">hace 6 min · 8,31 MB</span>
+              </div>
+              <div class="row">
+                <button class="btn btn--sm btn--outline" type="button"><svg class="i i--14"><use href="#i-folder"/></svg>Abrir carpeta</button>
+                <button class="btn btn--sm btn--ghost" type="button"><svg class="i i--14"><use href="#i-chat"/></svg>Insertar en chat</button>
+              </div>
+            </div>
+            <div class="foot">
+              <button class="btn btn--primary" type="button" style="height:36px"><svg class="i i--14"><use href="#i-download"/></svg>Exportar 720p · 30</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ---------- timeline 280 ---------- -->
+      <section class="tl" aria-label="Línea de tiempo">
+        <div class="tlhd">
+          <div class="toolseg" role="group" aria-label="Herramienta">
+            <button type="button" aria-pressed="true" aria-label="Selección" title="Selección · V"><svg class="i i--14"><use href="#i-cursor"/></svg></button>
+            <button type="button" aria-pressed="false" aria-label="Cuchilla" title="Cuchilla · C"><svg class="i i--14"><use href="#i-razor"/></svg></button>
+          </div>
+          <button class="btn btn--sm btn--icon" type="button" aria-pressed="true" aria-label="Imán (snap) activado" title="Snap · N"><svg class="i i--14"><use href="#i-magnet"/></svg></button>
+          <span class="vr"></span>
+          <span class="chip"><svg class="i" style="width:12px;height:12px"><use href="#i-arrow"/></svg>In 00:00:01:04</span>
+          <span class="chip">Out 00:00:14:02</span>
+          <button class="btn btn--sm btn--icon" type="button" aria-label="Borrar marcas" title="Borrar marcas"><svg class="i i--14"><use href="#i-x"/></svg></button>
+          <span class="vr hide-sm"></span>
+          <button class="btn btn--sm btn--ghost hide-sm" type="button"><svg class="i i--14"><use href="#i-scissors"/></svg>Partir · S</button>
+          <span style="flex:1"></span>
+          <span class="chip chip--a hide-md">2 clips seleccionados</span>
+          <button class="btn btn--sm btn--icon" type="button" aria-label="Duplicar selección" title="Duplicar · Ctrl+D"><svg class="i i--14"><use href="#i-copy"/></svg></button>
+          <button class="btn btn--sm btn--icon" type="button" aria-label="Borrar selección" title="Borrar · Supr"><svg class="i i--14"><use href="#i-trash"/></svg></button>
+        </div>
+
+        <div class="tlrule">
+          <div class="tlcorner">00:00:16:06</div>
+          <div class="ruler">
+            <i class="tick tick--maj" style="left:0px"><b>00:00:00:00</b></i><i class="tick" style="left:124px"></i><i class="tick tick--maj" style="left:248px"><b>00:00:04:00</b></i><i class="tick" style="left:372px"></i><i class="tick tick--maj" style="left:496px"><b>00:00:08:00</b></i><i class="tick" style="left:620px"></i><i class="tick tick--maj" style="left:744px"><b>00:00:12:00</b></i><i class="tick" style="left:868px"></i><i class="tick tick--maj" style="left:992px"><b>00:00:16:00</b></i>
+            <span class="inout" style="left:70px;width:802px"></span>
+            <span class="ph ph--rule" style="left:211px"></span>
+          </div>
+        </div>
+
+        <div class="tlbody">
+          <div class="tkcol">
+            <div class="tkh">
+              <span class="tkh__b">V1</span>
+              <span class="tkh__n">Escenas</span>
+              <span class="tkh__m">4 clips</span>
+              <span class="tkh__ic">
+                <button class="btn btn--icon" type="button" aria-pressed="true" aria-label="Ver pista V1"><svg class="i on"><use href="#i-eye"/></svg></button>
+                <button class="btn btn--icon" type="button" aria-pressed="false" aria-label="Bloquear pista V1"><svg class="i"><use href="#i-lock"/></svg></button>
+              </span>
+            </div>
+            <div class="tkh">
+              <span class="tkh__b">A1</span>
+              <span class="tkh__n">Audio</span>
+              <span class="tkh__m">-12 dB</span>
+              <span class="tkh__ic">
+                <button class="btn btn--icon" type="button" aria-pressed="false" aria-label="Silenciar pista A1"><svg class="i"><use href="#i-mute"/></svg></button>
+              </span>
+            </div>
+            <div class="tkh">
+              <span class="tkh__b">T1</span>
+              <span class="tkh__n">Subtítulos</span>
+              <span class="tkh__m">derivada</span>
+              <span class="tkh__ic">
+                <button class="btn btn--icon" type="button" aria-pressed="true" aria-label="Ver subtítulos"><svg class="i on"><use href="#i-eye"/></svg></button>
+              </span>
+            </div>
+          </div>
+
+          <div class="tracks">
+          <div class="lane lane--v1">
+            <div class="clips">
+              <div class="clip" style="width:198px" tabindex="0" aria-label="Escena 01 Apertura, 00:00:03:06">
+                <div class="clip__bar"><span class="clip__n">01 Apertura</span><span class="clip__d">00:00:03:06</span></div>
+                <div class="clip__strip"><i></i><i></i><i></i></div>
+              </div>
+              <div class="clip clip--sel js-esc2" style="width:347px" tabindex="0" aria-label="Escena 02 Producto en mano, 00:00:05:18, seleccionada">
+                <div class="clip__bar"><span class="clip__n">02 Producto en mano</span><span class="clip__d">00:00:05:18</span></div>
+                <span class="clip__flag miss"><svg class="i" style="width:10px;height:10px"><use href="#i-warn"/></svg>Falta</span>
+                <div class="clip__strip"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                <span class="trim trim--l"></span><span class="trim trim--r"></span>
+              </div>
+              <div class="clip" style="width:273px" tabindex="0" aria-label="Escena 03 Testimonio, 00:00:04:12">
+                <div class="clip__bar"><span class="clip__n">03 Testimonio</span><span class="clip__d">00:00:04:12</span></div>
+                <div class="clip__strip"><i></i><i></i><i></i><i></i></div>
+              </div>
+              <div class="clip clip--multi" style="width:186px" tabindex="0" aria-label="Escena 04 Cierre, 00:00:03:00, también seleccionada">
+                <div class="clip__bar"><span class="clip__n">04 Cierre</span><span class="clip__d">00:00:03:00</span></div>
+                <div class="clip__strip"><i></i><i></i><i></i></div>
+              </div>
+            </div>
+            <span class="ph" style="left:211px"></span>
+          </div>
+
+          <div class="lane lane--a1">
+            <div class="aclip" style="left:0;width:198px">
+              <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path d="M0,20.0 L0.0,13.8 L3.4,12.5 L6.9,9.0 L10.3,12.1 L13.8,11.2 L17.2,9.9 L20.7,13.4 L24.1,9.7 L27.6,8.0 L31.0,5.7 L34.5,13.5 L37.9,10.8 L41.4,13.2 L44.8,4.4 L48.3,5.8 L51.7,13.7 L55.2,2.3 L58.6,2.7 L62.1,6.7 L65.5,7.4 L69.0,12.9 L72.4,14.7 L75.9,9.5 L79.3,14.7 L82.8,13.7 L86.2,13.6 L89.7,15.7 L93.1,12.6 L96.6,13.3 L100.0,11.2 L100.0,28.8 L96.6,26.7 L93.1,27.4 L89.7,24.3 L86.2,26.4 L82.8,26.3 L79.3,25.3 L75.9,30.5 L72.4,25.3 L69.0,27.1 L65.5,32.6 L62.1,33.3 L58.6,37.3 L55.2,37.7 L51.7,26.3 L48.3,34.2 L44.8,35.6 L41.4,26.8 L37.9,29.2 L34.5,26.5 L31.0,34.3 L27.6,32.0 L24.1,30.3 L20.7,26.6 L17.2,30.1 L13.8,28.8 L10.3,27.9 L6.9,31.0 L3.4,27.5 L0.0,26.2 Z" fill="currentColor"/></svg>
+              <span class="aclip__n">−12 dB</span>
+            </div>
+            <div class="aclip aclip--sel" style="left:198px;width:347px">
+              <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path d="M0,20.0 L0.0,10.6 L3.4,9.6 L6.9,9.2 L10.3,15.3 L13.8,10.4 L17.2,11.4 L20.7,9.9 L24.1,13.7 L27.6,12.8 L31.0,9.7 L34.5,12.0 L37.9,9.0 L41.4,14.0 L44.8,13.2 L48.3,5.6 L51.7,9.1 L55.2,8.0 L58.6,5.5 L62.1,10.2 L65.5,13.9 L69.0,5.8 L72.4,8.4 L75.9,8.1 L79.3,9.0 L82.8,6.2 L86.2,12.5 L89.7,9.6 L93.1,13.4 L96.6,12.4 L100.0,12.4 L100.0,27.6 L96.6,27.6 L93.1,26.6 L89.7,30.4 L86.2,27.5 L82.8,33.8 L79.3,31.0 L75.9,31.9 L72.4,31.6 L69.0,34.2 L65.5,26.1 L62.1,29.8 L58.6,34.5 L55.2,32.0 L51.7,30.9 L48.3,34.4 L44.8,26.8 L41.4,26.0 L37.9,31.0 L34.5,28.0 L31.0,30.3 L27.6,27.2 L24.1,26.3 L20.7,30.1 L17.2,28.6 L13.8,29.6 L10.3,24.7 L6.9,30.8 L3.4,30.4 L0.0,29.4 Z" fill="currentColor"/></svg>
+              <span class="aclip__n">80 % · 00:00:00:09</span>
+            </div>
+            <div class="aclip" style="left:545px;width:273px">
+              <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path d="M0,20.0 L0.0,12.2 L3.4,15.9 L6.9,11.4 L10.3,8.9 L13.8,8.2 L17.2,10.6 L20.7,8.9 L24.1,11.2 L27.6,9.1 L31.0,13.5 L34.5,6.6 L37.9,7.3 L41.4,10.9 L44.8,9.7 L48.3,5.2 L51.7,8.8 L55.2,2.6 L58.6,2.6 L62.1,4.5 L65.5,13.5 L69.0,13.8 L72.4,11.7 L75.9,11.3 L79.3,8.2 L82.8,7.6 L86.2,10.7 L89.7,10.6 L93.1,11.7 L96.6,16.3 L100.0,13.3 L100.0,26.7 L96.6,23.7 L93.1,28.3 L89.7,29.4 L86.2,29.3 L82.8,32.4 L79.3,31.8 L75.9,28.7 L72.4,28.3 L69.0,26.2 L65.5,26.5 L62.1,35.5 L58.6,37.4 L55.2,37.4 L51.7,31.2 L48.3,34.8 L44.8,30.3 L41.4,29.1 L37.9,32.7 L34.5,33.4 L31.0,26.5 L27.6,30.9 L24.1,28.8 L20.7,31.1 L17.2,29.4 L13.8,31.8 L10.3,31.1 L6.9,28.6 L3.4,24.1 L0.0,27.8 Z" fill="currentColor"/></svg>
+              <span class="aclip__n">−8 dB</span>
+            </div>
+            <div class="aclip" style="left:818px;width:186px">
+              <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path d="M0,20.0 L0.0,15.2 L3.4,12.9 L6.9,15.0 L10.3,9.0 L13.8,13.7 L17.2,10.2 L20.7,5.9 L24.1,10.9 L27.6,4.3 L31.0,6.4 L34.5,8.2 L37.9,7.0 L41.4,7.3 L44.8,9.9 L48.3,2.1 L51.7,9.3 L55.2,2.3 L58.6,4.1 L62.1,14.1 L65.5,11.5 L69.0,9.3 L72.4,6.0 L75.9,13.2 L79.3,9.1 L82.8,12.0 L86.2,8.6 L89.7,8.1 L93.1,10.2 L96.6,15.1 L100.0,11.7 L100.0,28.3 L96.6,24.9 L93.1,29.8 L89.7,31.9 L86.2,31.4 L82.8,28.0 L79.3,30.9 L75.9,26.8 L72.4,34.0 L69.0,30.7 L65.5,28.5 L62.1,25.9 L58.6,35.9 L55.2,37.7 L51.7,30.7 L48.3,37.9 L44.8,30.1 L41.4,32.7 L37.9,33.0 L34.5,31.8 L31.0,33.6 L27.6,35.7 L24.1,29.1 L20.7,34.1 L17.2,29.8 L13.8,26.3 L10.3,31.0 L6.9,25.0 L3.4,27.1 L0.0,24.8 Z" fill="currentColor"/></svg>
+              <span class="aclip__n">−6 dB</span>
+            </div>
+            <span class="ph" style="left:211px"></span>
+          </div>
+
+          <div class="lane lane--t1">
+            <div class="cclip" style="left:0;width:186px">
+              <span class="cclip__tag">T1</span><span class="cclip__t">Apertura: qué vas a ver</span>
+            </div>
+            <div class="cclip" style="left:198px;width:335px">
+              <span class="cclip__tag">T1</span><span class="cclip__t">Edita por escenas y exporta en 720p.</span>
+            </div>
+            <div class="cclip" style="left:818px;width:186px">
+              <span class="cclip__tag">T1</span><span class="cclip__t">Vuelve al chat con el MP4.</span>
+            </div>
+            <span class="ph" style="left:211px"></span>
+          </div>
+          </div>
+        </div>
+
+        <div class="tlft">
+          <span><b>4 clips</b> · 00:00:16:06</span>
+          <span class="hide-sm">V1 4 · A1 4 · T1 3</span>
+          <span class="hide-md">· 30 fps · 1280×720 · onda e imágenes de ejemplo</span>
+          <div class="zoom">
+            <svg class="i i--14" style="color:var(--ink-3)"><use href="#i-search"/></svg>
+            <input type="range" min="10" max="400" value="100" style="--fill:24%" aria-label="Zoom de la línea de tiempo" aria-valuetext="100 %">
+            <span class="zoom__v">100 %</span>
+            <button class="btn btn--sm btn--icon" type="button" aria-label="Ajustar a la ventana" title="Ajustar · Mayús+Z"><svg class="i i--14"><use href="#i-zoomfit"/></svg></button>
+          </div>
+        </div>
+      </section>
+      <!-- ---------- overlay · exportando ---------- -->
+      <div class="ov ov--export" role="dialog" aria-modal="true" aria-labelledby="x-t">
+        <div class="modal">
+          <div class="modal__hd">
+            <div>
+              <div class="modal__t" id="x-t">Exportando vídeo</div>
+              <div class="modal__s">lanzamiento-q4.mp4 · 720p · 30 fps</div>
+            </div>
+            <button class="btn btn--icon x" type="button" aria-label="Seguir editando"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="modal__b">
+            <div style="display:flex;align-items:baseline;gap:10px">
+              <span class="big">48 %</span>
+              <span class="hint">quedan ~7 s</span>
+              <span style="flex:1"></span>
+              <span class="chip">233 / 486 fotogramas</span>
+            </div>
+            <div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="48"
+                 aria-valuetext="Etapa 2 de 4, renderizando, 48 %" aria-label="Progreso de la exportación"><i style="width:48%"></i></div>
+            <div class="steps">
+              <div class="step step--done"><span class="step__d"><svg class="i" style="width:10px;height:10px"><use href="#i-check"/></svg></span><span class="step__l">Preparando</span><span class="step__m">00:00:01:06</span></div>
+              <div class="step step--now"><span class="step__d"></span><span class="step__l">Renderizando</span><span class="step__m">48 %</span></div>
+              <div class="step"><span class="step__d"></span><span class="step__l">Mezclando audio</span><span class="step__m">—</span></div>
+              <div class="step"><span class="step__d"></span><span class="step__l">Escribiendo MP4</span><span class="step__m">—</span></div>
+            </div>
+            <div class="notice">
+              <svg class="i notice__i"><use href="#i-help"/></svg>
+              <span>Puedes seguir editando: el render trabaja sobre una copia del documento (revisión 7). Los cambios de ahora entran en la próxima exportación.</span>
+            </div>
+          </div>
+          <div class="modal__ft">
+            <button class="btn btn--outline" type="button">Seguir editando</button>
+            <span class="sp"></span>
+            <button class="btn btn--outline" type="button"><svg class="i i--14"><use href="#i-x"/></svg>Cancelar exportación</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------- overlay · conflicto 409 ---------- -->
+      <div class="ov ov--conflict" role="dialog" aria-modal="true" aria-labelledby="c-t">
+        <div class="modal" style="--mw:520px">
+          <div class="modal__hd">
+            <span class="es__ic" style="width:32px;height:32px;border-radius:8px"><svg class="i i--18"><use href="#i-warn"/></svg></span>
+            <div>
+              <div class="modal__t" id="c-t">Hay cambios más nuevos</div>
+              <div class="modal__s">Otra ventana guardó este proyecto</div>
+            </div>
+          </div>
+          <div class="modal__b">
+            <div class="tlist">
+              <div class="trow"><span class="trow__t">Tu copia</span><span class="trow__m">Rev 7 · 14:32</span></div>
+              <div class="trow trow--on"><span class="trow__t">En el servicio</span><span class="trow__m">Rev 8 · 14:33</span></div>
+            </div>
+            <p style="font-size:13px;color:var(--ink-2);line-height:1.5">La revisión 8 se guardó en otro lugar. Si recargas pierdes tus cambios de la escena 02 (texto y salida).</p>
+            <div class="notice notice--accent">
+              <svg class="i notice__i"><use href="#i-help"/></svg>
+              <span>Guardar como copia crea un proyecto nuevo con tu revisión 7 y deja la 8 intacta. Los medios no se duplican.</span>
+            </div>
+          </div>
+          <div class="modal__ft">
+            <button class="btn btn--outline" type="button">Cancelar</button>
+            <span class="sp"></span>
+            <button class="btn btn--outline" type="button">Guardar como copia</button>
+            <button class="btn btn--primary" type="button">Recargar y perder mis cambios</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------- overlay · relink ---------- -->
+      <div class="ov ov--relink" role="dialog" aria-modal="true" aria-labelledby="r-t">
+        <div class="modal" style="--mw:540px">
+          <div class="modal__hd">
+            <span class="es__ic" style="width:32px;height:32px;border-radius:8px"><svg class="i i--18"><use href="#i-link"/></svg></span>
+            <div>
+              <div class="modal__t" id="r-t">Volver a vincular «clipB.mp4»</div>
+              <div class="modal__s">Escena 02 · falta el archivo original</div>
+            </div>
+          </div>
+          <div class="modal__b">
+            <p style="font-size:13px;color:var(--ink-2);line-height:1.5">El proyecto apunta a <code class="mono">media/clipB.mp4</code> y el archivo ya no está ahí. La escena se conserva con su texto, tiempos y audio: solo falta el vídeo.</p>
+            <div class="tlist">
+              <div class="trow"><span class="trow__t"><svg class="i i--14" style="color:var(--ink-3)"><use href="#i-folder"/></svg>media/clipB.mp4</span><span class="trow__m">no existe</span></div>
+              <div class="trow"><span class="trow__t"><svg class="i i--14" style="color:var(--ink-3)"><use href="#i-layers"/></svg>Carpeta concedida</span><span class="trow__m">…\hermes-spike-fixtures</span></div>
+            </div>
+            <div class="hint">Al vincular se comprueba la huella: si el sha256 no coincide, se avisa antes de reemplazar.</div>
+          </div>
+          <div class="modal__ft">
+            <button class="btn btn--ghost" type="button">Quitar la escena</button>
+            <span class="sp"></span>
+            <button class="btn btn--outline" type="button">Buscar en la carpeta</button>
+            <button class="btn btn--primary" type="button"><svg class="i i--14"><use href="#i-folder"/></svg>Elegir archivo…</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------- overlay · proyectos ---------- -->
+      <div class="ov ov--projects" role="dialog" aria-modal="true" aria-labelledby="p-t">
+        <div class="modal modal--wide">
+          <div class="modal__hd">
+            <div>
+              <div class="modal__t" id="p-t">Proyectos</div>
+              <div class="modal__s">6 en esta sesión · guardados en el servicio local</div>
+            </div>
+            <button class="btn btn--primary x" type="button"><svg class="i i--14"><use href="#i-plus"/></svg>Nuevo proyecto</button>
+            <button class="btn btn--icon" type="button" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="modal__b">
+            <label class="search" style="margin:0">
+              <svg class="i i--14"><use href="#i-search"/></svg>
+              <input type="search" placeholder="Buscar por título, sesión o carpeta…" aria-label="Buscar proyectos">
+            </label>
+            <div class="tlist">
+              <div class="trow trow--on">
+                <span class="trow__t"><svg class="i i--14"><use href="#i-film"/></svg>Lanzamiento Q4 <span class="chip chip--a">abierto</span></span>
+                <span class="trow__m">Rev 7 · 4 escenas · hace 1 min</span>
+                <span class="kbds"><button class="btn btn--sm btn--outline" type="button">Abrir</button><button class="btn btn--sm btn--icon" type="button" aria-label="Acciones de Lanzamiento Q4"><svg class="i i--14"><use href="#i-more"/></svg></button></span>
+              </div>
+              <div class="trow">
+                <span class="trow__t"><svg class="i i--14"><use href="#i-film"/></svg>Tutorial de producto</span>
+                <span class="trow__m">Rev 12 · 9 escenas · hace 2 h</span>
+                <span class="kbds"><button class="btn btn--sm btn--outline" type="button">Abrir</button><button class="btn btn--sm btn--icon" type="button" aria-label="Acciones de Tutorial de producto"><svg class="i i--14"><use href="#i-more"/></svg></button></span>
+              </div>
+              <div class="trow">
+                <span class="trow__t"><svg class="i i--14"><use href="#i-film"/></svg>Testimonio cliente · corte B</span>
+                <span class="trow__m">Rev 3 · 2 escenas · ayer</span>
+                <span class="kbds"><button class="btn btn--sm btn--outline" type="button">Abrir</button><button class="btn btn--sm btn--icon" type="button" aria-label="Acciones de Testimonio cliente"><svg class="i i--14"><use href="#i-more"/></svg></button></span>
+              </div>
+              <div class="trow">
+                <span class="trow__t"><svg class="i i--14"><use href="#i-film"/></svg>Reel vertical · 9:16</span>
+                <span class="trow__m">Rev 1 · 3 escenas · 6 nov</span>
+                <span class="kbds"><button class="btn btn--sm btn--outline" type="button">Abrir</button><button class="btn btn--sm btn--icon" type="button" aria-label="Acciones de Reel vertical"><svg class="i i--14"><use href="#i-more"/></svg></button></span>
+              </div>
+            </div>
+            <div class="notice">
+              <svg class="i notice__i"><use href="#i-help"/></svg>
+              <span><b>Renombrar</b> cambia el título. <b>Duplicar</b> copia el documento sin tocar los medios. <b>Eliminar</b> pide confirmación y borra el proyecto del servicio, nunca los archivos del disco.</span>
+            </div>
+          </div>
+          <div class="modal__ft">
+            <span class="hint">Última apertura guardada en <code class="mono">ctx.storage</code>: <code class="mono">lastProjectId</code></span>
+            <span class="sp"></span>
+            <button class="btn btn--outline" type="button">Cerrar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------- overlay · ajustes ---------- -->
+      <div class="ov ov--settings" role="dialog" aria-modal="true" aria-labelledby="s-t">
+        <div class="modal" style="--mw:580px">
+          <div class="modal__hd">
+            <div>
+              <div class="modal__t" id="s-t">Ajustes del panel</div>
+              <div class="modal__s">Se guardan en esta máquina con `ctx.storage`</div>
+            </div>
+            <button class="btn btn--icon x" type="button" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="modal__b">
+            <div class="grp" style="padding:0;border:0">
+              <div class="grp__t">Servicio local</div>
+              <div class="row">
+                <input class="inp" value="http://127.0.0.1:8770" aria-label="URL del servicio" style="flex:1">
+                <button class="btn btn--outline" type="button"><svg class="i i--14"><use href="#i-retry"/></svg>Probar</button>
+              </div>
+              <div class="hint"><span class="dot dot--ring" style="display:inline-block;vertical-align:-1px"></span> Responde en 47 ms · ffmpeg 9.0.1 · cola libre · <code class="mono">/health</code></div>
+            </div>
+            <div class="divider"></div>
+            <div class="grp" style="padding:0;border:0">
+              <div class="grp__t">Reproducción</div>
+              <label class="field"><span>Calidad de vista previa</span>
+                <select class="inp"><option>Original (sin proxy)</option><option>Proxy 540p (futuro)</option></select>
+              </label>
+              <div class="hint">El servicio sirve el archivo original con `Range`. Un clip 4K puede tironear; el proxy no existe todavía.</div>
+            </div>
+            <div class="divider"></div>
+            <div class="grp" style="padding:0;border:0">
+              <div class="grp__t">Guardado e interfaz</div>
+              <label class="sw"><input type="checkbox" checked><span class="sw__t"></span><span class="sw__l">Autoguardado cada 4 s</span></label>
+              <div class="row2">
+                <label class="field"><span>Idioma</span><select class="inp"><option>Español (es-ES)</option><option>English (en)</option></select></label>
+                <label class="field"><span>Tema</span><select class="inp"><option>El de la app</option><option>Oscuro</option><option>Claro</option></select></label>
+              </div>
+              <div class="hint">Cerrar y reabrir el editor conserva estas preferencias, el ancho del panel, el alto de la línea de tiempo y el zoom.</div>
+            </div>
+          </div>
+          <div class="modal__ft">
+            <button class="btn btn--ghost" type="button">Restablecer diseño</button>
+            <span class="sp"></span>
+            <button class="btn btn--outline" type="button">Cancelar</button>
+            <button class="btn btn--primary" type="button">Guardar ajustes</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---------- overlay · ayuda ---------- -->
+      <div class="ov ov--help" role="dialog" aria-modal="true" aria-labelledby="h-t">
+        <div class="modal modal--wide" style="--mw:820px">
+          <div class="modal__hd">
+            <div>
+              <div class="modal__t" id="h-t">Atajos y qué hacer si algo falla</div>
+              <div class="modal__s">Todo lo que hace el editor, sin arrastrar nada</div>
+            </div>
+            <button class="btn btn--icon x" type="button" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button>
+          </div>
+          <div class="modal__b" style="grid-template-columns:1fr 1fr;display:grid;gap:18px">
+            <div style="display:grid;gap:6px;align-content:start">
+              <div class="grp__t">Atajos</div>
+              <table class="tt">
+                <tr><td>Reproducir / pausar</td><td><span class="kbd">Espacio</span></td></tr>
+                <tr><td>Fotograma atrás / adelante</td><td><span class="kbd">←</span> <span class="kbd">→</span></td></tr>
+                <tr><td>5 s atrás / adelante</td><td><span class="kbd">Mayús</span>+<span class="kbd">←</span></td></tr>
+                <tr><td>Marcar entrada / salida</td><td><span class="kbd">I</span> <span class="kbd">O</span></td></tr>
+                <tr><td>Partir en el cursor</td><td><span class="kbd">S</span></td></tr>
+                <tr><td>Borrar con ripple</td><td><span class="kbd">Supr</span></td></tr>
+                <tr><td>Copiar / pegar</td><td><span class="kbd">Ctrl</span>+<span class="kbd">C</span> / <span class="kbd">V</span></td></tr>
+                <tr><td>Duplicar escena</td><td><span class="kbd">Ctrl</span>+<span class="kbd">D</span></td></tr>
+                <tr><td>Deshacer / rehacer</td><td><span class="kbd">Ctrl</span>+<span class="kbd">Z</span> / <span class="kbd">Y</span></td></tr>
+                <tr><td>Guardar</td><td><span class="kbd">Ctrl</span>+<span class="kbd">S</span></td></tr>
+                <tr><td>Zoom de la línea de tiempo</td><td><span class="kbd">+</span> <span class="kbd">−</span></td></tr>
+                <tr><td>Ajustar a la ventana</td><td><span class="kbd">Mayús</span>+<span class="kbd">Z</span></td></tr>
+                <tr><td>Abrir / cerrar el editor</td><td><span class="kbd">Ctrl</span>+<span class="kbd">Mayús</span>+<span class="kbd">E</span></td></tr>
+              </table>
+            </div>
+            <div style="display:grid;gap:6px;align-content:start">
+              <div class="grp__t">Estados y salida</div>
+              <table class="tt">
+                <tr><td>Servicio caído</td><td>Reintentar; si sigue, arranca <code class="mono">start-service.cmd</code> y pulsa Probar en Ajustes.</td></tr>
+                <tr><td>Falta un medio</td><td>Vincular de nuevo: se conservan texto, audio y tiempos.</td></tr>
+                <tr><td>Conflicto 409</td><td>Recargar (pierdes lo tuyo) o guardar como copia.</td></tr>
+                <tr><td>Export falló</td><td>Ver registro del job y reintentar; el documento no cambia.</td></tr>
+                <tr><td>Sin espacio / límite</td><td>2 GB por job y 20 min de secuencia. Recorta o parte el trabajo.</td></tr>
+              </table>
+              <div class="notice" style="margin-top:4px">
+                <svg class="i notice__i"><use href="#i-help"/></svg>
+                <span>Este editor no hace multicámara, keyframes, color grading, 4K ni publicación. Si lo necesitas, es otra herramienta.</span>
+              </div>
+            </div>
+          </div>
+          <div class="modal__ft">
+            <span class="hint">Cerrar el editor no cierra la app: el panel se oculta y los atajos globales siguen.</span>
+            <span class="sp"></span>
+            <button class="btn btn--primary" type="button">Entendido</button>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- ==================== PANE · SIN PROYECTO (onboarding) ==================== -->
+    <section class="pane pane--empty" aria-label="Editor de vídeo sin proyecto">
+      <header class="topbar">
+        <span class="brand"><span class="plate"><svg class="i i--14"><use href="#i-film"/></svg></span>Editor de vídeo</span>
+        <span class="vr"></span>
+        <span class="chip chip--dash">Sin proyecto</span>
+        <span class="save hide-md"><span class="dot dot--idle"></span>Esperando</span>
+        <span class="doc__sp"></span>
+        <button class="btn btn--outline" type="button"><svg class="i i--14"><use href="#i-layers"/></svg>Abrir</button>
+        <button class="btn btn--primary" type="button"><svg class="i i--14"><use href="#i-plus"/></svg>Crear proyecto</button>
+        <button class="btn btn--icon" type="button" aria-label="Cerrar el editor" title="Cerrar el editor"><svg class="i"><use href="#i-x"/></svg></button>
+      </header>
+
+      <aside class="lib" aria-label="Biblioteca de medios">
+        <div class="panelhd"><span class="panelhd__t">Primeros pasos</span></div>
+        <div class="grp" style="border:0">
+          <div class="steps3">
+            <div class="step3"><span>1</span><div><b>Elige la carpeta de medios</b>Una sola raíz legible. Se concede con el diálogo del sistema y no se copia nada.</div></div>
+            <div class="step3"><span>2</span><div><b>Importa clips, audio o imágenes</b>Se validan con ffprobe antes de entrar. El duplicado por hash se descarta solo.</div></div>
+            <div class="step3"><span>3</span><div><b>Ordena y exporta</b>Un MP4 720p30 con tus escenas, textos y subtítulos.</div></div>
+          </div>
+          <button class="btn btn--outline" type="button" style="width:100%"><svg class="i i--14"><use href="#i-folder"/></svg>Elegir carpeta</button>
+          <div class="hint">Límites del MVP: 2 GB por trabajo · 20 min de secuencia · 200 medios · 100 escenas.</div>
+        </div>
+        <div class="libft"><span>Sin medios todavía</span></div>
+      </aside>
+
+      <section class="view" aria-label="Visor">
+        <div class="viewhd">
+          <span class="viewhd__t">Visor</span>
+          <span class="chip">Vista previa</span>
+          <span class="doc__sp"></span>
+          <button class="btn btn--icon" type="button" aria-label="Pantalla completa"><svg class="i i--14"><use href="#i-expand"/></svg></button>
+        </div>
+        <div class="stage">
+          <div class="es">
+            <div class="es__in">
+              <span class="es__ic"><svg class="i" style="width:20px;height:20px"><use href="#i-film"/></svg></span>
+              <span class="es__t">Todavía no hay proyecto abierto</span>
+              <span class="es__d">Elige uno de esta sesión o crea uno nuevo. El editor trabaja solo con archivos de tu máquina: nada se sube.</span>
+              <div class="es__a">
+                <button class="btn btn--primary" type="button">Crear proyecto</button>
+                <button class="btn btn--outline" type="button">Abrir proyecto</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="transport">
+          <button class="btn btn--icon" type="button" aria-label="Escena anterior" disabled><svg class="i"><use href="#i-prev"/></svg></button>
+          <button class="btn btn--icon" type="button" aria-label="Reproducir" disabled><svg class="i"><use href="#i-play"/></svg></button>
+          <button class="btn btn--icon" type="button" aria-label="Escena siguiente" disabled><svg class="i"><use href="#i-next"/></svg></button>
+          <span class="tc" style="color:var(--ink-3)">00:00:00:00<small>/ 00:00:00:00</small></span>
+          <div class="scrub"><input type="range" value="0" aria-label="Posición de reproducción" disabled></div>
+        </div>
+      </section>
+
+      <aside class="insp" aria-label="Inspector">
+        <div class="tabs" style="pointer-events:none;opacity:.5">
+          <label>Escena</label><label>Texto</label><label>Audio</label><label>Export</label>
+        </div>
+        <div class="panels">
+          <div class="panel panel--esc" style="display:flex">
+            <div class="grp">
+              <div class="grp__t">Proyecto</div>
+              <label class="field"><span>Título</span><input class="inp" value="Lanzamiento Q4" aria-label="Título del proyecto"></label>
+              <div class="segctl" role="group" aria-label="Orientación">
+                <input type="radio" name="ori2" id="ori2-h" checked><label for="ori2-h">16:9</label>
+                <input type="radio" name="ori2" id="ori2-v"><label for="ori2-v">9:16</label>
+              </div>
+              <dl style="display:grid;gap:5px;margin:0">
+                <div class="kv"><dt>Salida</dt><dd>1280×720 · 30 fps</dd></div>
+                <div class="kv"><dt>Motor</dt><dd>ffmpeg-9.0.1</dd></div>
+                <div class="kv"><dt>Carpeta</dt><dd>—</dd></div>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="tl" aria-label="Línea de tiempo">
+        <div class="tlhd">
+          <span class="chip">00:00:00:00</span>
+          <span class="doc__sp" style="flex:1"></span>
+          <span class="hint">Sin clips</span>
+        </div>
+        <div class="tlrule"><div class="tlcorner">00:00:00:00</div><div class="ruler"></div></div>
+        <div class="tlbody">
+          <div class="tkcol">
+            <div class="tkh"><span class="tkh__b">V1</span><span class="tkh__n">Escenas</span><span class="tkh__m">0 clips</span></div>
+            <div class="tkh"><span class="tkh__b">A1</span><span class="tkh__n">Audio</span><span class="tkh__m">0 clips</span></div>
+            <div class="tkh"><span class="tkh__b">T1</span><span class="tkh__n">Subtítulos</span><span class="tkh__m">derivada</span></div>
+          </div>
+          <div style="display:grid;grid-template-rows:78px 54px 46px;min-width:0">
+            <div class="lane lane--v1"><div class="lane__empty">Arrastra un clip aquí para crear la primera escena</div></div>
+            <div class="lane lane--a1"></div>
+            <div class="lane lane--t1"><div class="lane__empty" style="border-style:dotted">Los subtítulos se generan solos desde el texto de cada escena</div></div>
+          </div>
+        </div>
+        <div class="tlft"><span>0 clips · 00:00:00:00</span></div>
+      </section>
+    </section>
+
+    <!-- ==================== PANE · IMPORTANDO ==================== -->
+    <section class="pane pane--import" aria-label="Importando medios">
+      <header class="topbar">
+        <span class="brand"><span class="plate"><svg class="i i--14"><use href="#i-film"/></svg></span>Editor de vídeo</span>
+        <span class="vr"></span>
+        <button class="chipbtn" type="button"><svg class="i i--14"><use href="#i-folder"/></svg><span class="chipbtn__n">Lanzamiento Q4</span><svg class="i i--14" style="color:var(--ink-3)"><use href="#i-chev"/></svg></button>
+        <span class="chip chip--a">Rev 7</span>
+        <span class="save hide-md"><span class="dot dot--idle"></span>Guardando…</span>
+        <span class="doc__sp"></span>
+        <button class="btn btn--icon" type="button" aria-label="Deshacer" disabled><svg class="i"><use href="#i-undo"/></svg></button>
+        <button class="btn btn--primary" type="button" disabled><svg class="i i--14"><use href="#i-save"/></svg>Guardar</button>
+        <button class="btn btn--icon" type="button" aria-label="Cerrar el editor"><svg class="i"><use href="#i-x"/></svg></button>
+      </header>
+
+      <aside class="lib" aria-label="Biblioteca de medios">
+        <div class="panelhd"><span class="panelhd__t">Medios <span class="panelhd__n">6</span></span><span style="flex:1"></span>
+          <span class="chip chip--a">Importando 2/3</span>
+        </div>
+        <div class="drop drop--hot">
+          <svg class="i i--18"><use href="#i-download"/></svg>
+          <span><span class="drop__t">Importando 2 de 3</span><span class="drop__s">Se validan con ffprobe antes de añadirse</span></span>
+        </div>
+        <div class="mgrid" style="grid-template-columns:1fr;gap:6px">
+          <div class="asset" style="flex-direction:row;align-items:center;gap:8px">
+            <span class="asset__th" style="width:56px;flex:none"><span class="art"></span></span>
+            <span style="min-width:0;display:grid;gap:1px">
+              <span class="asset__n">demo-clipC.mp4</span>
+              <span class="asset__m"><svg class="i" style="width:11px;height:11px;color:var(--accent)"><use href="#i-check"/></svg>Añadido · 00:00:09:09</span>
+            </span>
+          </div>
+          <div class="asset" style="flex-direction:row;align-items:center;gap:8px">
+            <span class="asset__th" style="width:56px;flex:none;display:grid;place-items:center"><span class="skel" style="width:100%;height:100%"></span></span>
+            <span style="min-width:0;display:grid;gap:3px;flex:1">
+              <span class="asset__n">entrevista-larga.mp3</span>
+              <span class="asset__m">Analizando con ffprobe…</span>
+              <span class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="64" aria-valuetext="64 %" aria-label="Progreso de importación"><i style="width:64%"></i></span>
+            </span>
+          </div>
+          <div class="asset" style="flex-direction:row;align-items:center;gap:8px;opacity:.55">
+            <span class="asset__th" style="width:56px;flex:none"></span>
+            <span style="min-width:0;display:grid;gap:1px">
+              <span class="asset__n">plano-calle.mov</span>
+              <span class="asset__m">En cola</span>
+            </span>
+          </div>
+        </div>
+        <div class="banner" style="border-top:1px solid var(--border);border-bottom:0">
+          <svg class="i i--14" style="color:var(--ink-3)"><use href="#i-warn"/></svg>
+          <span><b>1 omitido</b> · logo-copia.svg ya estaba (mismo sha256)</span>
+        </div>
+      </aside>
+
+      <section class="view" aria-label="Visor">
+        <div class="viewhd">
+          <span class="viewhd__t">02 · Producto en mano</span>
+          <span class="chip">Vista previa</span>
+          <span class="doc__sp"></span>
+        </div>
+        <div class="stage">
+          <div class="es">
+            <div class="es__in">
+              <span class="skel" style="width:320px;aspect-ratio:16/9;max-width:100%"></span>
+              <span class="es__t" style="margin-top:6px">Preparando la vista previa…</span>
+              <span class="es__d">Se está validando el último clip. Los medios ya importados siguen disponibles.</span>
+            </div>
+          </div>
+        </div>
+        <div class="transport">
+          <button class="btn btn--icon" type="button" aria-label="Escena anterior"><svg class="i"><use href="#i-prev"/></svg></button>
+          <button class="btn btn--icon btn--primary" type="button" aria-label="Reproducir"><svg class="i"><use href="#i-play"/></svg></button>
+          <button class="btn btn--icon" type="button" aria-label="Escena siguiente"><svg class="i"><use href="#i-next"/></svg></button>
+          <span class="tc">00:00:03:12<small>/ 00:00:16:06</small></span>
+          <div class="scrub"><input type="range" min="0" max="16.2" value="3.4" style="--fill:21%" aria-label="Posición de reproducción"></div>
+        </div>
+      </section>
+
+      <aside class="insp" aria-label="Inspector">
+        <div class="tabs"><input type="radio" name="insp3" id="i3-1" checked><label for="i3-1">Escena</label><label>Texto</label><label>Audio</label><label>Export</label></div>
+        <div class="panels">
+          <div class="panel panel--esc" style="display:flex">
+            <div class="grp">
+              <div class="grp__t">Trabajo en curso</div>
+              <div class="notice">
+                <svg class="i notice__i"><use href="#i-clock"/></svg>
+                <span><b>entrevista-larga.mp3 · 64 %</b><br>El editor sigue usable; solo se bloquea «Exportar» hasta que termine.</span>
+              </div>
+              <button class="btn btn--outline" type="button" style="width:100%">Cancelar importación</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="tl" aria-label="Línea de tiempo">
+        <div class="tlhd"><span class="chip">00:00:16:06</span><span style="flex:1"></span><span class="hint">Importando: la secuencia no cambia hasta confirmar</span></div>
+        <div class="tlrule"><div class="tlcorner">00:00:00:00</div><div class="ruler"></div></div>
+        <div class="tlbody">
+          <div class="tkcol">
+            <div class="tkh"><span class="tkh__b">V1</span><span class="tkh__n">Escenas</span><span class="tkh__m">3 clips</span></div>
+            <div class="tkh"><span class="tkh__b">A1</span><span class="tkh__n">Audio</span><span class="tkh__m">3 clips</span></div>
+            <div class="tkh"><span class="tkh__b">T1</span><span class="tkh__n">Subtítulos</span><span class="tkh__m">derivada</span></div>
+          </div>
+          <div style="display:grid;grid-template-rows:78px 54px 46px;min-width:0">
+            <div class="lane lane--v1"><div class="lane__empty">La nueva escena aparecerá aquí al confirmar</div></div>
+            <div class="lane lane--a1"></div>
+            <div class="lane lane--t1"></div>
+          </div>
+        </div>
+        <div class="tlft"><span>3 clips · 00:00:16:06</span></div>
+      </section>
+
+      <div class="toast" role="status" aria-live="polite">
+        <span class="dot dot--ring"></span><span><b>Importando 2 de 3</b> · puedes seguir editando</span>
+        <button class="btn btn--sm" type="button">Ver</button>
+      </div>
+    </section>
+    <!-- ==================== PANE · SERVICIO CAÍDO ==================== -->
+    <section class="pane pane--down" aria-label="Servicio no disponible">
+      <header class="topbar">
+        <span class="brand"><span class="plate"><svg class="i i--14"><use href="#i-film"/></svg></span>Editor de vídeo</span>
+        <span class="vr"></span>
+        <button class="chipbtn" type="button"><svg class="i i--14"><use href="#i-folder"/></svg><span class="chipbtn__n">Lanzamiento Q4</span></button>
+        <span class="chip chip--solid">Sin conexión</span>
+        <span class="save hide-md"><span class="dot dot--idle"></span>Sin guardar</span>
+        <span class="doc__sp"></span>
+        <button class="btn btn--outline" type="button"><svg class="i i--14"><use href="#i-retry"/></svg>Reintentar</button>
+        <button class="btn btn--icon" type="button" aria-label="Cerrar el editor"><svg class="i"><use href="#i-x"/></svg></button>
+      </header>
+
+      <div style="position:absolute;left:0;right:0;top:40px;z-index:12" class="banner banner--inv">
+        <svg class="i"><use href="#i-warn"/></svg>
+        <span><b>Failed to fetch</b> · no hay respuesta en 127.0.0.1:8770</span>
+        <span class="sp"></span>
+        <button class="btn btn--sm" type="button">Ver registro</button>
+        <button class="btn btn--sm" type="button"><svg class="i i--14"><use href="#i-retry"/></svg>Reintentar</button>
+      </div>
+
+      <aside class="lib" aria-label="Biblioteca de medios" style="opacity:.55">
+        <div class="panelhd"><span class="panelhd__t">Medios <span class="panelhd__n">6</span></span></div>
+        <div class="mgrid" style="margin-top:8px">
+          <div class="asset"><span class="asset__th"><span class="phb">sin fotograma</span><span class="art"></span><span class="asset__tag">00:00:12:12</span></span><span class="asset__n">clipA.mp4</span><span class="asset__m">en memoria</span></div>
+          <div class="asset"><span class="asset__th"><span class="phb">sin fotograma</span><span class="art art--b"></span><span class="asset__tag">00:00:08:03</span></span><span class="asset__n">clipB.mp4</span><span class="asset__m">en memoria</span></div>
+          <div class="asset"><span class="asset__th"><span class="phb">sin fotograma</span><span class="art art--c"></span><span class="asset__tag">PNG</span></span><span class="asset__n">producto.png</span><span class="asset__m">en memoria</span></div>
+          <div class="asset"><span class="asset__th"><span class="phb">sin fotograma</span><span class="art art--d"></span><span class="asset__tag">00:00:06:06</span></span><span class="asset__n">entrevista.mp3</span><span class="asset__m">en memoria</span></div>
+        </div>
+        <div class="libft"><span>Última copia: rev 7 · 14:32</span></div>
+      </aside>
+
+      <section class="view" aria-label="Visor">
+        <div class="viewhd">
+          <span class="viewhd__t">02 · Producto en mano</span>
+          <span class="chip chip--dash">Sin servicio</span>
+          <span class="doc__sp"></span>
+        </div>
+        <div class="stage">
+          <div class="es">
+            <div class="es__in" style="max-width:520px">
+              <span class="es__ic"><svg class="i" style="width:20px;height:20px"><use href="#i-warn"/></svg></span>
+              <span class="es__t">No se pudo conectar con el servicio local</span>
+              <span class="es__d">El editor necesita el servicio en <code class="mono">127.0.0.1:8770</code>. Tus medios y tu proyecto están intactos: nada se ha borrado.</span>
+              <div style="display:grid;gap:8px;width:100%;max-width:460px;text-align:left;margin-top:4px">
+                <div class="notice">
+                  <svg class="i notice__i"><use href="#i-help"/></svg>
+                  <span><b>Arráncalo así</b><br>
+                  <code class="mono" style="display:block;margin-top:4px;white-space:normal">cd video-editor\core<br>python start_service.py --port 8770</code>
+                  En Windows también vale <code class="mono">iniciar-servicio.cmd</code>.</span>
+                </div>
+                <div class="row">
+                  <button class="btn btn--primary" type="button" style="flex:1;height:36px"><svg class="i i--14"><use href="#i-retry"/></svg>Reintentar ahora</button>
+                  <button class="btn btn--outline" type="button" style="height:36px">Abrir carpeta del servicio</button>
+                </div>
+                <button class="btn btn--ghost" type="button" style="justify-self:start"><svg class="i i--14"><use href="#i-ext"/></svg>Ver registro y último error</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="transport">
+          <button class="btn btn--icon" type="button" aria-label="Escena anterior" disabled><svg class="i"><use href="#i-prev"/></svg></button>
+          <button class="btn btn--icon" type="button" aria-label="Reproducir" disabled><svg class="i"><use href="#i-play"/></svg></button>
+          <button class="btn btn--icon" type="button" aria-label="Escena siguiente" disabled><svg class="i"><use href="#i-next"/></svg></button>
+          <span class="tc" style="color:var(--ink-3)">--:--:--:--<small>/ 00:00:16:06</small></span>
+          <div class="scrub"><input type="range" disabled aria-label="Posición de reproducción"></div>
+        </div>
+      </section>
+
+      <aside class="insp" aria-label="Inspector" style="opacity:.55">
+        <div class="tabs" style="pointer-events:none"><label style="border-bottom-color:var(--accent);color:var(--foreground);font-weight:650">Escena</label><label>Texto</label><label>Audio</label><label>Export</label></div>
+        <div class="panels">
+          <div class="panel panel--esc" style="display:flex">
+            <div class="grp">
+              <div class="grp__t">Sin datos del servicio</div>
+              <div class="hint">Los campos vuelven en cuanto responda <code class="mono">/health</code>. No se editan a ciegas para no pisar la revisión del servidor.</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="tl" aria-label="Línea de tiempo">
+        <div class="tlhd"><span class="chip chip--dash">00:00:16:06 (en memoria)</span><span style="flex:1"></span><span class="hint">Solo lectura hasta reconectar</span></div>
+        <div class="tlrule"><div class="tlcorner">00:00:00:00</div><div class="ruler"></div></div>
+        <div class="tlbody">
+          <div class="tkcol">
+            <div class="tkh"><span class="tkh__b">V1</span><span class="tkh__n">Escenas</span><span class="tkh__m">4 clips</span></div>
+            <div class="tkh"><span class="tkh__b">A1</span><span class="tkh__n">Audio</span><span class="tkh__m">4 clips</span></div>
+            <div class="tkh"><span class="tkh__b">T1</span><span class="tkh__n">Subtítulos</span><span class="tkh__m">derivada</span></div>
+          </div>
+          <div style="display:grid;grid-template-rows:78px 54px 46px;min-width:0;opacity:.5">
+            <div class="lane lane--v1"><div class="clips">
+              <div class="clip" style="width:198px"><div class="clip__bar"><span class="clip__n">01 Apertura</span></div><div class="clip__strip"><i></i><i></i></div></div>
+              <div class="clip" style="width:347px"><div class="clip__bar"><span class="clip__n">02 Producto en mano</span></div><div class="clip__strip"><i></i><i></i><i></i></div></div>
+              <div class="clip" style="width:273px"><div class="clip__bar"><span class="clip__n">03 Testimonio</span></div><div class="clip__strip"><i></i><i></i></div></div>
+              <div class="clip" style="width:186px"><div class="clip__bar"><span class="clip__n">04 Cierre</span></div><div class="clip__strip"><i></i></div></div>
+            </div></div>
+            <div class="lane lane--a1"></div>
+            <div class="lane lane--t1"></div>
+          </div>
+        </div>
+        <div class="tlft"><span>4 clips · sin guardar cambios</span></div>
+      </section>
+    </section>
+
+    <!-- ==================== PANE · EDITOR CERRADO ==================== -->
+    <section class="pane pane--closed" aria-label="Hermes con el editor cerrado">
+      <header class="apptl">
+        <span class="plate" style="background:var(--surf-3);color:var(--ink-2)"><svg class="i i--14"><use href="#i-grid"/></svg></span>
+        <div class="apptl__tabs">
+          <span class="apptl__tab apptl__tab--on"><svg class="i i--14"><use href="#i-chat"/></svg>Chat</span>
+          <span class="apptl__tab"><svg class="i i--14"><use href="#i-film"/></svg>Vídeo</span>
+        </div>
+        <span style="flex:1"></span>
+        <span class="chip hide-md">Sesión 4f2a · lanzamiento-q4</span>
+        <button class="btn btn--icon" type="button" aria-pressed="false" aria-label="Abrir el editor de vídeo"
+                style="width:34px;height:34px;border:1px solid var(--accent-2);background:var(--accent-1);color:var(--accent)"
+                title="Editor de vídeo · Ctrl+Shift+E">
+          <svg class="i"><use href="#i-film"/></svg>
+        </button>
+        <button class="btn btn--icon" type="button" aria-label="Ajustes"><svg class="i i--14"><use href="#i-gear"/></svg></button>
+        <button class="btn btn--icon" type="button" aria-label="Ayuda"><svg class="i i--14"><use href="#i-help"/></svg></button>
+      </header>
+
+      <aside class="side">
+        <div class="row" style="margin-bottom:10px">
+          <span class="panelhd__t">Sesiones</span><span style="flex:1"></span>
+          <button class="btn btn--icon" type="button" aria-label="Nueva sesión"><svg class="i i--14"><use href="#i-plus"/></svg></button>
+        </div>
+        <div style="display:grid;gap:4px">
+          <div class="apptl__tab apptl__tab--on" style="height:34px;justify-content:flex-start">Lanzamiento Q4 · editor</div>
+          <div class="apptl__tab" style="height:34px;justify-content:flex-start">Guion del vídeo</div>
+          <div class="apptl__tab" style="height:34px;justify-content:flex-start">Ideas de cierre</div>
+        </div>
+        <div style="margin-top:auto" class="hint">El panel de vídeo está cerrado. El plugin sigue activo: sus comandos y atajos también.</div>
+      </aside>
+
+      <div class="main">
+        <div class="chat">
+          <div class="bub"><span class="bub__m">Tú · 14:31</span>Monta el vídeo de lanzamiento con los tres clips de la carpeta.</div>
+          <div class="bub" style="background:var(--surf-1)"><span class="bub__m">Hermes · 14:32</span>Listo: 4 escenas, 00:00:16:06, con subtítulos derivados del texto. El editor está abierto en el panel de la derecha.</div>
+          <div class="bub bub--me"><span class="bub__m">Tú · 14:36</span>Cierro el panel un momento; luego lo abro y exporto.</div>
+          <div class="toast" style="position:static;transform:none;bottom:auto;margin:2px auto 0;justify-self:center">
+            <svg class="i i--14"><use href="#i-film"/></svg>
+            <span>Editor cerrado · <b>Ctrl+Shift+E</b> para volver</span>
+            <button class="btn btn--sm" type="button">Abrir</button>
+          </div>
+        </div>
+        <div class="composer">
+          <span class="hint" style="flex:1">Escribe un mensaje… («inserta el MP4 en el chat» funciona con MEDIA:&lt;ruta&gt;)</span>
+          <button class="btn btn--icon" type="button" aria-label="Enviar"><svg class="i i--14"><use href="#i-next"/></svg></button>
+        </div>
+      </div>
+      <div class="tip"><b>Abrir el editor de vídeo</b><span>Ctrl + Mayús + E · también en ⌘K</span></div>
+      <div class="callout">
+        <b>Un solo botón para volver.</b> El icono de la barra de título queda activo mientras el panel está cerrado; al abrirlo se ilumina. También está en la paleta (⌘K → «Abrir editor de vídeo») y en el atajo global.
+      </div>
+    </section>
+  </div>
+
+  <section class="doc__notes">
+    <h2>Qué demuestra esta maqueta</h2>
+    <div class="legend">
+      <span><b>11 estados</b> conmutables por radios reales (teclado incluido)</span>
+      <span><b>1440×900</b> · degrada a 1024×700</span>
+      <span><b>0</b> colores literales dentro del panel</span>
+      <span><b>0</b> CDN, fuentes externas o JS de terceros</span>
+    </div>
+    <p><b>Medidas:</b> barra superior 40 · biblioteca 220 · visor 920×580 · inspector 300 · línea de tiempo 280 (1140 de ancho). Cabecera de pista 116 px (antes 100: «Subtítulos» se cortaba); filas 78 · 54 · 46. Tipografía 13 / 12 / 11: el secundario pasa a 12 px y a un gris del 76 % (antes 66 %); solo quedan a 11 px la nota de miniaturas y la marca «sin fotograma» dentro de una miniatura de 96 px. Controles 32; iconos de pista 22 dentro de fila de 32.</p>
+    <p><b>Timecodes:</b> todo valor de tiempo de la secuencia o del medio va en <code>HH:MM:SS:FF</code> a 30 fps (regla, duraciones de clip, in/out, visor, etiquetas de medio). Las estimaciones y los tiempos relativos («quedan ~7 s», «hace 6 min») se quedan en lenguaje natural a propósito.</p>
+    <p><b>Miniaturas y onda:</b> son de <b>ejemplo</b>. El pane pinta marcos neutros y todavía no pide <code>/thumbnails</code> ni <code>/waveform</code>; el servicio <b>0.3.0 sí las sirve</b> (CONTRATO §3), así que conectarlas es trabajo del pane, no backend nuevo. Cada miniatura lleva la marca «sin fotograma» para que nadie las lea como fotogramas reales. Lo único que sigue sin esquema es tamaño y familia del texto, y el proxy de vista previa.</p>
+    <p><b>Captura:</b> abrir <code>mockup-v3.html?cap=1&amp;state=edit&amp;theme=dark</code> a 1440×900 exactos. Estados: <code>edit · empty · import · export · conflict · relink · down · projects · settings · help · closed</code>. Pestaña del inspector: <code>&amp;tab=txt|aud|exp</code>.</p>
+  </section>
+</main>
+<script>
+(() => {
+  const q = new URLSearchParams(location.search);
+  const root = document.documentElement;
+  if (q.get('theme')) root.dataset.theme = q.get('theme');
+  if (q.get('cap')) document.body.classList.add('cap');
+  const st = q.get('state') && document.getElementById('st-' + q.get('state'));
+  if (st) st.checked = true;
+  const tb = q.get('tab') && document.getElementById('tb-' + q.get('tab'));
+  if (tb) tb.checked = true;
+  const sync = () => {
+    const on = document.querySelector('input[name="estado"]:checked');
+    root.dataset.state = on ? on.id.slice(3) : 'edit';
+    document.querySelectorAll('[data-theme-btn]').forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.themeBtn === root.dataset.theme));
+    });
+  };
+  document.addEventListener('change', e => { if (e.target.name === 'estado') sync(); });
+  document.querySelectorAll('[data-theme-btn]').forEach(b =>
+    b.addEventListener('click', () => { root.dataset.theme = b.dataset.themeBtn; sync(); }));
+  sync();
+})();
+</script>
+</body>
+</html>

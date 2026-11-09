@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hermes.local/video-editor/project.schema.json",
+  "title": "Video editor project document",
+  "description": "Versioned, editable project document. The renderer never invents data: everything ffmpeg needs is described here. Unknown properties are preserved by the implementation and reported as warnings, so a newer writer does not lose data on round-trip.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "revision",
+    "baseRevision",
+    "title",
+    "engineTag",
+    "fps",
+    "width",
+    "height",
+    "scenes",
+    "assets",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {"type": "integer", "const": 1},
+    "projectId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+      "description": "Stable identifier, also used as an URL path segment."
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Revision stored on the server. Incremented by one on every accepted save."
+    },
+    "baseRevision": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Revision this document was edited from. The service compares it with the stored revision and answers 409 when they differ."
+    },
+    "title": {"type": "string", "minLength": 1, "maxLength": 200},
+    "sessionId": {"type": ["string", "null"], "maxLength": 120},
+    "cwd": {"type": ["string", "null"], "maxLength": 500},
+    "engineTag": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$",
+      "description": "Engine identity pinned into the snapshot, e.g. ffmpeg-9.0.1."
+    },
+    "fps": {
+      "type": "object",
+      "required": ["num", "den"],
+      "properties": {
+        "num": {"type": "integer", "minimum": 1, "maximum": 240},
+        "den": {"type": "integer", "minimum": 1, "maximum": 1001}
+      }
+    },
+    "width": {"type": "integer", "minimum": 16, "maximum": 7680, "multipleOf": 2},
+    "height": {"type": "integer", "minimum": 16, "maximum": 8192, "multipleOf": 2},
+    "orientation": {"type": "string", "enum": ["h", "v"]},
+    "audio": {
+      "type": "object",
+      "required": ["masterVolume"],
+      "properties": {
+        "masterVolume": {"type": "integer", "minimum": 0, "maximum": 100},
+        "normalize": {"type": "boolean", "description": "EBU R128 loudness normalization on export."}
+      }
+    },
+    "music": {
+      "type": "object",
+      "required": ["assetId", "volume"],
+      "properties": {
+        "assetId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+        "volume": {"type": "integer", "minimum": 0, "maximum": 100},
+        "fadeIn": {"type": "number", "minimum": 0, "maximum": 10},
+        "fadeOut": {"type": "number", "minimum": 0, "maximum": 10},
+        "loop": {"type": "boolean"},
+        "in": {"type": "number", "minimum": 0},
+        "out": {"type": "number", "exclusiveMinimum": 0},
+        "ducking": {"type": "boolean", "description": "Lower the music while scene audio plays."}
+      }
+    },
+    "audioEvents": {
+      "type": "array",
+      "maxItems": 50,
+      "description": "Sound effects pinned to absolute timeline seconds (phase 3A). Mixed after the scene bed and before the music, so ducking still keys off the voice track.",
+      "items": {
+        "type": "object",
+        "required": ["id", "assetId", "at"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+          "assetId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+            "description": "Must reference an asset of kind 'audio'."
+          },
+          "at": {"type": "number", "minimum": 0, "description": "Start offset in seconds on the timeline."},
+          "volume": {"type": "integer", "minimum": 0, "maximum": 100, "default": 100},
+          "fadeIn": {"type": "number", "minimum": 0, "maximum": 10, "description": "Fade-in seconds, relative to the start of the sound."},
+          "fadeOut": {"type": "number", "minimum": 0, "maximum": 10, "description": "Fade-out seconds, measured back from the end of the sound."}
+        },
+        "additionalProperties": true
+      }
+    },
+    "logo": {
+      "type": "object",
+      "required": ["assetId"],
+      "description": "Brand watermark burned over the finished video. Defaults: bottom-right, opacity 0.8, scale 0.15.",
+      "properties": {
+        "assetId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$",
+          "description": "Must reference an asset of kind 'image'."
+        },
+        "position": {
+          "type": "string",
+          "enum": [
+            "top-left", "top-center", "top-right",
+            "center-left", "center", "center-right",
+            "bottom-left", "bottom-center", "bottom-right"
+          ]
+        },
+        "opacity": {"type": "number", "minimum": 0, "maximum": 1},
+        "scale": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 0.5,
+          "description": "Logo width as a fraction of the output width."
+        }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {"$ref": "#/$defs/scene"}
+    },
+    "assets": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {"$ref": "#/$defs/asset"}
+    },
+    "migrationLog": {
+      "type": "array",
+      "description": "Append-only record of non-destructive migrations.",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "at"],
+        "properties": {
+          "from": {"type": "integer"},
+          "to": {"type": "integer"},
+          "at": {"type": "string"},
+          "tool": {"type": "string"}
+        }
+      }
+    },
+    "createdAt": {"type": "string", "format": "date-time"},
+    "updatedAt": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "scene": {
+      "type": "object",
+      "required": ["id", "source", "in", "out", "transition", "text", "audio"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+        "name": {"type": "string", "maxLength": 120},
+        "source": {
+          "type": "object",
+          "required": ["path", "sha256", "kind"],
+          "properties": {
+            "assetId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+            "path": {
+              "type": ["string", "null"],
+              "description": "Relative POSIX path below the project media root. null only while the scene is waiting for an explicit relink."
+            },
+            "sha256": {
+              "type": ["string", "null"],
+              "pattern": "^[0-9a-f]{64}$",
+              "description": "Hash of the original media, recorded at import time."
+            },
+            "kind": {"type": "string", "enum": ["video", "image"]}
+          }
+        },
+        "in": {"type": "number", "minimum": 0, "description": "Trim start in seconds."},
+        "out": {"type": "number", "exclusiveMinimum": 0, "description": "Trim end in seconds."},
+        "speed": {"type": "number", "minimum": 0.5, "maximum": 2.0, "description": "Velocidad de la escena; ajusta duración, timeline y transiciones."},
+        "kenBurns": {
+          "type": "object",
+          "required": ["zoom"],
+          "properties": {
+            "zoom": {"type": "number", "minimum": 1.0, "maximum": 1.5},
+            "pan": {"type": "string", "enum": ["none", "left", "right", "up", "down"]}
+          },
+          "description": "Zoom/pan lento; solo para escenas de imagen."
+        },
+        "filters": {"type": "object"},
+        "transition": {
+          "type": "string",
+          "pattern": "^(none|(fade|slideleft|slideright|wipeleft|wiperight|circleopen|zoomin)-[0-9]+(\\.[0-9]+)?)$",
+          "description": "Transition entering this scene. 'none' cuts; '<style>-<seconds>' is a real ffmpeg xfade crossfade with the previous scene, duration 0.1 to 2.0 and no longer than either neighbour. The first scene never overlaps."
+        },
+        "text": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "required": ["content", "at", "until"],
+            "properties": {
+              "content": {"type": "string", "minLength": 1, "maxLength": 500},
+              "at": {"type": "number", "minimum": 0},
+              "until": {"type": "number", "exclusiveMinimum": 0},
+              "position": {"type": "string", "enum": ["top", "center", "bottom"]},
+              "size": {
+                "type": "integer",
+                "minimum": 12,
+                "maximum": 120,
+                "default": 42,
+                "description": "Font size in pixels."
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "default": "#FFFFFF",
+                "description": "Text fill colour."
+              },
+              "border": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10,
+                "default": 0,
+                "description": "Border (outline) width in pixels."
+              },
+              "borderColor": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "default": "#000000"
+              },
+              "shadow": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10,
+                "default": 0,
+                "description": "Shadow offset in pixels (x and y)."
+              },
+              "animation": {
+                "type": "object",
+                "description": "Entrance/exit animation. Missing directions mean 'none'.",
+                "properties": {
+                  "in": {"type": "string", "enum": ["none", "fade", "slide-up", "slide-down"], "default": "none"},
+                  "out": {"type": "string", "enum": ["none", "fade", "slide-up", "slide-down"], "default": "none"}
+                }
+              }
+            }
+          }
+        },
+        "filters": {
+          "type": "object",
+          "description": "Colour correction applied to this scene before scale/pad. Without filters the graph is unchanged.",
+          "properties": {
+            "brightness": {"type": "number", "minimum": -1, "maximum": 1},
+            "contrast": {"type": "number", "minimum": 0, "maximum": 2},
+            "saturation": {"type": "number", "minimum": 0, "maximum": 3},
+            "grayscale": {"type": "boolean"},
+            "vignette": {"type": "boolean"},
+            "blur": {"type": "number", "minimum": 0, "maximum": 20}
+          }
+        },
+        "audio": {
+          "type": "object",
+          "required": ["volume"],
+          "properties": {
+            "volume": {"type": "integer", "minimum": 0, "maximum": 100},
+            "fadeIn": {"type": "number", "minimum": 0, "maximum": 10},
+            "fadeOut": {"type": "number", "minimum": 0, "maximum": 10}
+          }
+        },
+        "needsRelink": {
+          "type": "boolean",
+          "description": "True when the media file must be re-selected before export."
+        }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "required": ["id", "path", "sha256", "kind", "rights"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"},
+        "path": {"type": "string"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "kind": {"type": "string", "enum": ["video", "image", "audio"]},
+        "bytes": {"type": "integer", "minimum": 0, "maximum": 2147483648},
+        "rights": {
+          "type": "object",
+          "required": ["status"],
+          "properties": {
+            "status": {"type": "string", "enum": ["owned", "licensed", "public-domain", "unknown", "generated"]},
+            "license": {"type": "string", "maxLength": 200},
+            "notes": {"type": "string", "maxLength": 500}
+          }
+        },
+        "addedAt": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

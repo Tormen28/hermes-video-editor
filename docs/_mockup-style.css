@@ -1,0 +1,26 @@
+/* ============================================================
+   ARCHIVO RETIRADO COMO FUENTE · NO EDITAR AQUÍ
+   ------------------------------------------------------------
+   La fuente única del estilo de la maqueta es el bloque <style>
+   embebido en docs/mockup.html (líneas 7–464; 456 líneas
+   efectivas). Este archivo era una extracción literal de ese
+   bloque, y dos copias idénticas son dos verdades: cualquier
+   edición futura en uno de los dos lados se perdería en silencio.
+
+   Comprobado el 2026-11-08 antes de vaciarlo: extracción y bloque
+   idénticos byte a byte tras normalizar CRLF→LF (25 572
+   caracteres). sha256 del bloque vigente:
+     26764c1dbbe5b1b7d5e4cf8573b45b98f60bf35f512908c7137d3b38ac8f9157
+
+   Se conserva el nombre del archivo (sin CSS) para no romper
+   referencias históricas y para que nadie lo tome por fuente.
+   Criterio: docs/ui-spec-rev2.md §0.
+
+   Inspeccionar el CSS vigente  → abrir docs/mockup.html.
+   Comprobar que no hay deriva → en docs/:
+     python -c "import re,hashlib;h=open('mockup.html',encoding='utf-8').read();b=re.search(r'<style>(.*?)</style>',h,re.S).group(1).replace('
+','
+').strip();print(b.count(chr(10))+1, hashlib.sha256(b.encode()).hexdigest())"
+   Debe imprimir:
+     456 26764c1dbbe5b1b7d5e4cf8573b45b98f60bf35f512908c7137d3b38ac8f9157
+   ============================================================ */

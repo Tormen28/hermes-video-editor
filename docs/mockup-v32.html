@@ -1,0 +1,1512 @@
+<!doctype html>
+<html lang="es" data-theme="dark" data-state="edit" data-size="1440">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de vídeo · maqueta v3.2 · pack v1.1 (música · transiciones · texto · filtros · logo · export · plantillas)</title>
+<style>
+/* ============================================================
+   TOKENS — sin cambios respecto a mockup-v3 / v3.1.
+   Cinco tokens del tema; todo lo demás deriva de ellos.
+   v3.2 no añade NINGÚN color literal de interfaz. La única
+   excepción declarada es --doc-ink, que representa el color de
+   texto ELEGIDO POR EL USUARIO en el documento (dato, no chrome).
+   ============================================================ */
+:root{
+  color-scheme:dark;
+  --foreground:#e6e7ea;
+  --muted-foreground:#9b9ca3;
+  --accent:#4d8df6;
+  --border:#33353a;
+  --card:#141517;
+
+  --surf-1:color-mix(in oklab,var(--card) 96.5%,var(--foreground));
+  --surf-2:color-mix(in oklab,var(--card) 93.5%,var(--foreground));
+  --surf-3:color-mix(in oklab,var(--card) 89%,var(--foreground));
+  --surf-4:color-mix(in oklab,var(--card) 84%,var(--foreground));
+  --line-soft:color-mix(in oklab,var(--border) 70%,transparent);
+
+  --ink-2:color-mix(in oklab,var(--foreground) 82%,transparent);
+  --ink-3:color-mix(in oklab,var(--foreground) 76%,transparent);
+  --accent-1:color-mix(in oklab,var(--accent) 14%,transparent);
+  --accent-2:color-mix(in oklab,var(--accent) 32%,transparent);
+  --accent-deep:color-mix(in oklab,var(--accent) 88%,var(--foreground));
+
+  --stage:oklch(from var(--card) 0.19 0 0);
+  --scrim:color-mix(in oklab,var(--stage) 62%,transparent);
+  --shadow:0 30px 70px -34px color-mix(in oklab,var(--stage) 90%,transparent),
+           0 2px 8px -4px color-mix(in oklab,var(--stage) 55%,transparent);
+  --shadow-pop:0 18px 44px -18px color-mix(in oklab,var(--stage) 96%,transparent),
+               0 2px 6px -3px color-mix(in oklab,var(--stage) 70%,transparent);
+
+  /* dato del documento, no chrome: color de texto del usuario */
+  --doc-ink:oklch(0.99 0 0);
+
+  --pw:1440px; --ph:900px;
+  --chat:518px; --ed-h:900px; --ed-top:40px; --tl:260px;
+  --pps:46px;
+  --r:4px; --rlg:7px;
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --foreground:#1a1b1f;
+  --muted-foreground:#5f6169;
+  --accent:#2f5fe0;
+  --border:#d5d7dd;
+  --card:#fbfbfc;
+  --stage:oklch(from var(--card) 0.19 0 0);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--card);color:var(--foreground);
+  font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+:where(h1,h2,h3,h4,p,ul,ol){margin:0}
+:where(ul,ol){padding:0;list-style:none}
+svg{display:block}
+.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.i--14{width:14px;height:14px}
+.i--18{width:18px;height:18px}
+.tnum{font-variant-numeric:tabular-nums}
+.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-variant-numeric:tabular-nums}
+
+/* ---------- chrome de la maqueta (no es producto) ---------- */
+.doc{padding:22px 24px 64px;display:grid;gap:14px;justify-items:start}
+.doc__bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:var(--pw);max-width:100%}
+.doc__t{font-size:14px;font-weight:650}
+.doc__s{font-size:12px;color:var(--ink-2)}
+.doc__sp{flex:1}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--surf-1)}
+.seg button{appearance:none;border:0;border-left:1px solid var(--border);background:transparent;color:var(--ink-2);
+  font:inherit;font-size:12px;font-weight:500;height:32px;padding:0 10px;cursor:pointer;white-space:nowrap}
+.seg button:first-child{border-left:0}
+.seg button:hover{color:var(--foreground);background:var(--surf-2)}
+.seg button[aria-pressed="true"]{background:var(--accent-1);color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent);font-weight:650}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.doc__notes{width:var(--pw);max-width:100%;display:grid;gap:8px;font-size:12px;color:var(--ink-2);line-height:1.55}
+.doc__notes h2{font-size:13px;color:var(--foreground);font-weight:650;margin-top:4px}
+.doc__notes code{font:12px/1.4 ui-monospace,"Cascadia Mono",Consolas,monospace;color:var(--foreground);
+  background:var(--surf-2);border:1px solid var(--line-soft);border-radius:3px;padding:1px 5px}
+.doc__notes b{color:var(--foreground);font-weight:600}
+body.cap{overflow:hidden}
+body.cap .doc{padding:0;gap:0}
+body.cap .doc__bar,body.cap .doc__notes{display:none}
+
+/* ============================================================
+   SHELL · dock derecho: chat 36 % (518) + editor 64 % (922)
+   ============================================================ */
+.shell{
+  width:var(--pw);height:var(--ph);display:grid;grid-template-columns:var(--chat) minmax(0,1fr);
+  background:var(--card);border:1px solid var(--border);overflow:hidden;position:relative;
+  box-shadow:var(--shadow);font-size:13px;contain:layout paint;
+}
+:root[data-size="1024"]{--pw:1024px;--ph:700px;--chat:369px;--pps:32px}
+:root[data-size="900"]{--pw:900px;--ph:700px;--chat:324px;--pps:28px}
+
+/* ---------- chat ---------- */
+.chat{display:flex;flex-direction:column;min-width:0;background:var(--card);position:relative;overflow:hidden}
+.chat__head{height:48px;display:flex;align-items:center;gap:8px;padding:0 8px 0 14px;
+  border-bottom:1px solid var(--border);background:var(--surf-1)}
+.chat__id{min-width:0;display:grid;gap:1px}
+.chat__title{font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat__sub{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.modelsel{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 9px 0 8px;flex:none;
+  border:1px solid var(--border);border-radius:999px;background:var(--surf-2);color:var(--foreground);
+  font:inherit;font-size:12px;font-weight:500;cursor:pointer;max-width:214px}
+.modelsel:hover{border-color:var(--accent-2);background:var(--accent-1)}
+.modelsel span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat__body{flex:1;min-height:0;overflow:hidden;padding:16px 14px 4px;display:flex;flex-direction:column;gap:14px}
+.msg{display:flex;gap:8px;min-width:0}
+.msg--me{justify-content:flex-end}
+.msg__who{width:22px;height:22px;border-radius:6px;flex:none;display:grid;place-items:center;
+  background:var(--surf-3);color:var(--ink-2);margin-top:1px}
+.msg__who--ai{background:var(--accent-1);color:var(--accent)}
+.msg__body{min-width:0;max-width:88%}
+.msg--me .msg__body{max-width:84%}
+.msg__txt{font-size:13px;line-height:1.5;color:var(--foreground)}
+.msg--me .msg__txt{background:var(--surf-3);border:1px solid var(--line-soft);border-radius:10px;padding:8px 10px}
+.msg__meta{font-size:12px;color:var(--ink-3);margin-top:3px}
+.msg--me .msg__meta{text-align:right}
+.toolcard{display:flex;align-items:center;gap:8px;margin-top:8px;padding:7px 9px;border:1px solid var(--border);
+  border-radius:7px;background:var(--surf-1);font-size:12px;color:var(--ink-2)}
+.toolcard b{color:var(--foreground);font-weight:600}
+.toolcard .i{color:var(--accent)}
+.chat__composer{margin:0 12px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surf-1);
+  padding:8px 8px 6px;display:grid;gap:6px}
+.composer__ph{font-size:13px;color:var(--ink-3);padding:6px 4px 2px;min-height:44px}
+.composer__row{display:flex;align-items:center;gap:4px}
+.cbtn{width:32px;height:32px;display:grid;place-items:center;border:0;border-radius:var(--r);
+  background:transparent;color:var(--ink-2);cursor:pointer}
+.cbtn:hover{background:var(--surf-3);color:var(--foreground)}
+.csend{width:32px;height:32px;display:grid;place-items:center;border:0;border-radius:var(--r);
+  background:var(--accent);color:var(--card);cursor:pointer}
+.chat__foot{padding:0 14px 8px;font-size:12px;color:var(--ink-3);display:flex;gap:8px;align-items:center}
+.chat__foot kbd{font:500 12px/1 ui-monospace,Consolas,monospace;border:1px solid var(--border);border-bottom-width:2px;
+  border-radius:3px;padding:2px 4px;color:var(--ink-2)}
+
+/* ============================================================
+   EDITOR
+   ============================================================ */
+.ed{grid-column:2;display:grid;grid-template-rows:var(--ed-top) minmax(0,1fr) var(--tl);min-width:0;
+  border-left:1px solid var(--border);position:relative;overflow:hidden;background:var(--card);
+  container-type:inline-size;container-name:ed}
+
+/* topbar 40 */
+.ed__top{display:flex;align-items:center;gap:6px;padding:0 6px 0 10px;min-width:0;
+  background:var(--surf-2);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:7px;flex:none;font-size:13px;font-weight:650;white-space:nowrap}
+.plate{width:22px;height:22px;border-radius:4px;display:grid;place-items:center;flex:none;
+  background:var(--accent-1);color:var(--accent)}
+.vr{width:1px;height:20px;background:var(--border);flex:none;margin:0 2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 9px;flex:none;
+  border:1px solid transparent;border-radius:var(--r);background:transparent;color:var(--foreground);
+  font:inherit;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;
+  transition:background-color .1s linear,border-color .1s linear}
+.btn:hover{background:var(--surf-3)}
+.btn--icon{width:32px;padding:0}
+.btn--outline{border-color:var(--border)}
+.btn--outline:hover{border-color:var(--accent-2);background:var(--accent-1)}
+.btn--primary{background:var(--accent);color:var(--card);font-weight:650;padding:0 11px}
+.btn--primary:hover{background:var(--accent-deep)}
+.btn--wide{width:100%;justify-content:center}
+.btn--sm{height:32px;font-size:12px;padding:0 8px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn[aria-pressed="true"]{background:var(--accent-1);color:var(--accent);border-color:var(--accent-2)}
+.btn:focus-visible,.proj:focus-visible,.mchip:focus-visible,.modelsel:focus-visible,.trmark:focus-visible,
+.dtab:focus-visible,.sec button:focus-visible,.anch button:focus-visible,.swat:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.proj{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 7px 0 8px;border:1px solid transparent;
+  border-radius:var(--r);background:transparent;color:var(--foreground);font:inherit;font-size:13px;font-weight:500;
+  white-space:nowrap;cursor:pointer;max-width:190px}
+.proj:hover{background:var(--surf-3)}
+.proj .i:first-child{color:var(--ink-2)}
+.proj b{overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.proj .i:last-child{color:var(--ink-3);width:14px;height:14px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 7px;border-radius:4px;flex:none;
+  border:1px solid var(--line-soft);background:var(--surf-1);color:var(--ink-2);
+  font-size:12px;font-weight:500;white-space:nowrap;font-variant-numeric:tabular-nums}
+.chip b{color:var(--foreground);font-weight:600}
+.chip--outline{background:transparent;border-color:var(--border)}
+.chip--accent{border-color:var(--accent-2);background:var(--accent-1);color:var(--accent)}
+.chip--warn{border-color:var(--line-soft);background:var(--surf-2);color:var(--ink-2)}
+.chip--sm{height:22px;font-size:11px;padding:0 5px}
+.save{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none}
+.spacer{flex:1;min-width:4px}
+
+.mchip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 7px 0 8px;flex:none;max-width:190px;
+  border:1px solid var(--border);border-radius:var(--rlg);background:var(--surf-1);color:var(--foreground);
+  font:inherit;font-size:12px;font-weight:500;cursor:pointer;position:relative}
+.mchip:hover{border-color:var(--accent-2);background:var(--accent-1)}
+.mchip .i:first-child{color:var(--accent)}
+.mchip__txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.mchip__lock{color:var(--ink-3)}
+.mchip__lock .i{width:12px;height:12px}
+
+/* visor */
+.ed__main{display:grid;grid-template-rows:36px minmax(0,1fr) 56px;min-height:0}
+.viewh{display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--line-soft);min-width:0}
+.viewh__t{font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.viewh__t i{color:var(--ink-3);font-style:normal;font-weight:400}
+.stagewrap{display:grid;place-items:center;min-height:0;padding:10px 14px;background:var(--surf-1);overflow:hidden}
+.stage{width:100%;aspect-ratio:16/9;position:relative;overflow:hidden;border-radius:6px;
+  background:oklch(from var(--stage) 0.24 0.006 250);border:1px solid var(--line-soft)}
+.stage__grad{position:absolute;inset:0;background:
+  radial-gradient(120% 90% at 18% 12%,color-mix(in oklab,var(--accent) 9%,transparent),transparent 60%),
+  radial-gradient(90% 80% at 82% 88%,color-mix(in oklab,var(--accent) 6%,transparent),transparent 62%),
+  linear-gradient(150deg,oklch(from var(--stage) 0.30 0.008 250),oklch(from var(--stage) 0.20 0.006 250));
+  transition:filter .2s linear}
+.stage__bars{position:absolute;inset:0;display:grid;grid-template-columns:repeat(9,1fr);gap:10px;padding:26px 30px;opacity:.5}
+.stage__bars span{border-radius:2px;background:linear-gradient(180deg,color-mix(in oklab,var(--foreground) 8%,transparent),color-mix(in oklab,var(--foreground) 3%,transparent))}
+.stage__tag{position:absolute;left:10px;bottom:9px;font-size:11px;color:var(--ink-3);border:1px dashed var(--line-soft);
+  border-radius:3px;padding:2px 6px;background:color-mix(in oklab,var(--stage) 60%,transparent)}
+.stage__safe{position:absolute;left:8%;right:8%;top:8%;bottom:8%;border:1px dashed color-mix(in oklab,var(--foreground) 14%,transparent);border-radius:3px;pointer-events:none}
+.stage__hud{position:absolute;right:10px;top:9px;display:flex;gap:4px}
+.stage__vig{position:absolute;inset:0;display:none;
+  background:radial-gradient(ellipse at 50% 50%,transparent 42%,color-mix(in oklab,var(--stage) 82%,transparent) 100%)}
+/* texto del documento sobre el fotograma (color = dato del usuario) */
+.stage__txt{position:absolute;left:8%;right:8%;bottom:8%;text-align:center;font-size:19px;font-weight:700;
+  line-height:1.25;color:var(--doc-ink);letter-spacing:.01em;
+  text-shadow:0 2px 10px color-mix(in oklab,var(--stage) 85%,transparent);
+  -webkit-text-stroke:1px color-mix(in oklab,var(--stage) 62%,transparent)}
+.stage__txt small{display:block;font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
+  color:color-mix(in oklab,var(--doc-ink) 78%,transparent);margin-top:5px;-webkit-text-stroke:0}
+/* logo / marca de agua */
+.stage__logo{position:absolute;right:4.5%;bottom:5.5%;opacity:.72;display:flex;align-items:center;gap:5px;
+  font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--doc-ink);line-height:1}
+.stage__logo-mk{width:10px;height:10px;border-radius:2px;background:var(--doc-ink);flex:none;
+  box-shadow:inset 0 0 0 2.5px color-mix(in oklab,var(--stage) 55%,transparent)}
+
+.transport{display:flex;align-items:center;gap:6px;padding:0 10px;border-top:1px solid var(--border);background:var(--card);min-width:0}
+.tbtn{width:32px;height:32px;display:grid;place-items:center;border:1px solid transparent;border-radius:var(--r);
+  background:transparent;color:var(--ink-2);cursor:pointer;flex:none}
+.tbtn:hover{background:var(--surf-3);color:var(--foreground)}
+.tbtn--play{background:var(--surf-3);color:var(--foreground);border-color:var(--line-soft)}
+.tc{font:600 12px/1 ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;color:var(--foreground);
+  letter-spacing:.01em;padding:0 2px}
+.tc--sep{color:var(--ink-3);font-weight:400}
+.scrub{position:relative;flex:1;min-width:60px;height:32px;display:flex;align-items:center;margin:0 4px}
+.scrub__rail{position:relative;width:100%;height:3px;border-radius:2px;background:var(--surf-4)}
+.scrub__buf{position:absolute;left:0;top:0;bottom:0;width:64%;border-radius:2px;background:var(--surf-4)}
+.scrub__fill{position:absolute;left:0;top:0;bottom:0;width:38%;border-radius:2px;background:var(--accent)}
+.scrub__thumb{position:absolute;left:38%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;
+  background:var(--foreground);box-shadow:0 0 0 3px var(--accent-1)}
+
+/* ============================================================
+   LÍNEA DE TIEMPO · 260 = toolbar 40 + regla 22 + pistas 166 + pie 32
+   4 pistas: V1 56 · M1 36 · A1 44 · T1 30 = 166
+   ============================================================ */
+.tl{display:grid;grid-template-rows:40px 22px minmax(0,1fr) 32px;border-top:1px solid var(--border);
+  background:var(--surf-1);min-height:0;min-width:0}
+.tlbar{display:flex;align-items:center;gap:4px;padding:0 8px;border-bottom:1px solid var(--line-soft);min-width:0}
+.tb{height:32px;min-width:32px;justify-content:center;padding:0 7px;display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;
+  border-radius:var(--r);background:transparent;color:var(--ink-2);font:inherit;font-size:12px;cursor:pointer;flex:none}
+.tb:hover{background:var(--surf-3);color:var(--foreground)}
+.tb[aria-pressed="true"]{background:var(--accent-1);color:var(--accent);border-color:var(--accent-2)}
+.tiw{width:32px;height:32px;display:grid;place-items:center;border:1px solid transparent;border-radius:var(--r);
+  background:transparent;color:var(--ink-2);cursor:pointer;flex:none}
+.tiw:hover{background:var(--surf-3);color:var(--foreground)}
+.ruler{position:relative;border-bottom:1px solid var(--border);background:var(--surf-1);overflow:hidden}
+.ruler__corner{position:absolute;left:0;top:0;bottom:0;width:116px;border-right:1px solid var(--border);
+  display:flex;align-items:center;padding:0 9px;font-size:12px;color:var(--ink-3);background:var(--surf-1);z-index:2}
+.ruler__tick{position:absolute;top:0;bottom:0;width:1px;background:var(--line-soft);
+  left:calc(116px + var(--s) * var(--pps))}
+.ruler__tick--big{background:color-mix(in oklab,var(--border) 90%,transparent)}
+.ruler__lab{position:absolute;top:5px;font:500 12px/1 ui-monospace,Consolas,monospace;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;padding-left:4px;left:calc(116px + var(--s) * var(--pps))}
+.tracks{position:relative;min-height:0;overflow:hidden}
+.lane{position:relative;border-bottom:1px solid var(--line-soft)}
+.lane--v1{height:56px}
+.lane--m1{height:36px}
+.lane--a1{height:44px}
+.lane--t1{height:30px}
+.lane__head{position:absolute;left:0;top:0;bottom:0;width:116px;border-right:1px solid var(--border);
+  background:var(--surf-1);z-index:2;display:flex;align-items:center;gap:7px;padding:0 8px}
+.lane__badge{width:20px;height:20px;border-radius:3px;display:grid;place-items:center;flex:none;
+  background:var(--surf-3);color:var(--ink-2);font-size:11px;font-weight:700;letter-spacing:.03em}
+.lane__badge--m{background:var(--accent-1);color:var(--accent)}
+.lane__meta{min-width:0;display:grid;gap:1px}
+.lane__name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lane__sub{font-size:11px;color:var(--ink-3);white-space:nowrap}
+.clip{position:absolute;top:5px;bottom:5px;border-radius:4px;border:1px solid var(--border);overflow:hidden;
+  background:var(--surf-3);cursor:pointer;text-align:left;color:inherit;font:inherit;padding:0;
+  left:calc(116px + var(--s) * var(--pps));width:calc(var(--d) * var(--pps))}
+.clip--v{border-color:var(--line-soft);background:linear-gradient(180deg,var(--surf-3),color-mix(in oklab,var(--surf-3) 82%,var(--card)))}
+.clip__in{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent-2)}
+.clip__duck{position:absolute;right:6px;bottom:3px;font-size:11px;font-weight:500;color:var(--accent);
+  background:var(--surf-1);border:1px solid var(--accent-2);border-radius:3px;padding:1px 4px;line-height:1.2}
+.clip__lbl{position:absolute;left:8px;right:8px;top:4px;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clip__tc{position:absolute;left:8px;bottom:3px;font:500 11px/1 ui-monospace,Consolas,monospace;color:var(--ink-3);
+  font-variant-numeric:tabular-nums}
+.clip--sel{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-1),color-mix(in oklab,var(--accent) 8%,var(--surf-3)));
+  box-shadow:0 0 0 1px var(--accent),0 6px 14px -10px var(--accent)}
+.clip--audio{background:color-mix(in oklab,var(--surf-2) 70%,transparent);top:4px;bottom:4px}
+.clip--music{background:color-mix(in oklab,var(--accent) 10%,var(--surf-2));border-color:var(--accent-2);top:4px;bottom:4px}
+.clip--music .clip__lbl{right:106px}
+.wave{position:absolute;inset:0;background-image:repeating-linear-gradient(90deg,var(--accent-2) 0 2px,transparent 2px 5px);
+  -webkit-mask-image:linear-gradient(180deg,transparent 8%,#000 34%,#000 66%,transparent 92%);
+  mask-image:linear-gradient(180deg,transparent 8%,#000 34%,#000 66%,transparent 92%);opacity:.85}
+.wave--music{opacity:.6;background-image:repeating-linear-gradient(90deg,var(--accent) 0 2px,transparent 2px 6px)}
+.clip__fade{position:absolute;top:0;bottom:0;background:color-mix(in oklab,var(--card) 62%,transparent);pointer-events:none}
+.clip__fade--in{left:0;width:calc(var(--f) * var(--pps));clip-path:polygon(0 0,100% 100%,0 100%)}
+.clip__fade--out{right:0;width:calc(var(--f) * var(--pps));clip-path:polygon(100% 0,100% 100%,0 100%)}
+.clip--t{background:var(--surf-2);border-color:var(--line-soft)}
+.clip--t .clip__lbl{font-weight:500;color:var(--ink-2);top:6px}
+.playhead{position:absolute;top:0;bottom:0;width:1px;background:var(--accent);z-index:3;pointer-events:none;
+  left:calc(116px + var(--s) * var(--pps))}
+.playhead::before{content:"";position:absolute;top:0;left:-5px;width:11px;height:9px;border-radius:2px 2px 0 0;background:var(--accent)}
+/* marcador de transición en la junta: caja de 32 con rombo de 14 */
+.trmark{position:absolute;top:50%;margin-top:-16px;width:32px;height:32px;transform:translateX(-16px);
+  left:calc(116px + var(--s) * var(--pps));z-index:4;border:0;background:transparent;cursor:pointer;
+  display:grid;place-items:center;padding:0}
+.trmark::before{content:"";width:13px;height:13px;border-radius:2px;transform:rotate(45deg);
+  background:var(--surf-1);border:1.5px solid var(--accent-2);box-shadow:0 0 0 2px color-mix(in oklab,var(--card) 80%,transparent)}
+.trmark:hover::before{border-color:var(--accent);background:var(--accent-1)}
+.trmark[aria-pressed="true"]::before{background:var(--accent);border-color:var(--accent)}
+.tlfoot{display:flex;align-items:center;gap:10px;padding:0 10px;border-top:1px solid var(--line-soft);
+  font-size:12px;color:var(--ink-3);min-width:0;overflow:hidden}
+.tlfoot > span{white-space:nowrap;flex:none}
+.zoom{display:flex;align-items:center;gap:2px}
+
+/* ============================================================
+   OVERLAYS · absolute DENTRO del pane. z: scrim 45 · drawer 50 ·
+   popover 55 · diálogo 60
+   ============================================================ */
+.scrim{position:absolute;inset:var(--ed-top) 0 0 0;background:var(--scrim);z-index:45;display:none}
+.drawer{position:absolute;top:var(--ed-top);bottom:0;width:326px;background:var(--surf-1);z-index:50;
+  display:none;flex-direction:column;min-height:0;box-shadow:var(--shadow-pop)}
+.drawer--lib{left:0;border-right:1px solid var(--border)}
+.drawer--insp{right:0;border-left:1px solid var(--border)}
+:root[data-state="lib"] .scrim,:root[data-state="insp"] .scrim,
+:root[data-state="musica"] .scrim,:root[data-state="texto"] .scrim,
+:root[data-state="efectos"] .scrim,:root[data-state="logo"] .scrim,
+:root[data-state="export"] .scrim{display:block}
+:root[data-state="lib"] .drawer--lib{display:flex}
+:root[data-state="insp"] .drawer--insp,
+:root[data-state="musica"] .drawer--insp,
+:root[data-state="texto"] .drawer--insp,
+:root[data-state="efectos"] .drawer--insp,
+:root[data-state="logo"] .drawer--insp{display:flex}
+.dhead{height:40px;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;border-bottom:1px solid var(--border);flex:none}
+.dhead__t{font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.dbody{flex:1;min-height:0;overflow:auto;padding:0}
+.dbody--pad{padding:10px}
+.drow{display:flex;align-items:center;gap:9px;padding:6px;border-radius:var(--r);border:1px solid transparent;cursor:pointer}
+.drow:hover{background:var(--surf-3);border-color:var(--line-soft)}
+.drow--sel{border-color:var(--accent);background:var(--accent-1)}
+.drow__th{width:56px;height:32px;border-radius:3px;flex:none;position:relative;overflow:hidden;
+  background:linear-gradient(135deg,var(--surf-4),var(--surf-2));border:1px solid var(--line-soft)}
+.drow__th span{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-3)}
+.drow__meta{min-width:0;display:grid;gap:1px;flex:1}
+.drow__n{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drow__s{font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+/* ---------- pestañas del inspector ---------- */
+.dtabs{display:flex;border-bottom:1px solid var(--border);background:var(--surf-1);flex:none}
+.dtab{flex:1 1 0;min-width:0;height:36px;border:0;background:transparent;color:var(--ink-2);
+  font:inherit;font-size:12px;font-weight:500;cursor:pointer;position:relative;
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:0 4px}
+.dtab .i{width:14px;height:14px;flex:none}
+.dtab:hover{color:var(--foreground);background:var(--surf-2)}
+.dtab[aria-selected="true"]{color:var(--accent);font-weight:650;background:var(--accent-1);
+  box-shadow:inset 0 -2px 0 var(--accent)}
+.tabp{display:none}
+.drawer--insp .tabp{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable}
+:root[data-state="efectos"] .tabp--escena,
+:root[data-state="infop"] .tabp--escena,
+:root[data-state="texto"] .tabp--texto,
+:root[data-state="musica"] .tabp--audio,
+:root[data-state="logo"] .tabp--logo{display:block}
+
+/* ---------- secciones, campos y controles ---------- */
+.sec{border-bottom:1px solid var(--line-soft);padding:10px 12px 12px}
+.sec:last-child{border-bottom:0}
+.sec__h{display:flex;align-items:center;gap:6px;margin-bottom:4px;min-height:20px}
+.sec__t{font-size:12px;font-weight:650;letter-spacing:.055em;text-transform:uppercase;color:var(--ink-2)}
+.sec__h .spacer{flex:1;min-width:2px}
+.sec__note{font-size:11px;line-height:1.45;color:var(--ink-3);margin-top:8px}
+.sec__note b{color:var(--ink-2);font-weight:600}
+.fold summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;height:32px;border-radius:3px}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary:hover .sec__t{color:var(--foreground)}
+.fold summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.fold .chev{color:var(--ink-3);transition:transform .12s linear}
+.fold[open] .chev{transform:rotate(180deg)}
+.fold__b{padding-top:1px}
+.fld{display:grid;gap:4px;margin-top:9px}
+.fld__r{display:flex;align-items:center;gap:8px;min-height:20px}
+.fld__l{font-size:12px;color:var(--ink-2);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fld__v{font:500 12px/1 ui-monospace,Consolas,monospace;color:var(--foreground);font-variant-numeric:tabular-nums;white-space:nowrap}
+.fld--off{opacity:.55}
+.rng{-webkit-appearance:none;appearance:none;width:100%;height:32px;margin:0;background:transparent;cursor:pointer;accent-color:var(--accent);display:block}
+.rng::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--surf-4)}
+.rng::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;margin-top:-5px;
+  background:var(--foreground);border:1px solid var(--card);box-shadow:0 0 0 3px var(--accent-1)}
+.rng:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.rng:disabled{opacity:.45;cursor:not-allowed}
+.sw{display:flex;align-items:center;gap:9px;min-height:32px;cursor:pointer;border:0;background:transparent;
+  padding:0;color:inherit;font:inherit;width:100%;text-align:left}
+.sw input{position:absolute;opacity:0;width:1px;height:1px}
+.sw__tr{width:34px;height:20px;border-radius:999px;background:var(--surf-4);border:1px solid var(--border);
+  position:relative;flex:none;transition:background .12s linear,border-color .12s linear}
+.sw__tr::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+  background:var(--ink-3);transition:transform .12s linear,background .12s linear}
+.sw input:checked + .sw__tr{background:var(--accent-2);border-color:var(--accent)}
+.sw input:checked + .sw__tr::after{transform:translateX(14px);background:var(--foreground)}
+.sw input:focus-visible + .sw__tr{outline:2px solid var(--accent);outline-offset:2px}
+.sw input:disabled + .sw__tr{opacity:.45}
+.sw__l{font-size:12px;color:var(--ink-2);flex:1;min-width:0}
+.sw input:disabled ~ .sw__l{color:var(--ink-3)}
+.sel{width:100%;height:32px;border:1px solid var(--border);border-radius:var(--r);background:var(--surf-2);
+  color:var(--foreground);font:inherit;font-size:12px;padding:0 8px;cursor:pointer}
+.sel:hover{border-color:var(--accent-2)}
+.sel:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.inp{width:100%;height:32px;border:1px solid var(--border);border-radius:var(--r);background:var(--surf-2);
+  color:var(--foreground);font:inherit;font-size:12px;padding:0 8px}
+.inp--mono{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+textarea.inp{height:auto;min-height:58px;padding:7px 8px;line-height:1.4;resize:none}
+.inp:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.seg--drawer{display:flex;width:100%;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--surf-2)}
+.seg--drawer button{flex:1 1 0;min-width:0;height:32px;border:0;border-left:1px solid var(--border);background:transparent;
+  color:var(--ink-2);font:inherit;font-size:12px;font-weight:500;cursor:pointer;padding:0 3px;white-space:nowrap}
+.seg--drawer button:first-child{border-left:0}
+.seg--drawer button:hover{background:var(--surf-3);color:var(--foreground)}
+.seg--drawer button[aria-pressed="true"]{background:var(--accent-1);color:var(--accent);font-weight:650;box-shadow:inset 0 -2px 0 var(--accent)}
+.seg--drawer button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.seg--drawer button:disabled{opacity:.5;cursor:not-allowed}
+
+/* 9 anclas */
+.anch{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:100%}
+.anch button{height:32px;border:1px solid var(--border);border-radius:4px;background:var(--surf-2);
+  cursor:pointer;display:grid;place-items:center;padding:0}
+.anch button i{display:block;width:10px;height:10px;background:var(--ink-3);border-radius:1px}
+.anch button:hover{border-color:var(--accent-2);background:var(--accent-1)}
+.anch button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-1);box-shadow:0 0 0 1px var(--accent)}
+.anch button[aria-pressed="true"] i{background:var(--accent)}
+/* muestras de color */
+.swats{display:flex;gap:6px;flex-wrap:wrap}
+.swat{width:32px;height:32px;border-radius:4px;border:1px solid var(--border);cursor:pointer;padding:0}
+.swat[aria-pressed="true"]{box-shadow:0 0 0 2px var(--accent);border-color:var(--accent)}
+.swat--white{background:oklch(0.99 0 0)}
+.swat--paper{background:oklch(0.94 0.01 90)}
+.swat--ink{background:oklch(0.22 0 0)}
+.swat--accent{background:var(--accent)}
+.swat--mint{background:oklch(0.82 0.09 170)}
+.swat--amber{background:oklch(0.84 0.11 80)}
+.swat--rose{background:oklch(0.78 0.10 15)}
+.swat--sky{background:oklch(0.80 0.08 235)}
+
+/* indicador de mezcla */
+.mix{border:1px solid var(--line-soft);border-radius:6px;background:var(--surf-2);padding:9px 10px;display:grid;gap:7px;margin-top:10px}
+.mix__h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--foreground)}
+.mix__h .i{color:var(--accent)}
+.mix__row{display:grid;grid-template-columns:92px 1fr 44px;align-items:center;gap:8px;font-size:11px;color:var(--ink-2)}
+.mix__bar{height:6px;border-radius:3px;background:var(--surf-4);position:relative;overflow:hidden}
+.mix__bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--accent-2)}
+.mix__bar i.b{background:var(--accent)}
+.mix__db{font:500 11px/1 ui-monospace,Consolas,monospace;color:var(--ink-2);text-align:right;font-variant-numeric:tabular-nums}
+.mix__f{font-size:11px;line-height:1.45;color:var(--ink-3)}
+.mix__f b{color:var(--ink-2);font-weight:600}
+
+/* ============================================================
+   POPOVER DE TRANSICIÓN (state=trans) · dentro del pane
+   ============================================================ */
+.trpop{position:absolute;left:96px;bottom:calc(var(--tl) + 8px);width:340px;z-index:55;display:none;
+  flex-direction:column;background:var(--surf-2);border:1px solid var(--border);border-radius:var(--rlg);
+  box-shadow:var(--shadow-pop);overflow:hidden;max-height:calc(100% - var(--tl) - 24px)}
+:root[data-state="trans"] .trpop{display:flex}
+.trbody{display:flex;flex-direction:column;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.trpop::after{content:"";position:absolute;bottom:-5px;left:150px;width:9px;height:9px;background:var(--surf-2);
+  border-right:1px solid var(--border);border-bottom:1px solid var(--border);transform:rotate(45deg)}
+.trhead{display:flex;align-items:flex-start;gap:8px;padding:10px 10px 8px 12px}
+.trhead__id{display:grid;gap:2px;flex:1;min-width:0}
+.trhead__t{font-size:14px;font-weight:650}
+.trhead__s{font-size:11px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 12px 4px}
+.trit{display:grid;gap:4px;padding:4px;border:1px solid transparent;border-radius:6px;background:transparent;
+  cursor:pointer;text-align:left;color:inherit;font:inherit}
+.trit:hover{background:var(--surf-3);border-color:var(--line-soft)}
+.trit[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-1);box-shadow:0 0 0 1px var(--accent)}
+.trit__th{position:relative;width:100%;aspect-ratio:16/9;border-radius:4px;overflow:hidden;border:1px solid var(--line-soft);
+  background:var(--surf-3)}
+.trit__n{font-size:12px;font-weight:500;padding:0 1px;display:flex;align-items:center;gap:5px}
+.trit__n .chip{height:18px;font-size:11px;padding:0 4px;margin-left:auto}
+/* miniaturas: el movimiento se dibuja, no se iconiza */
+.mv{position:absolute;inset:0}
+.mv--fade{background:linear-gradient(100deg,color-mix(in oklab,var(--surf-4) 92%,transparent) 0 42%,
+  color-mix(in oklab,var(--accent) 34%,var(--surf-3)) 58% 100%)}
+.mv--slide{background:
+  linear-gradient(90deg,color-mix(in oklab,var(--surf-4) 92%,transparent) 0 34%,transparent 34%),
+  linear-gradient(90deg,transparent 0 52%,color-mix(in oklab,var(--accent) 36%,var(--surf-3)) 52% 100%)}
+.mv--slide::after{content:"";position:absolute;top:50%;left:41%;width:9px;height:9px;margin-top:-5px;
+  border-right:2px solid var(--accent-deep);border-top:2px solid var(--accent-deep);transform:rotate(45deg)}
+.mv--wipe{background:linear-gradient(103deg,color-mix(in oklab,var(--surf-4) 92%,transparent) 0 48%,
+  color-mix(in oklab,var(--accent) 40%,var(--surf-3)) 49% 100%)}
+.mv--circle{background:radial-gradient(circle at 50% 50%,color-mix(in oklab,var(--accent) 42%,var(--surf-3)) 0 30%,
+  color-mix(in oklab,var(--surf-4) 92%,transparent) 31%)}
+.mv--zoom{background:
+  radial-gradient(circle at 50% 50%,transparent 0 15%,var(--accent) 16% 19%,transparent 20% 32%,
+    color-mix(in oklab,var(--accent) 55%,transparent) 33% 36%,transparent 37%),
+  color-mix(in oklab,var(--surf-4) 92%,transparent)}
+.mv--none{background:repeating-linear-gradient(135deg,var(--surf-3) 0 6px,var(--surf-2) 6px 12px)}
+.mv__l{position:absolute;left:4px;bottom:3px;font:500 11px/1 ui-monospace,Consolas,monospace;color:var(--ink-2)}
+.trdur{padding:6px 12px 2px}
+.trsum{margin:2px 12px 8px;font-size:11px;line-height:1.45;color:var(--ink-3);border-top:1px solid var(--line-soft);padding-top:8px}
+.trsum b{color:var(--ink-2)}
+.trfoot{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--border);background:var(--surf-1)}
+.trfoot .spacer{flex:1}
+
+/* ============================================================
+   DIÁLOGO DE EXPORTACIÓN (state=export)
+   ============================================================ */
+.dlg{position:absolute;left:181px;top:calc(var(--ed-top) + 34px);width:560px;max-height:calc(100% - var(--ed-top) - 68px);
+  z-index:60;display:none;flex-direction:column;min-height:0;background:var(--surf-2);border:1px solid var(--border);
+  border-radius:8px;box-shadow:var(--shadow-pop);overflow:hidden}
+:root[data-state="export"] .dlg{display:flex}
+.dlg__h{display:flex;align-items:flex-start;gap:10px;padding:12px 12px 10px 14px;border-bottom:1px solid var(--line-soft)}
+.dlg__id{display:grid;gap:2px;flex:1;min-width:0}
+.dlg__t{font-size:15px;font-weight:650}
+.dlg__s{font-size:12px;color:var(--ink-3)}
+.dlg__b{overflow:auto;min-height:0;padding:12px 14px}
+.dlg__f{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:var(--surf-1)}
+.dlg__f .spacer{flex:1}
+.pgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.pset{position:relative;display:grid;gap:3px;padding:9px 10px;min-height:76px;text-align:left;cursor:pointer;
+  border:1px solid var(--border);border-radius:6px;background:var(--surf-1);color:inherit;font:inherit}
+.pset:hover{border-color:var(--accent-2);background:var(--accent-1)}
+.pset[aria-checked="true"]{border-color:var(--accent);background:var(--accent-1);box-shadow:0 0 0 1px var(--accent)}
+.pset[aria-disabled="true"]{opacity:.72;cursor:not-allowed;background:var(--surf-1)}
+.pset[aria-disabled="true"]:hover{border-color:var(--border);background:var(--surf-1)}
+.pset__t{font-size:13px;font-weight:650;display:flex;align-items:center;gap:6px}
+.pset__m{font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+.pset__b{position:absolute;right:8px;top:8px;display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:500;color:var(--ink-3);border:1px solid var(--line-soft);border-radius:3px;
+  padding:1px 5px;background:var(--surf-2)}
+.pset__b .i{width:11px;height:11px}
+.pset[aria-checked="true"] .pset__b{color:var(--accent);border-color:var(--accent-2);background:var(--accent-1)}
+.dlgsec{display:grid;gap:2px;margin-top:14px}
+.dlgsec__t{font-size:12px;font-weight:650;letter-spacing:.055em;text-transform:uppercase;color:var(--ink-2);margin-bottom:4px}
+.warnbox{display:flex;gap:8px;margin-top:12px;padding:8px 10px;border:1px solid var(--line-soft);border-radius:6px;
+  background:var(--surf-1);font-size:11px;line-height:1.5;color:var(--ink-2)}
+.warnbox .i{color:var(--ink-3);margin-top:1px}
+.warnbox b{color:var(--foreground);font-weight:600}
+.summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding:8px 10px;
+  border:1px solid var(--line-soft);border-radius:6px;background:var(--surf-1);font-size:11px;color:var(--ink-2)}
+.summary b{color:var(--foreground);font-weight:600}
+
+/* ============================================================
+   ESTADO VACÍO + PLANTILLAS (state=inicio)
+   ============================================================ */
+.start{position:absolute;inset:var(--ed-top) 0 0 0;z-index:5;display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;padding:22px 26px;background:var(--card);overflow:auto}
+:root[data-state="inicio"] .start{display:flex}
+:root[data-state="inicio"] .ed__main,:root[data-state="inicio"] .tl{display:none}
+.start__hd{display:grid;gap:4px;justify-items:center;text-align:center;max-width:560px}
+.start__t{font-size:16px;font-weight:650}
+.start__s{font-size:12px;line-height:1.5;color:var(--ink-2)}
+.tpls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%;max-width:640px}
+.tpl{display:grid;gap:7px;padding:10px;text-align:left;cursor:pointer;color:inherit;font:inherit;
+  border:1px solid var(--border);border-radius:7px;background:var(--surf-1)}
+.tpl:hover{border-color:var(--accent-2);background:var(--accent-1)}
+.tpl[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-1);box-shadow:0 0 0 1px var(--accent)}
+.tpl[aria-disabled="true"]{opacity:.7;cursor:not-allowed;background:var(--surf-1)}
+.tpl[aria-disabled="true"]:hover{border-color:var(--border);background:var(--surf-1)}
+.tpl__t{font-size:13px;font-weight:650;display:flex;align-items:center;gap:6px}
+.tpl__t .chip{margin-left:auto;height:20px;font-size:11px}
+.tpl__strip{display:flex;gap:2px;height:22px}
+.tpl__strip i{border-radius:2px;background:var(--surf-4)}
+.tpl__strip i.tint{background:var(--accent-2)}
+.tpl__strip i.blank{background:repeating-linear-gradient(135deg,var(--surf-3) 0 4px,var(--surf-2) 4px 8px)}
+.tpl__m{font-size:11px;color:var(--ink-3)}
+.start__row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center}
+.start__note{font-size:11px;color:var(--ink-3);max-width:520px;text-align:center;line-height:1.5}
+
+/* ============================================================
+   DEGRADACIÓN POR ANCHO DEL PANE
+   ============================================================ */
+@container ed (max-width:620px){
+  .ed__top .btn--primary{width:32px;padding:0;font-size:0;justify-content:center;gap:0}
+}
+@container ed (max-width:780px){
+  .brand span,.brand{font-size:12px}
+  .proj{max-width:132px}
+  .mchip{max-width:172px}
+  .save span:last-child{display:none}
+  .tlbar .tb span{display:none}
+  .ruler__lab:last-of-type{display:none}
+  .tlfoot__note,.tlfoot__sep{display:none}
+  .trpop{left:8px}
+  .trpop::after{left:140px}
+}
+@container ed (max-width:700px){
+  .brand{display:none}
+  .proj{max-width:158px}
+  .ed__main{grid-template-rows:32px minmax(0,1fr) 48px}
+  .stagewrap{padding:8px 10px}
+  .viewh .chip--outline{display:none}
+  .tc--total,.tc--sep{display:none}
+  .dlg{left:8px;right:8px;width:auto}
+  .pgrid{grid-template-columns:1fr}
+  .trpop{left:8px;right:8px;width:auto}
+  .trpop::after{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* animaciones de muestra (solo en la maqueta) */
+@keyframes tpop{from{opacity:0;transform:translateY(12px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes tin{from{opacity:0}to{opacity:1}}
+:root[data-state="texto"] .stage__txt{animation:tpop .5s cubic-bezier(.2,.7,.3,1) both}
+:root[data-state="texto"] .prev__txt{animation:tpop .5s cubic-bezier(.2,.7,.3,1) both}
+.replay .stage__txt,.replay .prev__txt{animation:tpop .55s cubic-bezier(.2,.7,.3,1) both}
+
+/* previsualización de filtros en el visor (estado efectos) */
+:root[data-state="efectos"] .stage__grad{filter:brightness(1.05) contrast(1.12) saturate(.42)}
+:root[data-state="efectos"] .stage__vig{display:block}
+:root[data-state="texto"] .stage__txt{display:block}
+
+/* tarjeta de texto con estilo en el escenario (siempre visible: es el texto real del proyecto) */
+.stage__txt{display:none}
+:root[data-state="texto"] .stage__txt,
+:root[data-state="musica"] .stage__txt,
+:root[data-state="trans"] .stage__txt,
+:root[data-state="logo"] .stage__txt,
+:root[data-state="export"] .stage__txt,
+:root[data-state="edit"] .stage__txt,
+:root[data-state="insp"] .stage__txt{display:block}
+
+/* previsualización dentro del inspector de texto */
+.prevwrap{position:sticky;top:0;z-index:2;background:var(--surf-1);border-bottom:1px solid var(--line-soft);
+  padding:10px 12px 11px}
+.prevwrap .prev{margin-top:0}
+.prevwrap .btn{margin-top:8px}
+.prev{position:relative;margin-top:10px;aspect-ratio:16/9;border-radius:5px;overflow:hidden;
+  border:1px solid var(--line-soft);background:
+   radial-gradient(110% 90% at 20% 15%,color-mix(in oklab,var(--accent) 10%,transparent),transparent 60%),
+   linear-gradient(150deg,oklch(from var(--stage) 0.30 0.008 250),oklch(from var(--stage) 0.20 0.006 250))}
+.prev__txt{position:absolute;left:8%;right:8%;bottom:9%;text-align:center;font-size:13px;font-weight:700;
+  line-height:1.25;color:var(--doc-ink);-webkit-text-stroke:1px color-mix(in oklab,var(--stage) 60%,transparent);
+  text-shadow:0 2px 8px color-mix(in oklab,var(--stage) 85%,transparent)}
+.prev__badge{position:absolute;left:6px;top:6px;font-size:11px;color:var(--ink-3);
+  background:color-mix(in oklab,var(--stage) 62%,transparent);border:1px dashed var(--line-soft);border-radius:3px;padding:1px 5px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3.5 13.7 9 19 10.7 13.7 12.4 12 18l-1.7-5.6L5 10.7 10.3 9Z"/><path d="M18.5 15.5 19.2 17.3 21 18l-1.8.7-.7 1.8-.7-1.8L16 18l1.8-.7Z"/></symbol>
+<symbol id="i-panel-r" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14.5 4v16"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12Z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M18 6v12l-9-6Z" fill="currentColor" stroke="none"/><path d="M6 5v14"/></symbol>
+<symbol id="i-fwd" viewBox="0 0 24 24"><path d="M6 6v12l9-6Z" fill="currentColor" stroke="none"/><path d="M18 5v14"/></symbol>
+<symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9.5v5h3l4 3.2V6.3L7 9.5Z"/><path d="M15 9.4a3.6 3.6 0 0 1 0 5.2M17.6 7a7 7 0 0 1 0 10"/></symbol>
+<symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6.5" cy="6.5" r="2.2"/><circle cx="6.5" cy="17.5" r="2.2"/><path d="M8.3 8.2 20 18M8.3 15.8 20 6"/></symbol>
+<symbol id="i-magnet" viewBox="0 0 24 24"><path d="M6 4v7a6 6 0 0 0 12 0V4h-4v7a2 2 0 0 1-4 0V4Z"/></symbol>
+<symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.2"/><path d="m15.6 15.6 4.4 4.4M11 8.4v5.2M8.4 11h5.2"/></symbol>
+<symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.2"/><path d="m15.6 15.6 4.4 4.4M8.4 11h5.2"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.2"/><path d="m15.6 15.6 4.4 4.4"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+<symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10.5 5-3v9l-5-3Z"/></symbol>
+<symbol id="i-audio" viewBox="0 0 24 24"><path d="M9 17V6l10-2v11"/><circle cx="7" cy="17.5" r="2.2"/><circle cx="17" cy="15.5" r="2.2"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 17.5 5-4 4 3 3-2 4 3"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.8 4.8L19 7"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9.5V4h5.5M20 9.5V4h-5.5M4 14.5V20h5.5M20 14.5V20h-5.5"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M4 12h9.5a5.5 5.5 0 0 1 5.5 5.5V19"/></symbol>
+<symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M20 12h-9.5A5.5 5.5 0 0 0 5 17.5V19"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V7.8a3.5 3.5 0 0 1 7 0v2.7"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+<symbol id="i-paper" viewBox="0 0 24 24"><path d="M19.5 11.8 12 19.3a4.4 4.4 0 0 1-6.2-6.2l7.5-7.5a2.9 2.9 0 0 1 4.1 4.1l-7.5 7.5a1.5 1.5 0 0 1-2.1-2.1l6.9-6.9"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19.5V5M6 11l6-6 6 6"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="10" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3.5 3.5 8 12 12.5 20.5 8Z"/><path d="m3.5 13 8.5 4.5L20.5 13"/></symbol>
+<symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/></symbol>
+<symbol id="i-type" viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M8.5 19h7"/></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h8M18 7h2M4 12h2M12 12h8M4 17h9M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="16.5" cy="17" r="2"/></symbol>
+<symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 4 3 3-3 3"/><path d="M20 7H8a4 4 0 0 0-4 4v1"/><path d="m7 20-3-3 3-3"/><path d="M4 17h12a4 4 0 0 0 4-4v-1"/></symbol>
+<symbol id="i-duck" viewBox="0 0 24 24"><path d="M3 12h2.5l1.8-5 2 10 2-7 1.8 4H20"/><path d="M18.5 5v4M20.5 7h-4"/></symbol>
+<symbol id="i-layout" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M9.5 10v9"/></symbol>
+<symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 11a8 8 0 1 1 2.5 6"/><path d="M4 5v6h6"/></symbol>
+<symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.5 21 20H3Z"/><path d="M12 10v4.5M12 17.2v.1"/></symbol>
+<symbol id="i-speed" viewBox="0 0 24 24"><path d="M12 13 16 8"/><path d="M4.5 17a9 9 0 1 1 15 0"/><circle cx="12" cy="13" r="1.4"/></symbol>
+<symbol id="i-badge" viewBox="0 0 24 24"><circle cx="12" cy="10" r="5"/><path d="m9 14.5-1.5 6L12 18l4.5 2.5L15 14.5"/></symbol>
+<symbol id="i-dl" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M4.5 19.5h15"/></symbol>
+<symbol id="i-eq" viewBox="0 0 24 24"><path d="M6 20V10M12 20V4M18 20v-6"/></symbol>
+<symbol id="i-trans" viewBox="0 0 24 24"><rect x="3" y="6" width="7" height="12" rx="1"/><rect x="14" y="6" width="7" height="12" rx="1"/><path d="M10.5 12h3"/></symbol>
+</defs></svg>
+
+<main class="doc">
+  <header class="doc__bar">
+    <div>
+      <div class="doc__t">Editor de vídeo · maqueta v3.2 · pack v1.1</div>
+      <div class="doc__s">1440 × 900 · dock 36/64 · música · transiciones · texto · filtros · Ken Burns · velocidad · logo · export · plantillas</div>
+    </div>
+    <span class="doc__sp"></span>
+    <div class="seg" role="group" aria-label="Estado de la maqueta">
+      <button data-state="edit">Base</button>
+      <button data-state="musica">Música</button>
+      <button data-state="trans">Transición</button>
+      <button data-state="texto">Texto</button>
+      <button data-state="efectos">Filtros</button>
+      <button data-state="logo">Logo</button>
+      <button data-state="export">Exportar</button>
+      <button data-state="inicio">Plantillas</button>
+    </div>
+    <div class="seg" role="group" aria-label="Tamaño de la maqueta">
+      <button data-size="1440" aria-pressed="true">1440×900</button>
+      <button data-size="1024">1024×700</button>
+      <button data-size="900">900×700</button>
+    </div>
+    <div class="seg" role="group" aria-label="Tema">
+      <button data-theme-btn="dark" aria-pressed="true">Oscuro</button>
+      <button data-theme-btn="light">Claro</button>
+    </div>
+  </header>
+
+  <!-- ===================== SHELL ===================== -->
+  <div class="shell" role="application" aria-label="Editor de vídeo en el dock derecho de Hermes">
+
+    <!-- CHAT 518 -->
+    <section class="chat" aria-label="Chat de Hermes">
+      <div class="chat__head">
+        <div class="chat__id">
+          <div class="chat__title">Lanzamiento Q4 · montaje</div>
+          <div class="chat__sub">Sesión de trabajo</div>
+        </div>
+        <span class="doc__sp"></span>
+        <button class="modelsel" type="button" aria-label="Modelo actual: deepseek-v4.1-flash. Cambiar modelo">
+          <svg class="i i--14"><use href="#i-spark"/></svg>
+          <span>deepseek-v4.1-flash</span>
+          <svg class="i i--14" style="color:var(--ink-3)"><use href="#i-chev"/></svg>
+        </button>
+        <button class="btn btn--icon" type="button" aria-label="Más acciones del chat"><svg class="i"><use href="#i-more"/></svg></button>
+      </div>
+
+      <div class="chat__body">
+        <div class="msg">
+          <div class="msg__who msg__who--ai"><svg class="i i--14"><use href="#i-film"/></svg></div>
+          <div class="msg__body">
+            <p class="msg__txt">El proyecto <b>Lanzamiento Q4</b> tiene 4 escenas y 00:00:14:04 con las transiciones puestas. La música <b>ambiente-cálido.mp3</b> ya está en la biblioteca.</p>
+            <div class="toolcard"><svg class="i i--14"><use href="#i-panel-r"/></svg><span>Editor de vídeo · panel abierto a la derecha</span></div>
+          </div>
+        </div>
+        <div class="msg msg--me">
+          <div class="msg__body">
+            <p class="msg__txt">Ponle música suave por debajo de la voz, transiciones de fundido de medio segundo y expórtalo también en vertical.</p>
+            <div class="msg__meta">14:31</div>
+          </div>
+        </div>
+        <div class="msg">
+          <div class="msg__who msg__who--ai"><svg class="i i--14"><use href="#i-film"/></svg></div>
+          <div class="msg__body">
+            <p class="msg__txt">Música al 40 % con ducking de 6 dB. Fundido de 0,6 s en las tres juntas: la secuencia pasa de 16,2 s a 14,4 s. El 9:16 aún no lo puede renderizar el motor; te lo dejo pedido, no fingido.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat__composer">
+        <div class="composer__ph">Pide un cambio o pega la ruta de un medio…</div>
+        <div class="composer__row">
+          <button class="cbtn" type="button" aria-label="Adjuntar"><svg class="i"><use href="#i-paper"/></svg></button>
+          <button class="cbtn" type="button" aria-label="Dictar"><svg class="i"><use href="#i-mic"/></svg></button>
+          <span class="doc__sp"></span>
+          <button class="csend" type="button" aria-label="Enviar"><svg class="i"><use href="#i-send"/></svg></button>
+        </div>
+      </div>
+      <div class="chat__foot"><kbd>Intro</kbd> envía · <kbd>Mayús</kbd>+<kbd>Intro</kbd> salto de línea</div>
+    </section>
+
+    <!-- EDITOR 922 -->
+    <section class="ed" aria-label="Editor de vídeo">
+      <div class="ed__top">
+        <div class="brand"><span class="plate"><svg class="i i--14"><use href="#i-film"/></svg></span><span>Editor</span></div>
+        <span class="vr"></span>
+        <button class="proj" type="button"><svg class="i i--14"><use href="#i-folder"/></svg><b>Lanzamiento Q4</b><svg class="i i--14"><use href="#i-chev"/></svg></button>
+        <span class="chip"><b>Rev 7</b></span>
+        <span class="save"><span class="dot"></span><span>Guardado · 12 s</span></span>
+        <span class="spacer"></span>
+        <button class="mchip" type="button" aria-label="Modelo del chat: deepseek-v4.1-flash. Solo lectura">
+          <svg class="i i--14"><use href="#i-spark"/></svg>
+          <span class="mchip__txt">deepseek-v4.1-flash</span>
+          <span class="mchip__lock" aria-hidden="true"><svg class="i"><use href="#i-lock"/></svg></span>
+        </button>
+        <span class="vr"></span>
+        <button class="btn btn--icon" type="button" aria-label="Biblioteca de medios"><svg class="i"><use href="#i-layers"/></svg></button>
+        <button class="btn btn--icon" type="button" aria-pressed="true" aria-label="Inspector de escena"><svg class="i"><use href="#i-panel-r"/></svg></button>
+        <button class="btn btn--primary" type="button" aria-label="Exportar"><svg class="i i--14"><use href="#i-dl"/></svg>Exportar</button>
+      </div>
+
+      <div class="ed__main">
+        <div class="viewh">
+          <span class="viewh__t">02 · Producto en mano <i>· escena de 00:00:05:18</i></span>
+          <span class="spacer"></span>
+          <span class="chip chip--outline">1280×720 · 30 fps</span>
+          <button class="btn btn--icon" type="button" aria-label="Cuadrícula"><svg class="i"><use href="#i-grid"/></svg></button>
+          <button class="btn btn--icon" type="button" aria-label="Pantalla completa"><svg class="i"><use href="#i-expand"/></svg></button>
+        </div>
+
+        <div class="stagewrap">
+          <div class="stage" role="img" aria-label="Fotograma de ejemplo de la escena 02">
+            <div class="stage__grad"></div>
+            <div class="stage__bars"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="stage__vig"></div>
+            <div class="stage__safe"></div>
+            <div class="stage__txt">El gancho en 5 segundos<small>Producto en mano</small></div>
+            <div class="stage__logo" aria-hidden="true"><span class="stage__logo-mk"></span>MARCA</div>
+            <span class="stage__tag">fotograma de ejemplo</span>
+            <span class="stage__hud"><span class="chip chip--outline">1.0×</span></span>
+          </div>
+        </div>
+
+        <div class="transport">
+          <button class="tbtn" type="button" aria-label="Escena anterior"><svg class="i"><use href="#i-back"/></svg></button>
+          <button class="tbtn tbtn--play" type="button" aria-label="Reproducir"><svg class="i"><use href="#i-play"/></svg></button>
+          <button class="tbtn" type="button" aria-label="Escena siguiente"><svg class="i"><use href="#i-fwd"/></svg></button>
+          <span class="tc">00:00:04:12</span>
+          <span class="tc tc--sep">/</span>
+          <span class="tc tc--total" style="color:var(--ink-3);font-weight:500">00:00:14:04</span>
+          <div class="scrub" aria-hidden="true">
+            <div class="scrub__rail"><div class="scrub__buf"></div><div class="scrub__fill"></div><div class="scrub__thumb"></div></div>
+          </div>
+          <span class="chip chip--outline">In 00:00:03:06</span>
+          <span class="chip chip--outline">Out 00:00:08:24</span>
+          <button class="tbtn" type="button" aria-label="Silenciar"><svg class="i"><use href="#i-vol"/></svg></button>
+        </div>
+      </div>
+
+      <!-- ================= LÍNEA DE TIEMPO ================= -->
+      <div class="tl">
+        <div class="tlbar">
+          <button class="tiw" type="button" aria-label="Selección"><svg class="i"><use href="#i-arrow"/></svg></button>
+          <button class="tiw" type="button" aria-label="Cuchilla"><svg class="i"><use href="#i-cut"/></svg></button>
+          <button class="tiw" type="button" aria-pressed="true" aria-label="Imán"><svg class="i"><use href="#i-magnet"/></svg></button>
+          <button class="tiw" type="button" aria-label="Deshacer"><svg class="i"><use href="#i-undo"/></svg></button>
+          <button class="tiw" type="button" aria-label="Rehacer"><svg class="i"><use href="#i-redo"/></svg></button>
+          <span class="vr"></span>
+          <button class="tb" type="button"><svg class="i i--14"><use href="#i-trans"/></svg><span>Transición</span></button>
+          <button class="tb" type="button"><svg class="i i--14"><use href="#i-audio"/></svg><span>Música</span></button>
+          <button class="tb" type="button"><svg class="i i--14"><use href="#i-plus"/></svg><span>Insertar</span></button>
+          <span class="doc__sp"></span>
+          <span class="chip chip--outline">Escena 02</span>
+          <button class="tiw" type="button" aria-label="Alejar"><svg class="i"><use href="#i-zoom-out"/></svg></button>
+          <span class="chip" id="zoomlbl">46 px/s</span>
+          <button class="tiw" type="button" aria-label="Acercar"><svg class="i"><use href="#i-zoom-in"/></svg></button>
+        </div>
+
+        <div class="ruler" aria-hidden="true">
+          <div class="ruler__corner">Secuencia</div>
+          <span class="ruler__tick ruler__tick--big" style="--s:0"></span><span class="ruler__lab" style="--s:0">00:00:00</span>
+          <span class="ruler__tick" style="--s:2"></span>
+          <span class="ruler__tick ruler__tick--big" style="--s:4"></span><span class="ruler__lab" style="--s:4">00:00:04</span>
+          <span class="ruler__tick" style="--s:6"></span>
+          <span class="ruler__tick ruler__tick--big" style="--s:8"></span><span class="ruler__lab" style="--s:8">00:00:08</span>
+          <span class="ruler__tick" style="--s:10"></span>
+          <span class="ruler__tick ruler__tick--big" style="--s:12"></span><span class="ruler__lab" style="--s:12">00:00:12</span>
+          <span class="ruler__tick" style="--s:14"></span>
+          <span class="ruler__tick ruler__tick--big" style="--s:14"></span><span class="ruler__lab" style="--s:14">00:00:14</span>
+        </div>
+
+        <div class="tracks">
+          <div class="lane lane--v1">
+            <div class="lane__head"><span class="lane__badge">V1</span><div class="lane__meta"><span class="lane__name">Escenas</span><span class="lane__sub">4 clips · 3 juntas</span></div></div>
+            <button class="clip clip--v" type="button" style="--s:0;--d:3.2"><span class="clip__in"></span><span class="clip__lbl">01 Apertura</span><span class="clip__tc">00:00:03:06</span></button>
+            <button class="clip clip--v clip--sel" type="button" aria-pressed="true" style="--s:3.2;--d:5.6"><span class="clip__in"></span><span class="clip__lbl">02 Producto en mano</span><span class="clip__tc">00:00:05:18</span></button>
+            <button class="clip clip--v" type="button" style="--s:8.8;--d:4.4"><span class="clip__in"></span><span class="clip__lbl">03 Testimonio</span><span class="clip__tc">00:00:04:12</span></button>
+            <button class="clip clip--v" type="button" style="--s:13.2;--d:3"><span class="clip__in"></span><span class="clip__lbl">04 Cierre</span><span class="clip__tc">00:00:03:00</span></button>
+            <button class="trmark" type="button" style="--s:3.2" aria-pressed="true" aria-label="Transición entre 01 y 02: fundido, 0,6 s"></button>
+            <button class="trmark" type="button" style="--s:8.8" aria-label="Transición entre 02 y 03: fundido, 0,6 s"></button>
+            <button class="trmark" type="button" style="--s:13.2" aria-label="Transición entre 03 y 04: fundido, 0,6 s"></button>
+          </div>
+          <div class="lane lane--m1">
+            <div class="lane__head"><span class="lane__badge lane__badge--m">M1</span><div class="lane__meta"><span class="lane__name">Música</span></div></div>
+            <div class="clip clip--music" style="--s:0;--d:16.2">
+              <div class="wave wave--music"></div>
+              <span class="clip__fade clip__fade--in" style="--f:1.5"></span>
+              <span class="clip__fade clip__fade--out" style="--f:2"></span>
+              <span class="clip__lbl">ambiente-cálido.mp3 · en bucle</span>
+              <span class="clip__duck">ducking −6 dB</span>
+            </div>
+          </div>
+          <div class="lane lane--a1">
+            <div class="lane__head"><span class="lane__badge">A1</span><div class="lane__meta"><span class="lane__name">Audio</span><span class="lane__sub">−12 dB</span></div></div>
+            <div class="clip clip--audio" style="--s:0;--d:16.2"><div class="wave"></div></div>
+          </div>
+          <div class="lane lane--t1">
+            <div class="lane__head"><span class="lane__badge">T1</span><div class="lane__meta"><span class="lane__name">Texto</span></div></div>
+            <div class="clip clip--t" style="--s:0;--d:3.2"><span class="clip__lbl">Apertura: el gancho</span></div>
+            <div class="clip clip--t" style="--s:3.2;--d:7.2"><span class="clip__lbl">El gancho en 5 segundos</span></div>
+            <div class="clip clip--t" style="--s:10.4;--d:5.8"><span class="clip__lbl">Cierre: marca y CTA</span></div>
+          </div>
+          <div class="playhead" style="--s:4.4"></div>
+        </div>
+
+        <div class="tlfoot">
+          <span>4 clips · 00:00:14:04</span><span class="tlfoot__sep">·</span><span>30 fps · 1280×720</span>
+          <span class="tlfoot__sep">·</span><span class="tlfoot__note">3 transiciones · 1,8 s</span>
+          <span class="doc__sp"></span>
+          <div class="zoom"><button class="tiw" type="button" aria-label="Ajustar a la ventana" style="width:auto;padding:0 7px;font-size:12px">Ajustar</button></div>
+        </div>
+      </div>
+
+      <!-- ================= ESTADO VACÍO · PLANTILLAS ================= -->
+      <div class="start" aria-label="Empezar un proyecto">
+        <div class="start__hd">
+          <div class="start__t">Empezar un proyecto</div>
+          <p class="start__s">Una plantilla crea escenas de verdad —intro, cuerpo y cierre— con su texto, su música y sus transiciones ya puestas. Después cambias los medios.</p>
+        </div>
+        <div class="tpls" role="listbox" aria-label="Plantillas de proyecto">
+          <button class="tpl" role="option" aria-selected="true" aria-pressed="true" type="button">
+            <span class="tpl__t"><svg class="i i--14"><use href="#i-layout"/></svg>Producto 15 s<span class="chip">16:9 · 15 s</span></span>
+            <span class="tpl__strip"><i class="tint" style="flex:2"></i><i class="tint" style="flex:4"></i><i class="tint" style="flex:3"></i><i class="tint" style="flex:2"></i></span>
+            <span class="tpl__m">4 escenas · fundido 0,5 s · música suave · texto animado</span>
+          </button>
+          <button class="tpl" role="option" aria-selected="false" type="button">
+            <span class="tpl__t"><svg class="i i--14"><use href="#i-layout"/></svg>Anuncio 30 s<span class="chip">16:9 · 30 s</span></span>
+            <span class="tpl__strip"><i style="flex:2"></i><i style="flex:5"></i><i style="flex:3"></i><i style="flex:2"></i></span>
+            <span class="tpl__m">5 escenas · deslizar 0,6 s · música + voz</span>
+          </button>
+          <button class="tpl" role="option" aria-selected="false" aria-disabled="true" type="button"
+                  title="Se activa cuando el export 9:16 exista: hoy el worker solo acepta mp4-720p30">
+            <span class="tpl__t"><svg class="i i--14"><use href="#i-lock"/></svg>Vertical 15 s<span class="chip">9:16 · pendiente</span></span>
+            <span class="tpl__strip"><i style="flex:2"></i><i style="flex:4"></i><i style="flex:2"></i></span>
+            <span class="tpl__m">4 escenas · espera el preset 9:16 del motor</span>
+          </button>
+          <button class="tpl" role="option" aria-selected="false" type="button">
+            <span class="tpl__t"><svg class="i i--14"><use href="#i-plus"/></svg>En blanco<span class="chip">16:9</span></span>
+            <span class="tpl__strip"><i class="blank" style="flex:1"></i></span>
+            <span class="tpl__m">Sin escenas · elige un medio para empezar</span>
+          </button>
+        </div>
+        <div class="start__row">
+          <button class="btn btn--primary" type="button">Usar plantilla</button>
+          <button class="btn btn--outline" type="button"><svg class="i i--14"><use href="#i-folder"/></svg>Abrir proyecto</button>
+          <button class="btn btn--outline" type="button"><svg class="i i--14"><use href="#i-plus"/></svg>Importar medios</button>
+        </div>
+        <p class="start__note">Las plantillas no descargan medios ni licencias: usan los de tu carpeta o te piden elegirlos. Música: solo pistas que ya estén en la biblioteca. La plantilla vertical está a la vista pero bloqueada: el motor todavía no exporta 9:16.</p>
+      </div>
+
+      <!-- ================= OVERLAYS ================= -->
+      <div class="scrim" aria-hidden="true"></div>
+
+      <aside class="drawer drawer--lib" aria-label="Biblioteca de medios">
+        <div class="dhead"><span class="dhead__t">Medios · 7</span><span class="doc__sp"></span>
+          <button class="btn btn--icon" type="button" aria-label="Cerrar biblioteca"><svg class="i"><use href="#i-x"/></svg></button></div>
+        <div class="dbody">
+          <div class="drow"><div class="drow__th"><span><svg class="i i--14"><use href="#i-video"/></svg></span></div><div class="drow__meta"><span class="drow__n">clipA.mp4</span><span class="drow__s">00:00:03:06 · 4,1 MB</span></div></div>
+          <div class="drow drow--sel"><div class="drow__th"><span><svg class="i i--14"><use href="#i-video"/></svg></span></div><div class="drow__meta"><span class="drow__n">clipB.mp4</span><span class="drow__s">00:00:05:18 · 24,6 MB</span></div></div>
+          <div class="drow"><div class="drow__th"><span><svg class="i i--14"><use href="#i-video"/></svg></span></div><div class="drow__meta"><span class="drow__n">clipC.mp4</span><span class="drow__s">00:00:04:12 · 8,2 MB</span></div></div>
+          <div class="drow"><div class="drow__th"><span><svg class="i i--14"><use href="#i-image"/></svg></span></div><div class="drow__meta"><span class="drow__n">testimonio.jpg</span><span class="drow__s">1920×1080 · 1,8 MB</span></div></div>
+          <div class="drow"><div class="drow__th"><span><svg class="i i--14"><use href="#i-audio"/></svg></span></div><div class="drow__meta"><span class="drow__n">ambiente-cálido.mp3</span><span class="drow__s">00:00:16:00 · propia</span></div></div>
+          <div class="drow"><div class="drow__th"><span><svg class="i i--14"><use href="#i-audio"/></svg></span></div><div class="drow__meta"><span class="drow__n">pulso-suave.mp3</span><span class="drow__s">00:00:22:00 · CC0</span></div></div>
+          <div class="drow"><div class="drow__th"><span><svg class="i i--14"><use href="#i-image"/></svg></span></div><div class="drow__meta"><span class="drow__n">marca.svg</span><span class="drow__s">vector · 8 KB</span></div></div>
+        </div>
+      </aside>
+
+      <aside class="drawer drawer--insp" aria-label="Inspector">
+        <div class="dhead"><span class="dhead__t" id="insp-title">Escena 02</span><span class="doc__sp"></span>
+          <button class="btn btn--icon" type="button" aria-label="Cerrar inspector"><svg class="i"><use href="#i-x"/></svg></button></div>
+
+        <div class="dtabs" role="tablist" aria-label="Pestañas del inspector">
+          <button class="dtab" role="tab" data-tab="escena" aria-selected="false"><svg class="i"><use href="#i-sliders"/></svg>Escena</button>
+          <button class="dtab" role="tab" data-tab="texto" aria-selected="false"><svg class="i"><use href="#i-type"/></svg>Texto</button>
+          <button class="dtab" role="tab" data-tab="audio" aria-selected="false"><svg class="i"><use href="#i-audio"/></svg>Audio</button>
+          <button class="dtab" role="tab" data-tab="logo" aria-selected="false"><svg class="i"><use href="#i-badge"/></svg>Logo</button>
+        </div>
+
+        <div class="dbody">
+
+          <!-- ---------- PESTAÑA ESCENA ---------- -->
+          <div class="tabp tabp--escena" role="tabpanel" aria-labelledby="tab-escena">
+            <div class="sec">
+              <div class="drow drow--sel" style="padding:7px">
+                <div class="drow__th" style="width:64px;height:36px"><span><svg class="i"><use href="#i-video"/></svg></span></div>
+                <div class="drow__meta"><span class="drow__n">clipB.mp4</span><span class="drow__s">1920×1080 · 30 fps · 24,6 MB</span></div>
+              </div>
+              <div class="fld" style="margin-top:8px;grid-template-columns:1fr 1fr;display:grid;gap:6px">
+                <button class="btn btn--outline btn--sm" type="button"><svg class="i i--14"><use href="#i-swap"/></svg>Reemplazar</button>
+                <button class="btn btn--outline btn--sm" type="button"><svg class="i i--14"><use href="#i-cut"/></svg>Recortar</button>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec__h"><span class="sec__t">Velocidad</span><span class="spacer"></span><span class="chip chip--sm">setpts + atempo</span></div>
+              <div class="seg--drawer" role="group" aria-label="Velocidad de la escena">
+                <button type="button" aria-pressed="false">0,5×</button>
+                <button type="button" aria-pressed="false">0,75×</button>
+                <button type="button" aria-pressed="true">1×</button>
+                <button type="button" aria-pressed="false">1,5×</button>
+                <button type="button" aria-pressed="false">2×</button>
+              </div>
+              <div class="fld"><div class="fld__r"><span class="fld__l">Duración resultante</span><span class="fld__v">00:00:05:18 → 00:00:05:18</span></div></div>
+              <p class="sec__note">A 2× el clip dura la mitad y el audio se acelera sin cambiar el tono. El total de la secuencia se recalcula al instante.</p>
+            </div>
+
+            <div class="sec">
+              <div class="sec__h"><span class="sec__t">Ken Burns</span><span class="spacer"></span><span class="chip chip--sm">solo imagen</span></div>
+              <label class="sw sw--off">
+                <input type="checkbox" disabled>
+                <span class="sw__tr"></span>
+                <span class="sw__l">Movimiento lento (zoom y paneo)</span>
+              </label>
+              <div class="fld fld--off">
+                <div class="fld__r"><span class="fld__l">Intensidad</span><span class="fld__v">35 %</span></div>
+                <input class="rng" type="range" min="0" max="100" value="35" disabled aria-label="Intensidad de Ken Burns" aria-valuetext="35 por ciento, deshabilitado: esta escena es vídeo">
+              </div>
+              <p class="sec__note"><b>No se aplica a vídeo</b>: el clip ya se mueve. En la <b>escena 03</b> (imagen) está activo: zoom 8 %, paneo a la derecha.</p>
+            </div>
+
+            <div class="sec">
+              <div class="sec__h"><span class="sec__t">Filtros</span><span class="spacer"></span><button class="btn btn--sm" type="button"><svg class="i i--14"><use href="#i-reset"/></svg>Restablecer</button></div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Brillo</span><span class="fld__v" data-out="f-bri">1,05</span></div>
+                <input class="rng" type="range" min="50" max="150" value="105" aria-label="Brillo" aria-valuetext="1,05" data-bind="f-bri" data-scale="100">
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Contraste</span><span class="fld__v" data-out="f-con">1,12</span></div>
+                <input class="rng" type="range" min="50" max="150" value="112" aria-label="Contraste" aria-valuetext="1,12" data-bind="f-con" data-scale="100">
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Saturación</span><span class="fld__v" data-out="f-sat">0,42</span></div>
+                <input class="rng" type="range" min="0" max="200" value="42" aria-label="Saturación" aria-valuetext="0,42" data-bind="f-sat" data-scale="100">
+              </div>
+              <label class="sw" style="margin-top:6px">
+                <input type="checkbox">
+                <span class="sw__tr"></span>
+                <span class="sw__l">Blanco y negro</span>
+              </label>
+              <label class="sw">
+                <input type="checkbox" checked>
+                <span class="sw__tr"></span>
+                <span class="sw__l">Viñeta</span>
+              </label>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Fuerza de la viñeta</span><span class="fld__v" data-out="f-vig">35 %</span></div>
+                <input class="rng" type="range" min="0" max="100" value="35" aria-label="Fuerza de la viñeta" aria-valuetext="35 por ciento" data-bind="f-vig" data-suffix=" %">
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Desenfoque</span><span class="fld__v" data-out="f-blur">0 px</span></div>
+                <input class="rng" type="range" min="0" max="20" value="0" aria-label="Desenfoque" aria-valuetext="0 píxeles" data-bind="f-blur" data-suffix=" px">
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">LUT</span></div>
+                <select class="sel" aria-label="LUT aplicada">
+                  <option>Ninguna</option>
+                  <option selected>Cálido suave</option>
+                  <option>Neutro cine</option>
+                  <option>Fresco</option>
+                  <option>Monocromo alto contraste</option>
+                </select>
+              </div>
+              <p class="sec__note">Orden fijo: <b>eq → lut3d → vignette → gblur</b>. La vista previa va a 1/4 de resolución; el render, a resolución completa con los mismos números.</p>
+            </div>
+          </div>
+
+          <!-- ---------- PESTAÑA TEXTO ---------- -->
+          <div class="tabp tabp--texto" role="tabpanel" aria-labelledby="tab-texto">
+            <div class="prevwrap">
+              <div class="prev">
+                <span class="prev__badge">vista previa · 16:9</span>
+                <span class="prev__txt">El gancho en 5 segundos</span>
+              </div>
+              <button class="btn btn--outline btn--wide" type="button" data-replay>
+                <svg class="i i--14"><use href="#i-play"/></svg>Reproducir animación
+              </button>
+            </div>
+            <div class="sec">
+              <div class="sec__h"><span class="sec__t">Contenido</span><span class="spacer"></span><span class="chip chip--sm">T1 · 3,2 s → 10,4 s</span></div>
+              <textarea class="inp" aria-label="Texto de la escena">El gancho en 5 segundos</textarea>
+              <p class="sec__note">500 caracteres máximo. Si no cabe en el área segura, se parte en líneas; nunca se recorta a mitad de palabra.</p>
+            </div>
+
+            <div class="sec">
+              <div class="sec__h"><span class="sec__t">Estilo</span><span class="spacer"></span></div>
+              <div class="fld" style="margin-top:2px">
+                <div class="fld__r"><span class="fld__l">Fuente del sistema</span></div>
+                <select class="sel" aria-label="Fuente del texto">
+                  <option selected>Segoe UI Semibold</option>
+                  <option>Arial</option>
+                  <option>Verdana</option>
+                  <option>Georgia</option>
+                  <option>Trebuchet MS</option>
+                  <option>Consolas</option>
+                </select>
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Tamaño</span><span class="fld__v" data-out="t-size">46 px · 2,4 %</span></div>
+                <input class="rng" type="range" min="15" max="72" value="46" aria-label="Tamaño del texto" aria-valuetext="46 píxeles sobre 1080, 2,4 por ciento del alto" data-bind="t-size" data-suffix=" px · 2,4 %">
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Color</span><span class="fld__v">#FFFFFF</span></div>
+                <div class="swats" role="group" aria-label="Color del texto">
+                  <button class="swat swat--white" type="button" aria-pressed="true" aria-label="Blanco"></button>
+                  <button class="swat swat--paper" type="button" aria-pressed="false" aria-label="Papel"></button>
+                  <button class="swat swat--ink" type="button" aria-pressed="false" aria-label="Tinta"></button>
+                  <button class="swat swat--accent" type="button" aria-pressed="false" aria-label="Azul de marca"></button>
+                  <button class="swat swat--mint" type="button" aria-pressed="false" aria-label="Menta"></button>
+                  <button class="swat swat--amber" type="button" aria-pressed="false" aria-label="Ámbar"></button>
+                  <button class="swat swat--rose" type="button" aria-pressed="false" aria-label="Rosa"></button>
+                  <button class="swat swat--sky" type="button" aria-pressed="false" aria-label="Cielo"></button>
+                </div>
+              </div>
+              <label class="sw" style="margin-top:8px">
+                <input type="checkbox" checked>
+                <span class="sw__tr"></span>
+                <span class="sw__l">Borde (contorno)</span>
+              </label>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Grosor del borde</span><span class="fld__v" data-out="t-bor">2 px</span></div>
+                <input class="rng" type="range" min="0" max="8" value="2" aria-label="Grosor del borde" aria-valuetext="2 píxeles" data-bind="t-bor" data-suffix=" px">
+              </div>
+              <label class="sw">
+                <input type="checkbox" checked>
+                <span class="sw__tr"></span>
+                <span class="sw__l">Sombra</span>
+              </label>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Fuerza de la sombra</span><span class="fld__v" data-out="t-sha">3</span></div>
+                <input class="rng" type="range" min="0" max="10" value="3" aria-label="Fuerza de la sombra" aria-valuetext="3 sobre 10" data-bind="t-sha">
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Posición</span></div>
+                <div class="seg--drawer" role="group" aria-label="Posición del texto">
+                  <button type="button" aria-pressed="false">Arriba</button>
+                  <button type="button" aria-pressed="false">Centro</button>
+                  <button type="button" aria-pressed="true">Abajo</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec__h"><span class="sec__t">Animación</span><span class="spacer"></span><span class="chip chip--sm">≤ 1 s</span></div>
+              <div class="fld" style="margin-top:2px">
+                <div class="fld__r"><span class="fld__l">Entrada</span></div>
+                <select class="sel" aria-label="Animación de entrada">
+                  <option>Ninguna</option>
+                  <option>Fundido</option>
+                  <option selected>Deslizar desde abajo</option>
+                  <option>Escala (pop)</option>
+                </select>
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Salida</span></div>
+                <select class="sel" aria-label="Animación de salida">
+                  <option selected>Fundido</option>
+                  <option>Deslizar hacia arriba</option>
+                  <option>Escala (pop)</option>
+                  <option>Ninguna</option>
+                </select>
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Duración</span><span class="fld__v" data-out="t-anim">0,40 s</span></div>
+                <input class="rng" type="range" min="10" max="100" value="40" aria-label="Duración de la animación" aria-valuetext="0,40 segundos" data-bind="t-anim" data-scale="100" data-suffix=" s">
+              </div>
+              <p class="sec__note">La animación dura lo que diga el control y <b>nunca más que el tiempo en pantalla</b> (7,2 s aquí). En el render viaja a <b>ASS</b> (<code>\fad</code>, <code>\move</code>, <code>\t</code>), no a drawtext.</p>
+            </div>
+          </div>
+
+          <!-- ---------- PESTAÑA AUDIO / MÚSICA ---------- -->
+          <div class="tabp tabp--audio" role="tabpanel" aria-labelledby="tab-audio">
+            <div class="sec">
+              <details class="fold">
+                <summary class="fold__h">
+                  <span class="sec__t">Audio de la escena</span>
+                  <span class="spacer"></span>
+                  <span class="chip chip--sm">100 % · 0 dB · 0,3 / 0,5 s</span>
+                  <svg class="i i--14 chev"><use href="#i-chev"/></svg>
+                </summary>
+              <div class="fold__b">
+              <div class="fld" style="margin-top:2px">
+                <div class="fld__r"><span class="fld__l">Volumen</span><span class="fld__v" data-out="a-vol">100 % · 0 dB</span></div>
+                <input class="rng" type="range" min="0" max="100" value="100" aria-label="Volumen del audio de la escena" aria-valuetext="100 por ciento, 0 decibelios" data-bind="a-vol" data-suffix=" % · 0 dB">
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Fundido de entrada</span><span class="fld__v" data-out="a-fi">0,3 s</span></div>
+                <input class="rng" type="range" min="0" max="20" value="3" aria-label="Fundido de entrada del audio de escena" aria-valuetext="0,3 segundos" data-bind="a-fi" data-scale="10" data-suffix=" s">
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Fundido de salida</span><span class="fld__v" data-out="a-fo">0,5 s</span></div>
+                <input class="rng" type="range" min="0" max="20" value="5" aria-label="Fundido de salida del audio de escena" aria-valuetext="0,5 segundos" data-bind="a-fo" data-scale="10" data-suffix=" s">
+              </div>
+              </div>
+              </details>
+            </div>
+
+            <div class="sec">
+              <div class="sec__h"><span class="sec__t">Música de fondo</span><span class="spacer"></span><span class="chip chip--accent chip--sm">activa</span></div>
+              <button class="drow drow--sel" type="button" style="width:100%;text-align:left;margin-top:4px">
+                <span class="drow__th" style="width:44px;display:grid;place-items:center;color:var(--accent)"><svg class="i"><use href="#i-audio"/></svg></span>
+                <span class="drow__meta"><span class="drow__n">ambiente-cálido.mp3</span><span class="drow__s">00:00:16:00 · propia · 128 kbps</span></span>
+              </button>
+              <div class="fld" style="grid-template-columns:1fr 1fr;display:grid;gap:6px;margin-top:8px">
+                <button class="btn btn--outline btn--sm" type="button"><svg class="i i--14"><use href="#i-swap"/></svg>Cambiar pista</button>
+                <button class="btn btn--sm" type="button">Quitar</button>
+              </div>
+
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Volumen de la música</span><span class="fld__v" data-out="m-vol">40 % · −18 dB</span></div>
+                <input class="rng" type="range" min="0" max="100" value="40" aria-label="Volumen de la música" aria-valuetext="40 por ciento, menos 18 decibelios" data-bind="m-vol" data-suffix=" % · −18 dB">
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Fundido de entrada</span><span class="fld__v" data-out="m-fi">1,5 s</span></div>
+                <input class="rng" type="range" min="0" max="80" value="15" aria-label="Fundido de entrada de la música" aria-valuetext="1,5 segundos" data-bind="m-fi" data-scale="10" data-suffix=" s">
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Fundido de salida</span><span class="fld__v" data-out="m-fo">2,0 s</span></div>
+                <input class="rng" type="range" min="0" max="80" value="20" aria-label="Fundido de salida de la música" aria-valuetext="2,0 segundos" data-bind="m-fo" data-scale="10" data-suffix=" s">
+              </div>
+              <label class="sw"><input type="checkbox" checked><span class="sw__tr"></span><span class="sw__l">En bucle hasta el final</span></label>
+              <label class="sw"><input type="checkbox"><span class="sw__tr"></span><span class="sw__l">Silenciar música (conserva los ajustes)</span></label>
+              <label class="sw" style="margin-top:4px"><input type="checkbox" checked><span class="sw__tr"></span><span class="sw__l">Ducking: bajar la música cuando hay voz</span></label>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Cuánto baja</span><span class="fld__v" data-out="m-duck">6 dB</span></div>
+                <input class="rng" type="range" min="0" max="18" value="6" aria-label="Cuánto baja la música con ducking" aria-valuetext="6 decibelios" data-bind="m-duck" data-suffix=" dB">
+              </div>
+
+              <div class="mix">
+                <div class="mix__h"><svg class="i i--14"><use href="#i-eq"/></svg>Mezcla al exportar<span class="spacer"></span><span class="chip chip--sm">2 fuentes → 1 pista</span></div>
+                <div class="mix__row">
+                  <span>Escenas · voz</span>
+                  <span class="mix__bar"><i class="b" style="width:74%"></i></span>
+                  <span class="mix__db">−12 dB</span>
+                </div>
+                <div class="mix__row">
+                  <span>Música · fondo</span>
+                  <span class="mix__bar"><i style="width:40%"></i></span>
+                  <span class="mix__db">−18 dB</span>
+                </div>
+                <p class="mix__f"><b>Se suman en una sola pista de salida</b> (<code>amix</code>). Con ducking, la música baja <b>6 dB</b> mientras el audio de escena pasa de −30 dB. Si no hay voz, no baja.</p>
+              </div>
+              <p class="sec__note">La pista es más corta que la secuencia (16 s vs 16,2 s): con <b>bucle</b> se repite sin hueco. Sin bucle, suena una vez y el resto va sin música.</p>
+            </div>
+          </div>
+
+          <!-- ---------- PESTAÑA LOGO ---------- -->
+          <div class="tabp tabp--logo" role="tabpanel" aria-labelledby="tab-logo">
+            <div class="sec">
+              <div class="sec__h"><span class="sec__t">Marca de agua</span><span class="spacer"></span><span class="chip chip--accent chip--sm">proyecto</span></div>
+              <button class="drow drow--sel" type="button" style="width:100%;text-align:left;margin-top:4px">
+                <span class="drow__th" style="width:64px;height:34px;display:grid;place-items:center;background:var(--surf-4)">
+                  <svg class="i i--14" style="color:var(--ink-2)"><use href="#i-badge"/></svg>
+                </span>
+                <span class="drow__meta"><span class="drow__n">marca.svg</span><span class="drow__s">vector · 8 KB · se rasteriza al exportar</span></span>
+              </button>
+              <button class="btn btn--outline btn--wide btn--sm" type="button" style="margin-top:8px"><svg class="i i--14"><use href="#i-swap"/></svg>Cambiar logo</button>
+              <p class="sec__note">Es <b>uno por proyecto</b>, no por escena: se guarda en el documento y afecta a todo el vídeo.</p>
+            </div>
+
+            <div class="sec">
+              <div class="sec__h"><span class="sec__t">Posición</span><span class="spacer"></span><span class="chip chip--sm">margen 5 %</span></div>
+              <div class="anch" role="group" aria-label="Posición del logo (9 anclas)">
+                <button type="button" aria-pressed="false" aria-label="Arriba izquierda"><i></i></button>
+                <button type="button" aria-pressed="false" aria-label="Arriba centro"><i></i></button>
+                <button type="button" aria-pressed="false" aria-label="Arriba derecha"><i></i></button>
+                <button type="button" aria-pressed="false" aria-label="Centro izquierda"><i></i></button>
+                <button type="button" aria-pressed="false" aria-label="Centro"><i></i></button>
+                <button type="button" aria-pressed="false" aria-label="Centro derecha"><i></i></button>
+                <button type="button" aria-pressed="false" aria-label="Abajo izquierda"><i></i></button>
+                <button type="button" aria-pressed="false" aria-label="Abajo centro"><i></i></button>
+                <button type="button" aria-pressed="true" aria-label="Abajo derecha"><i></i></button>
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Opacidad</span><span class="fld__v" data-out="l-op">72 %</span></div>
+                <input class="rng" type="range" min="10" max="100" value="72" aria-label="Opacidad del logo" aria-valuetext="72 por ciento" data-bind="l-op" data-suffix=" %">
+              </div>
+              <div class="fld">
+                <div class="fld__r"><span class="fld__l">Escala</span><span class="fld__v" data-out="l-sc">22 % del ancho</span></div>
+                <input class="rng" type="range" min="5" max="40" value="22" aria-label="Escala del logo" aria-valuetext="22 por ciento del ancho" data-bind="l-sc" data-suffix=" % del ancho">
+              </div>
+              <p class="sec__note">El logo <b>no hereda</b> los filtros ni el Ken Burns de la escena y no se mueve con el zoom. Se compone después de los filtros y antes del texto.</p>
+            </div>
+
+            <div class="sec">
+              <div class="sec__h"><span class="sec__t">Comprobaciones</span></div>
+              <p class="sec__note">Contraste del logo sobre la esquina inferior derecha: <b>4,9:1</b> con opacidad 72 %. Si baja de 3:1, la UI avisa y sugiere subir la opacidad o moverlo de esquina.</p>
+            </div>
+          </div>
+
+        </div>
+      </aside>
+
+      <!-- ================= POPOVER DE TRANSICIÓN ================= -->
+      <div class="trpop" role="dialog" aria-modal="false" aria-labelledby="tr-t">
+        <div class="trhead">
+          <div class="trhead__id">
+            <div class="trhead__t" id="tr-t">Transición 01 → 02</div>
+            <div class="trhead__s">Escena 01 · 3,2 s → Escena 02 · 5,6 s</div>
+          </div>
+          <button class="btn btn--icon" type="button" aria-label="Cerrar transición"><svg class="i"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="trbody">
+        <div class="trgrid" role="group" aria-label="Tipo de transición">
+          <button class="trit" type="button" aria-pressed="true">
+            <span class="trit__th"><span class="mv mv--fade"></span></span>
+            <span class="trit__n">Fundido</span>
+          </button>
+          <button class="trit" type="button" aria-pressed="false">
+            <span class="trit__th"><span class="mv mv--slide"></span></span>
+            <span class="trit__n">Deslizar</span>
+          </button>
+          <button class="trit" type="button" aria-pressed="false">
+            <span class="trit__th"><span class="mv mv--wipe"></span></span>
+            <span class="trit__n">Barrido</span>
+          </button>
+          <button class="trit" type="button" aria-pressed="false">
+            <span class="trit__th"><span class="mv mv--circle"></span></span>
+            <span class="trit__n">Círculo</span>
+          </button>
+          <button class="trit" type="button" aria-pressed="false">
+            <span class="trit__th"><span class="mv mv--zoom"></span></span>
+            <span class="trit__n">Zoom</span>
+          </button>
+          <button class="trit" type="button" aria-pressed="false">
+            <span class="trit__th"><span class="mv mv--none"></span></span>
+            <span class="trit__n">Sin transición</span>
+          </button>
+        </div>
+        <div class="trdur">
+          <div class="fld__r"><span class="fld__l">Duración</span><span class="fld__v" data-out="tr-dur">0,60 s</span></div>
+          <input class="rng" type="range" min="1" max="20" value="6" aria-label="Duración de la transición" aria-valuetext="0,60 segundos" data-bind="tr-dur" data-scale="10" data-suffix=" s">
+        </div>
+        <p class="trsum">3 juntas con transición · <b>1,8 s del total</b> · secuencia 16,2 s → <b>14,4 s</b>. La duración nunca puede pasar de la mitad de la escena más corta.</p>
+        </div><!-- /trbody -->
+        <div class="trfoot">
+          <button class="btn btn--sm" type="button"><svg class="i i--14"><use href="#i-layers"/></svg>Aplicar a las 3 juntas</button>
+          <span class="spacer"></span>
+          <button class="btn btn--sm btn--primary" type="button">Listo</button>
+        </div>
+      </div>
+
+      <!-- ================= DIÁLOGO EXPORTAR ================= -->
+      <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlg-t">
+        <div class="dlg__h">
+          <div class="dlg__id">
+            <div class="dlg__t" id="dlg-t">Exportar MP4</div>
+            <div class="dlg__s">Lanzamiento Q4 · Rev 7 · 4 escenas · música + voz mezcladas</div>
+          </div>
+          <button class="btn btn--icon" type="button" aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="dlg__b">
+          <div class="dlgsec" style="margin-top:0">
+            <div class="dlgsec__t">Formato de salida</div>
+            <div class="pgrid" role="radiogroup" aria-label="Preset de exportación">
+              <button class="pset" role="radio" aria-checked="true" type="button">
+                <span class="pset__t">720p30</span>
+                <span class="pset__m">1280×720 · 30 fps · H.264</span>
+                <span class="pset__b"><svg class="i"><use href="#i-check"/></svg>Disponible</span>
+              </button>
+              <button class="pset" role="radio" aria-checked="false" aria-disabled="true" type="button">
+                <span class="pset__t">1080p30</span>
+                <span class="pset__m">1920×1080 · 30 fps · H.264</span>
+                <span class="pset__b"><svg class="i"><use href="#i-warn"/></svg>requiere medición</span>
+              </button>
+              <button class="pset" role="radio" aria-checked="false" aria-disabled="true" type="button">
+                <span class="pset__t">9:16</span>
+                <span class="pset__m">1080×1920 · 30 fps · recorte centrado</span>
+                <span class="pset__b"><svg class="i"><use href="#i-lock"/></svg>requiere backend</span>
+              </button>
+              <button class="pset" role="radio" aria-checked="false" aria-disabled="true" type="button">
+                <span class="pset__t">1:1</span>
+                <span class="pset__m">1080×1080 · 30 fps · recorte centrado</span>
+                <span class="pset__b"><svg class="i"><use href="#i-lock"/></svg>requiere backend</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="dlgsec">
+            <div class="dlgsec__t">Audio y texto</div>
+            <label class="sw"><input type="checkbox" checked><span class="sw__tr"></span><span class="sw__l">Quemar subtítulos en el vídeo</span></label>
+            <label class="sw"><input type="checkbox"><span class="sw__tr"></span><span class="sw__l">Normalizar volumen (loudnorm, −16 LUFS)</span></label>
+            <label class="sw"><input type="checkbox" checked><span class="sw__tr"></span><span class="sw__l">Incluir música de fondo</span></label>
+          </div>
+
+          <div class="summary">
+            <span>Salida: <b>00:00:14:04</b></span><span>·</span><span><b>1280×720</b></span><span>·</span>
+            <span><b>30 fps</b></span><span>·</span><span>estimado <b>~1,9 MB</b></span>
+          </div>
+
+          <div class="warnbox">
+            <svg class="i i--14"><use href="#i-warn"/></svg>
+            <div><b>1080p30 no se puede elegir todavía.</b> El modelo ya admite 1920×1080, pero el worker solo acepta el preset <code>mp4-720p30</code> y nadie ha medido tiempo ni pico de memoria a 1080 en esta máquina. Se habilita cuando exista la medición, con su número a la vista.</div>
+          </div>
+        </div>
+        <div class="dlg__f">
+          <span class="chip chip--outline">mp4-720p30</span>
+          <span class="spacer"></span>
+          <button class="btn" type="button">Cancelar</button>
+          <button class="btn btn--primary" type="button" aria-label="Exportar"><svg class="i i--14"><use href="#i-dl"/></svg>Exportar</button>
+        </div>
+      </div>
+
+    </section>
+  </div>
+
+  <section class="doc__notes">
+    <h2>Qué añade la v3.2 (pack v1.1) y dónde vive cada cosa</h2>
+    <p><b>1 · Música.</b> Nueva pista <b>M1</b> en la línea de tiempo (36 px) con su onda, sus fundidos dibujados y el rótulo «en bucle». El panel está en el inspector, pestaña <b>Audio</b>, debajo del audio de escena: pista de la biblioteca, volumen, fades, bucle, silencio y ducking con su indicador de mezcla.</p>
+    <p><b>2 · Transiciones.</b> Cada junta lleva un <b>marcador de 32×32</b> con rombo de 13 px. Al pulsarlo se abre un popover de 340 px con seis miniaturas <b>dibujadas</b> (fundido, deslizar, barrido, círculo, zoom, ninguna) y la duración. La línea de tiempo dice cuánto consume: 16,2 s → 14,4 s.</p>
+    <p><b>3 · Texto.</b> Pestaña propia con fuente, tamaño, color, borde, sombra, posición y animación de entrada/salida, más una vista previa real dentro del panel. El texto del escenario es el del proyecto, no un ejemplo.</p>
+    <p><b>4 · Filtros, Ken Burns y velocidad.</b> Todo en la pestaña <b>Escena</b>. Ken Burns aparece deshabilitado en una escena de vídeo con el motivo escrito; los filtros tienen orden fijo y reset.</p>
+    <p><b>5 · Logo y export.</b> El logo es de proyecto (pestaña <b>Logo</b>, 9 anclas). El diálogo de export muestra los cuatro presets con su estado real: solo 720p30 está disponible; 1080p30 «requiere medición»; 9:16 y 1:1 «requiere backend».</p>
+    <p><b>6 · Plantillas.</b> El estado vacío ya no es un icono y un botón: es una rejilla de plantillas que crean escenas reales, con «En blanco» siempre presente.</p>
+    <p>Los fotogramas siguen siendo de ejemplo (borde discontinuo) y la onda es sintética. La marca de agua es un bloque ilustrativo: en el proyecto no hay un asset de marca real, y no se inventa uno.</p>
+  </section>
+</main>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var states=["edit","insp","lib","musica","trans","texto","efectos","logo","export","inicio"];
+
+  var cur="edit";
+  function applyZoom(){
+    var size=root.dataset.size||"1440";
+    var base= size==="1440"?46: size==="1024"?32:28;
+    var open=["musica","texto","efectos","logo","insp"].indexOf(cur)>=0;
+    var pps= open? Math.round(base*0.7) : base;
+    root.style.setProperty("--pps",pps+"px");
+    var z=document.getElementById("zoomlbl"); if(z) z.textContent=pps+" px/s";
+  }
+  function setState(s){
+    if(states.indexOf(s)<0) s="edit";
+    cur=s;
+    root.dataset.state=s;
+    applyZoom();
+    document.querySelectorAll(".doc__bar [data-state]").forEach(function(b){
+      b.setAttribute("aria-pressed",String(b.dataset.state===s));
+    });
+    // pestaña activa del inspector
+    var tab={musica:"audio",texto:"texto",efectos:"escena",logo:"logo",insp:"escena"}[s]||null;
+    document.querySelectorAll(".dtab").forEach(function(b){
+      b.setAttribute("aria-selected",String(b.dataset.tab===tab));
+      b.setAttribute("tabindex",b.dataset.tab===tab?"0":"-1");
+    });
+    var titles={texto:"Texto · T1",musica:"Audio · escena 02",efectos:"Escena 02",logo:"Logo del proyecto",insp:"Escena 02"};
+    var t=document.getElementById("insp-title");
+    if(t&&titles[s]) t.textContent=titles[s];
+  }
+
+  document.querySelectorAll(".doc__bar [data-state]").forEach(function(b){
+    b.addEventListener("click",function(){ setState(b.dataset.state); });
+  });
+  document.querySelectorAll(".dtab").forEach(function(b){
+    b.addEventListener("click",function(){
+      var map={escena:"efectos",texto:"texto",audio:"musica",logo:"logo"};
+      setState(map[b.dataset.tab]||"edit");
+    });
+  });
+
+  document.querySelectorAll("[data-size]").forEach(function(b){
+    b.addEventListener("click",function(){
+      var s=b.dataset.size;
+      root.dataset.size=s;
+      document.querySelectorAll("[data-size]").forEach(function(o){o.setAttribute("aria-pressed",String(o===b));});
+      var sh=document.querySelector(".shell");
+      sh.style.width = s==="1440" ? "" : s+"px";
+      sh.style.height = s==="1440" ? "" : "700px";
+      applyZoom();
+    });
+  });
+  document.querySelectorAll("[data-theme-btn]").forEach(function(b){
+    b.addEventListener("click",function(){
+      root.dataset.theme=b.dataset.themeBtn;
+      document.querySelectorAll("[data-theme-btn]").forEach(function(o){o.setAttribute("aria-pressed",String(o===b));});
+    });
+  });
+
+  // lecturas de los rangos
+  document.querySelectorAll("input[type=range][data-bind]").forEach(function(r){
+    var out=document.getElementById(r.dataset.bind)||document.querySelector('[data-out="'+r.dataset.bind+'"]');
+    function fmt(){
+      if(!out) return;
+      var v=Number(r.value);
+      var scale=Number(r.dataset.scale||1);
+      var dec=scale>1?2:0;
+      var n=(v/scale).toFixed(dec);
+      if(dec>0) n=n.replace(/0+$/,"").replace(/\.$/,"");
+      n=n.replace(".",",");
+      out.textContent=(r.dataset.prefix||"")+n+(r.dataset.suffix||"");
+      r.setAttribute("aria-valuetext",out.textContent);
+    }
+    r.addEventListener("input",fmt); fmt();
+  });
+
+  // reproducir animación de texto
+  document.querySelectorAll("[data-replay]").forEach(function(b){
+    b.addEventListener("click",function(){
+      document.body.classList.remove("replay");
+      void document.body.offsetWidth;
+      document.body.classList.add("replay");
+    });
+  });
+
+  // parámetros para capturas: ?s=musica&cap=1
+  var q=new URLSearchParams(location.search);
+  if(q.get("cap")==="1") document.body.classList.add("cap");
+  setState(q.get("s")||root.dataset.state||"edit");
+})();
+</script>
+</body>
+</html>

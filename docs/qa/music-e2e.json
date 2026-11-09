@@ -1,0 +1,52 @@
+{
+  "base": "http://127.0.0.1:60051",
+  "steps": {
+    "health": {
+      "status": 200,
+      "service": "0.3.0"
+    },
+    "create": {
+      "status": 201,
+      "projectId": "prj_fbf19c02e9772ca5",
+      "revision": 0
+    },
+    "media:clipA.mp4": {
+      "status": 201,
+      "assets": 0,
+      "scenes": 0
+    },
+    "media:music.wav": {
+      "status": 201,
+      "assets": 0,
+      "scenes": 0
+    },
+    "put_music": {
+      "status": 200,
+      "revision": 3
+    },
+    "export": {
+      "status": 202,
+      "jobId": "j2392159365"
+    },
+    "job": {
+      "state": "succeeded",
+      "error": null,
+      "output": null
+    }
+  },
+  "output": {
+    "bytes": 3726505,
+    "duration": 8.0,
+    "video": {
+      "codec": "h264",
+      "size": "1280x720"
+    },
+    "audio": {
+      "codec": "aac",
+      "channels": 2,
+      "rate": "48000"
+    },
+    "expectedDuration": 8.0
+  },
+  "verdict": "PASS"
+}

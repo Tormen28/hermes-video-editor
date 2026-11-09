@@ -1,0 +1,57 @@
+{
+  "base": "http://127.0.0.1:57693",
+  "steps": {
+    "health": {
+      "status": 200,
+      "service": "0.3.3",
+      "presets": [
+        "mp4-720p30",
+        "mp4-1080p30",
+        "mp4-720p30-vertical",
+        "mp4-720p30-square"
+      ],
+      "transitions": 7
+    },
+    "create": {
+      "status": 201,
+      "projectId": "prj_58e12217f3a8e3b0"
+    },
+    "media:clipA.mp4": {
+      "status": 201
+    },
+    "media:still.png": {
+      "status": 201
+    },
+    "put": {
+      "status": 200,
+      "revision": 3
+    },
+    "export": {
+      "status": 202,
+      "jobId": "j5e48f12410"
+    },
+    "job": {
+      "state": "succeeded",
+      "error": null
+    }
+  },
+  "timeline": {
+    "durations": [
+      4.0,
+      3.0
+    ],
+    "overlaps": [
+      0.5
+    ],
+    "expected": 6.5
+  },
+  "output": {
+    "bytes": 1079126,
+    "duration": 6.5,
+    "expected": 6.5,
+    "size": "720x1280",
+    "codec": "h264",
+    "audio": "aac"
+  },
+  "verdict": "PASS"
+}

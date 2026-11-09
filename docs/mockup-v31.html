@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="es" data-theme="dark" data-state="picker" data-size="1440">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de vídeo · maqueta v3.1 · dock derecho 36/64 · 1440×900</title>
+<style>
+/* ============================================================
+   TOKENS — idénticos a la maqueta v3 (docs/mockup-v3.html).
+   Cinco tokens del tema de Hermes; todo lo demás deriva de ellos.
+   v3.1 no añade ni un color literal: el chip de modelo y el
+   picker usan --surf-*, --ink-*, --accent-*.
+   ============================================================ */
+:root{
+  color-scheme:dark;
+  --foreground:#e6e7ea;
+  --muted-foreground:#9b9ca3;
+  --accent:#4d8df6;
+  --border:#33353a;
+  --card:#141517;
+
+  --surf-1:color-mix(in oklab,var(--card) 96.5%,var(--foreground));
+  --surf-2:color-mix(in oklab,var(--card) 93.5%,var(--foreground));
+  --surf-3:color-mix(in oklab,var(--card) 89%,var(--foreground));
+  --surf-4:color-mix(in oklab,var(--card) 84%,var(--foreground));
+  --line-soft:color-mix(in oklab,var(--border) 70%,transparent);
+
+  --ink-2:color-mix(in oklab,var(--foreground) 82%,transparent);
+  --ink-3:color-mix(in oklab,var(--foreground) 76%,transparent);
+  --accent-1:color-mix(in oklab,var(--accent) 14%,transparent);
+  --accent-2:color-mix(in oklab,var(--accent) 32%,transparent);
+  --accent-deep:color-mix(in oklab,var(--accent) 88%,var(--foreground));
+
+  --stage:oklch(from var(--card) 0.19 0 0);
+  --scrim:color-mix(in oklab,var(--stage) 62%,transparent);
+  --shadow:0 30px 70px -34px color-mix(in oklab,var(--stage) 90%,transparent),
+           0 2px 8px -4px color-mix(in oklab,var(--stage) 55%,transparent);
+  --shadow-pop:0 18px 44px -18px color-mix(in oklab,var(--stage) 96%,transparent),
+               0 2px 6px -3px color-mix(in oklab,var(--stage) 70%,transparent);
+
+  --pw:1440px; --ph:900px;
+  --chat:518px; --ed-h:900px; --ed-top:40px; --tl:260px;
+  --pps:46px;                 /* píxeles por segundo a este ancho (ajustar a ventana) */
+  --r:4px; --rlg:7px;
+}
+:root[data-theme="light"]{
+  color-scheme:light;
+  --foreground:#1a1b1f;
+  --muted-foreground:#5f6169;
+  --accent:#2f5fe0;
+  --border:#d5d7dd;
+  --card:#fbfbfc;
+  --stage:oklch(from var(--card) 0.19 0 0);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--card);color:var(--foreground);
+  font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+:where(h1,h2,h3,h4,p,ul,ol){margin:0}
+:where(ul,ol){padding:0;list-style:none}
+svg{display:block}
+.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.i--f{fill:currentColor;stroke:none}
+.i--14{width:14px;height:14px}
+.i--18{width:18px;height:18px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.tnum{font-variant-numeric:tabular-nums}
+.mono{font-family:ui-monospace,"Cascadia Mono",Consolas,monospace;font-variant-numeric:tabular-nums}
+
+/* ---------- chrome de la maqueta (no es producto) ---------- */
+.doc{padding:22px 24px 64px;display:grid;gap:14px;justify-items:start}
+.doc__bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:var(--pw);max-width:100%}
+.doc__t{font-size:14px;font-weight:650}
+.doc__s{font-size:12px;color:var(--ink-2)}
+.doc__sp{flex:1}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--surf-1)}
+.seg button{appearance:none;border:0;border-left:1px solid var(--border);background:transparent;color:var(--ink-2);
+  font:inherit;font-size:12px;font-weight:500;height:30px;padding:0 10px;cursor:pointer;white-space:nowrap}
+.seg button:first-child{border-left:0}
+.seg button:hover{color:var(--foreground);background:var(--surf-2)}
+.seg button[aria-pressed="true"]{background:var(--accent-1);color:var(--accent);box-shadow:inset 0 -2px 0 var(--accent);font-weight:650}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.doc__notes{width:var(--pw);max-width:100%;display:grid;gap:8px;font-size:12px;color:var(--ink-2);line-height:1.55}
+.doc__notes h2{font-size:13px;color:var(--foreground);font-weight:650;margin-top:4px}
+.doc__notes code{font:12px/1.4 ui-monospace,"Cascadia Mono",Consolas,monospace;color:var(--foreground);
+  background:var(--surf-2);border:1px solid var(--line-soft);border-radius:3px;padding:1px 5px}
+.doc__notes b{color:var(--foreground);font-weight:600}
+body.cap{overflow:hidden}
+body.cap .doc{padding:0;gap:0}
+body.cap .doc__bar,body.cap .doc__notes{display:none}
+body.cap .shell{--pw:100vw;--ph:100vh;border:0;box-shadow:none}
+
+/* ============================================================
+   SHELL · dock derecho: chat 36 % (518) + editor 64 % (922)
+   ============================================================ */
+.shell{
+  width:var(--pw);height:var(--ph);display:grid;grid-template-columns:var(--chat) minmax(0,1fr);
+  background:var(--card);border:1px solid var(--border);overflow:hidden;position:relative;
+  box-shadow:var(--shadow);font-size:13px;contain:layout paint;
+}
+:root[data-size="1024"]{--pw:1024px;--ph:700px;--chat:369px;--tl:220px;--pps:32px}
+:root[data-size="900"]{--pw:900px;--ph:700px;--chat:324px;--tl:200px;--pps:28px}
+
+/* ============================================================
+   CHAT DE HERMES (rail izquierdo, 518) — no lo pinta el plugin;
+   se dibuja aquí para medir el reparto y el foco del compositor.
+   ============================================================ */
+.chat{display:flex;flex-direction:column;min-width:0;background:var(--card);position:relative;overflow:hidden}
+.chat__head{height:48px;display:flex;align-items:center;gap:8px;padding:0 8px 0 14px;
+  border-bottom:1px solid var(--border);background:var(--surf-1)}
+.chat__id{min-width:0;display:grid;gap:1px}
+.chat__title{font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat__sub{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.chat__head .doc__sp{flex:1}
+/* selector de modelo REAL del chat (aquí sí se cambia) */
+.modelsel{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 9px 0 8px;flex:none;
+  border:1px solid var(--border);border-radius:999px;background:var(--surf-2);color:var(--foreground);
+  font:inherit;font-size:12px;font-weight:500;cursor:pointer;max-width:214px}
+.modelsel:hover{border-color:var(--accent-2);background:var(--accent-1)}
+.modelsel span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+:root[data-state="tip"] .modelsel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-1)}
+
+.chat__body{flex:1;min-height:0;overflow:hidden;padding:16px 14px 4px;display:flex;flex-direction:column;gap:14px}
+.msg{display:flex;gap:8px;min-width:0}
+.msg--me{justify-content:flex-end}
+.msg__who{width:22px;height:22px;border-radius:6px;flex:none;display:grid;place-items:center;
+  background:var(--surf-3);color:var(--ink-2);margin-top:1px}
+.msg__who--ai{background:var(--accent-1);color:var(--accent)}
+.msg__body{min-width:0;max-width:88%}
+.msg--me .msg__body{max-width:84%}
+.msg__txt{font-size:13px;line-height:1.5;color:var(--foreground)}
+.msg--me .msg__txt{background:var(--surf-3);border:1px solid var(--line-soft);border-radius:10px;padding:8px 10px}
+.msg__meta{font-size:12px;color:var(--ink-3);margin-top:3px}
+.msg--me .msg__meta{text-align:right}
+.toolcard{display:flex;align-items:center;gap:8px;margin-top:8px;padding:7px 9px;border:1px solid var(--border);
+  border-radius:7px;background:var(--surf-1);font-size:12px;color:var(--ink-2)}
+.toolcard b{color:var(--foreground);font-weight:600}
+.toolcard .i{color:var(--accent)}
+
+
+.chat__composer{margin:0 12px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surf-1);
+  padding:8px 8px 6px;display:grid;gap:6px}
+:root[data-state="tip"] .chat__composer{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-1)}
+.composer__ph{font-size:13px;color:var(--ink-3);padding:6px 4px 2px;min-height:44px}
+.composer__row{display:flex;align-items:center;gap:4px}
+.composer__row .doc__sp{flex:1}
+.cbtn{width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:var(--r);
+  background:transparent;color:var(--ink-2);cursor:pointer}
+.cbtn:hover{background:var(--surf-3);color:var(--foreground)}
+.csend{width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:var(--r);
+  background:var(--accent);color:var(--card);cursor:pointer}
+.chat__foot{padding:0 14px 8px;font-size:12px;color:var(--ink-3);display:flex;gap:8px;align-items:center}
+.chat__foot kbd{font:500 12px/1 ui-monospace,Consolas,monospace;border:1px solid var(--border);border-bottom-width:2px;
+  border-radius:3px;padding:2px 4px;color:var(--ink-2)}
+
+/* ============================================================
+   EDITOR (922) — contenedor de consulta: la degradación real
+   depende del ancho del PANE, no de la ventana.
+   ============================================================ */
+.ed{grid-column:2;display:grid;grid-template-rows:var(--ed-top) minmax(0,1fr) var(--tl);min-width:0;
+  border-left:1px solid var(--border);position:relative;overflow:hidden;background:var(--card);
+  container-type:inline-size;container-name:ed}
+
+/* topbar 40 */
+.ed__top{display:flex;align-items:center;gap:6px;padding:0 6px 0 10px;min-width:0;
+  background:var(--surf-2);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:7px;flex:none;font-size:13px;font-weight:650;white-space:nowrap}
+.plate{width:22px;height:22px;border-radius:4px;display:grid;place-items:center;flex:none;
+  background:var(--accent-1);color:var(--accent)}
+.vr{width:1px;height:20px;background:var(--border);flex:none;margin:0 2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 9px;flex:none;
+  border:1px solid transparent;border-radius:var(--r);background:transparent;color:var(--foreground);
+  font:inherit;font-size:13px;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .1s linear,border-color .1s linear}
+.btn:hover{background:var(--surf-3)}
+.btn--icon{width:32px;padding:0}
+.btn--outline{border-color:var(--border)}
+.btn--outline:hover{border-color:var(--accent-2);background:var(--accent-1)}
+.btn--primary{background:var(--accent);color:var(--card);font-weight:650;padding:0 11px}
+.btn--primary:hover{background:var(--accent-deep)}
+.btn[aria-pressed="true"]{background:var(--accent-1);color:var(--accent);border-color:var(--accent-2)}
+.btn .i{color:inherit}
+.proj{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 7px 0 8px;border:1px solid transparent;
+  border-radius:var(--r);background:transparent;color:var(--foreground);font:inherit;font-size:13px;font-weight:500;
+  white-space:nowrap;cursor:pointer;max-width:190px}
+.proj:hover{background:var(--surf-3)}
+.proj .i:first-child{color:var(--ink-2)}
+.proj b{overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.proj .i:last-child{color:var(--ink-3);width:14px;height:14px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 7px;border-radius:4px;flex:none;
+  border:1px solid var(--line-soft);background:var(--surf-1);color:var(--ink-2);
+  font-size:12px;font-weight:500;white-space:nowrap;font-variant-numeric:tabular-nums}
+.chip b{color:var(--foreground);font-weight:600}
+.chip--outline{background:transparent;border-color:var(--border)}
+.save{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none}
+.spacer{flex:1;min-width:4px}
+
+/* chip de modelo (solo lectura) */
+.mchip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 7px 0 8px;flex:none;max-width:190px;
+  border:1px solid var(--border);border-radius:var(--rlg);background:var(--surf-1);color:var(--foreground);
+  font:inherit;font-size:12px;font-weight:500;cursor:pointer;position:relative}
+.mchip:hover{border-color:var(--accent-2);background:var(--accent-1)}
+.mchip:focus-visible,.btn:focus-visible,.proj:focus-visible,.modelsel:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mchip .i:first-child{color:var(--accent)}
+.mchip__txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.mchip__lock{color:var(--ink-3)}
+.mchip__lock .i{width:12px;height:12px}
+
+/* popover del chip: contenido en el pane (absolute), nunca fixed */
+.tip{position:absolute;top:calc(var(--ed-top) + 4px);right:118px;width:306px;z-index:55;display:none;
+  background:var(--surf-2);border:1px solid var(--border);border-radius:var(--rlg);box-shadow:var(--shadow-pop);
+  padding:10px 11px;gap:6px}
+.tip::before{content:"";position:absolute;top:-5px;right:82px;width:8px;height:8px;background:var(--surf-2);
+  border-left:1px solid var(--border);border-top:1px solid var(--border);transform:rotate(45deg)}
+.tip__t{font-size:13px;font-weight:650;display:flex;align-items:center;gap:6px}
+.tip__t .i{color:var(--accent)}
+.tip__d{font-size:12px;line-height:1.5;color:var(--ink-2)}
+.tip__row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-3);margin-top:2px}
+.tip kbd{font:500 12px/1 ui-monospace,Consolas,monospace;border:1px solid var(--border);border-bottom-width:2px;
+  border-radius:3px;padding:2px 4px;color:var(--ink-2)}
+:root[data-state="tip"] .tip{display:grid}
+
+/* visor */
+.ed__main{display:grid;grid-template-rows:36px minmax(0,1fr) 56px;min-height:0}
+.viewh{display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--line-soft);min-width:0}
+.viewh__t{font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.viewh__t i{color:var(--ink-3);font-style:normal;font-weight:400}
+.stagewrap{display:grid;place-items:center;min-height:0;padding:10px 14px;background:var(--surf-1);overflow:hidden}
+.stage{width:100%;aspect-ratio:16/9;position:relative;overflow:hidden;border-radius:6px;
+  background:oklch(from var(--stage) 0.24 0.006 250);border:1px solid var(--line-soft)}
+.stage__grad{position:absolute;inset:0;background:
+  radial-gradient(120% 90% at 18% 12%,color-mix(in oklab,var(--accent) 9%,transparent),transparent 60%),
+  radial-gradient(90% 80% at 82% 88%,color-mix(in oklab,var(--accent) 6%,transparent),transparent 62%),
+  linear-gradient(150deg,oklch(from var(--stage) 0.30 0.008 250),oklch(from var(--stage) 0.20 0.006 250))}
+.stage__bars{position:absolute;inset:0;display:grid;grid-template-columns:repeat(9,1fr);gap:10px;padding:26px 30px;opacity:.5}
+.stage__bars span{border-radius:2px;background:linear-gradient(180deg,color-mix(in oklab,var(--foreground) 8%,transparent),color-mix(in oklab,var(--foreground) 3%,transparent))}
+.stage__tag{position:absolute;left:10px;bottom:9px;font-size:11px;color:var(--ink-3);border:1px dashed var(--line-soft);
+  border-radius:3px;padding:2px 6px;background:color-mix(in oklab,var(--stage) 60%,transparent)}
+.stage__safe{position:absolute;left:8%;right:8%;top:8%;bottom:8%;border:1px dashed color-mix(in oklab,var(--foreground) 14%,transparent);border-radius:3px;pointer-events:none}
+.stage__hud{position:absolute;right:10px;top:9px;display:flex;gap:4px}
+
+.transport{display:flex;align-items:center;gap:6px;padding:0 10px;border-top:1px solid var(--border);background:var(--card);min-width:0}
+.tbtn{width:32px;height:32px;display:grid;place-items:center;border:1px solid transparent;border-radius:var(--r);
+  background:transparent;color:var(--ink-2);cursor:pointer;flex:none}
+.tbtn:hover{background:var(--surf-3);color:var(--foreground)}
+.tbtn--play{background:var(--surf-3);color:var(--foreground);border-color:var(--line-soft)}
+.tc{font:600 12px/1 ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;color:var(--foreground);
+  letter-spacing:.01em;padding:0 2px}
+.tc--sep{color:var(--ink-3);font-weight:400}
+.scrub{position:relative;flex:1;min-width:60px;height:32px;display:flex;align-items:center;margin:0 4px}
+.scrub__rail{position:relative;width:100%;height:3px;border-radius:2px;background:var(--surf-4)}
+.scrub__buf{position:absolute;left:0;top:0;bottom:0;width:64%;border-radius:2px;background:var(--surf-4)}
+.scrub__fill{position:absolute;left:0;top:0;bottom:0;width:38%;border-radius:2px;background:var(--accent)}
+.scrub__thumb{position:absolute;left:38%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;
+  background:var(--foreground);box-shadow:0 0 0 3px var(--accent-1)}
+
+/* línea de tiempo */
+.tl{display:grid;grid-template-rows:40px 22px minmax(0,1fr) 32px;border-top:1px solid var(--border);
+  background:var(--surf-1);min-height:0;min-width:0}
+.tlbar{display:flex;align-items:center;gap:4px;padding:0 8px;border-bottom:1px solid var(--line-soft);min-width:0}
+.tlbar .doc__sp{flex:1}
+.tb{height:28px;padding:0 7px;display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;
+  border-radius:var(--r);background:transparent;color:var(--ink-2);font:inherit;font-size:12px;cursor:pointer;flex:none}
+.tb:hover{background:var(--surf-3);color:var(--foreground)}
+.tb[aria-pressed="true"]{background:var(--accent-1);color:var(--accent);border-color:var(--accent-2)}
+.tiw{width:28px;height:28px;display:grid;place-items:center;border:1px solid transparent;border-radius:var(--r);
+  background:transparent;color:var(--ink-2);cursor:pointer;flex:none}
+.tiw:hover{background:var(--surf-3);color:var(--foreground)}
+.ruler{position:relative;border-bottom:1px solid var(--border);background:var(--surf-1);overflow:hidden}
+.ruler__corner{position:absolute;left:0;top:0;bottom:0;width:116px;border-right:1px solid var(--border);
+  display:flex;align-items:center;padding:0 9px;font-size:12px;color:var(--ink-3);background:var(--surf-1);z-index:2}
+.ruler__tick{position:absolute;top:0;bottom:0;width:1px;background:var(--line-soft);
+  left:calc(116px + var(--s) * var(--pps))}
+.ruler__tick--big{background:color-mix(in oklab,var(--border) 90%,transparent)}
+.ruler__lab{position:absolute;top:5px;font:500 12px/1 ui-monospace,Consolas,monospace;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;padding-left:4px;left:calc(116px + var(--s) * var(--pps))}
+.tracks{position:relative;min-height:0;overflow:hidden}
+.lane{position:relative;border-bottom:1px solid var(--line-soft)}
+.lane--v1{height:70px}
+.lane--a1{height:48px}
+.lane--t1{height:40px}
+.lane__head{position:absolute;left:0;top:0;bottom:0;width:116px;border-right:1px solid var(--border);
+  background:var(--surf-1);z-index:2;display:flex;align-items:center;gap:8px;padding:0 9px}
+.lane__badge{width:20px;height:20px;border-radius:3px;display:grid;place-items:center;flex:none;
+  background:var(--surf-3);color:var(--ink-2);font-size:11px;font-weight:700;letter-spacing:.03em}
+.lane__meta{min-width:0;display:grid;gap:1px}
+.lane__name{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lane__sub{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.clip{position:absolute;top:6px;bottom:6px;border-radius:4px;border:1px solid var(--border);overflow:hidden;
+  background:var(--surf-3);cursor:pointer;
+  left:calc(116px + var(--s) * var(--pps));width:calc(var(--d) * var(--pps))}
+.clip--v{border-color:var(--line-soft);background:linear-gradient(180deg,var(--surf-3),color-mix(in oklab,var(--surf-3) 82%,var(--card)))}
+.clip__in{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent-2)}
+.clip__lbl{position:absolute;left:8px;right:8px;top:5px;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clip__tc{position:absolute;left:8px;bottom:4px;font:500 12px/1 ui-monospace,Consolas,monospace;color:var(--ink-3);
+  font-variant-numeric:tabular-nums}
+.clip--sel{border-color:var(--accent);background:linear-gradient(180deg,var(--accent-1),color-mix(in oklab,var(--accent) 8%,var(--surf-3)));
+  box-shadow:0 0 0 1px var(--accent),0 6px 14px -10px var(--accent)}
+.clip--audio{background:color-mix(in oklab,var(--surf-2) 70%,transparent);top:5px;bottom:5px}
+.wave{position:absolute;inset:0;background-image:repeating-linear-gradient(90deg,var(--accent-2) 0 2px,transparent 2px 5px);
+  -webkit-mask-image:linear-gradient(180deg,transparent 8%,#000 34%,#000 66%,transparent 92%);
+  mask-image:linear-gradient(180deg,transparent 8%,#000 34%,#000 66%,transparent 92%);opacity:.85}
+.clip--t{background:var(--surf-2);border-color:var(--line-soft)}
+.clip--t .clip__lbl{font-weight:500;color:var(--ink-2)}
+.playhead{position:absolute;top:0;bottom:0;width:1px;background:var(--accent);z-index:3;pointer-events:none;
+  left:calc(116px + var(--s) * var(--pps))}
+.playhead::before{content:"";position:absolute;top:0;left:-5px;width:11px;height:9px;border-radius:2px 2px 0 0;background:var(--accent)}
+.tlfoot{display:flex;align-items:center;gap:10px;padding:0 10px;border-top:1px solid var(--line-soft);
+  font-size:12px;color:var(--ink-3);min-width:0;overflow:hidden}
+.tlfoot > span{white-space:nowrap;flex:none}
+.tlfoot .doc__sp{flex:1}
+.zoom{display:flex;align-items:center;gap:2px}
+
+/* ============================================================
+   OVERLAYS · siempre absolute DENTRO del pane.
+   z: scrim 45 · drawer 50 · popover 55 · picker 60
+   ============================================================ */
+.scrim{position:absolute;inset:var(--ed-top) 0 0 0;background:var(--scrim);z-index:45;display:none}
+.drawer{position:absolute;top:var(--ed-top);bottom:0;width:326px;background:var(--surf-1);z-index:50;
+  display:none;flex-direction:column;min-height:0;box-shadow:var(--shadow-pop)}
+.drawer--lib{left:0;border-right:1px solid var(--border)}
+.drawer--insp{right:0;border-left:1px solid var(--border)}
+:root[data-state="lib"] .scrim,:root[data-state="insp"] .scrim{display:block}
+:root[data-state="lib"] .drawer--lib,:root[data-state="insp"] .drawer--insp{display:flex}
+.dhead{height:40px;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;border-bottom:1px solid var(--border);flex:none}
+.dhead__t{font-size:12px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.dbody{flex:1;min-height:0;overflow:auto;padding:8px 10px}
+.drow{display:flex;align-items:center;gap:9px;padding:6px;border-radius:var(--r);border:1px solid transparent;cursor:pointer}
+.drow:hover{background:var(--surf-3);border-color:var(--line-soft)}
+.drow__th{width:56px;height:32px;border-radius:3px;flex:none;position:relative;overflow:hidden;
+  background:linear-gradient(135deg,var(--surf-4),var(--surf-2));border:1px solid var(--line-soft)}
+.drow__th span{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-3)}
+.drow__meta{min-width:0;display:grid;gap:1px}
+.drow__n{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drow__s{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+/* ---------- PICKER (sustituir / insertar medio) ---------- */
+.picker{position:absolute;left:158px;bottom:calc(var(--tl) + 14px);width:468px;max-height:calc(100% - 120px);
+  z-index:60;display:none;flex-direction:column;min-height:0;
+  background:var(--surf-2);border:1px solid var(--border);border-radius:var(--rlg);box-shadow:var(--shadow-pop)}
+.picker{max-height:calc(100% - var(--tl) - 26px)}
+.picker::after{content:"";position:absolute;bottom:-5px;left:228px;width:9px;height:9px;background:var(--surf-2);
+  border-right:1px solid var(--border);border-bottom:1px solid var(--border);transform:rotate(45deg)}
+:root[data-state="picker"] .picker{display:flex}
+.pkhead{display:flex;align-items:center;gap:8px;padding:10px 10px 8px 12px;flex:none}
+.pkhead__id{min-width:0;display:grid;gap:2px;flex:1}
+.pkhead__t{font-size:15px;font-weight:650;line-height:1.25}
+.pkhead__s{font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pkhead__s b{color:var(--ink-2);font-weight:500}
+.pkbar{display:flex;align-items:center;gap:6px;padding:0 12px 8px;flex:none}
+.pkbar .seg{background:var(--surf-1);border-color:var(--border)}
+.pkbar .seg button{height:26px;font-size:12px;padding:0 8px}
+.pksearch{display:flex;align-items:center;gap:6px;height:28px;padding:0 8px;border:1px solid var(--border);
+  border-radius:var(--r);background:var(--surf-1);color:var(--ink-3);font-size:12px;min-width:0;flex:1}
+.pksearch .i{width:14px;height:14px}
+.pkbody{overflow:auto;min-height:0;padding:0 12px 10px}
+.pkgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pkitem{position:relative;display:grid;gap:4px;padding:4px;border-radius:6px;border:1px solid transparent;
+  background:transparent;text-align:left;cursor:pointer;color:inherit;font:inherit}
+.pkitem:hover,.pkitem[data-hover="1"]{background:var(--surf-3);border-color:var(--line-soft)}
+.pkitem[aria-selected="true"]{border-color:var(--accent);background:var(--accent-1);box-shadow:0 0 0 1px var(--accent)}
+.pkitem[aria-disabled="true"]{opacity:.5;cursor:not-allowed;background:transparent;border-color:transparent}
+.pkitem__th{position:relative;width:100%;aspect-ratio:16/9;border-radius:4px;overflow:hidden;
+  background:linear-gradient(135deg,var(--surf-4),var(--surf-2));border:1px solid var(--line-soft)}
+.pkitem__th .ph{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink-3)}
+.pkitem__dur{position:absolute;right:3px;bottom:3px;font:500 11px/1 ui-monospace,Consolas,monospace;
+  color:var(--foreground);background:color-mix(in oklab,var(--stage) 72%,transparent);border-radius:2px;padding:2px 3px}
+.pkitem__n{font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 1px}
+.pkitem__use{font-size:12px;color:var(--ink-3);padding:0 1px}
+.pkitem__check{position:absolute;top:7px;right:7px;width:18px;height:18px;border-radius:50%;
+  display:none;place-items:center;background:var(--accent);color:var(--card)}
+.pkitem__check .i{width:11px;height:11px;stroke-width:2.6}
+.pkitem[aria-selected="true"] .pkitem__check{display:grid}
+.pkitem__badge{position:absolute;left:7px;top:7px;font-size:12px;font-weight:600;color:var(--foreground);
+  background:color-mix(in oklab,var(--stage) 76%,transparent);border:1px solid var(--line-soft);border-radius:3px;padding:1px 4px}
+.pkfoot{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--border);flex:none;
+  font-size:12px;color:var(--ink-3);background:var(--surf-1);border-radius:0 0 var(--rlg) var(--rlg)}
+.pkfoot .doc__sp{flex:1}
+.pkfoot kbd{font:500 12px/1 ui-monospace,Consolas,monospace;border:1px solid var(--border);border-bottom-width:2px;
+  border-radius:3px;padding:2px 4px;color:var(--ink-2)}
+
+/* ============================================================
+   DEGRADACIÓN POR ANCHO DEL PANE (container queries)
+   922 = completo · 656 (1024) · 576 (900)
+   ============================================================ */
+@container ed (max-width:780px){
+  .brand span,.brand{font-size:12px}
+  .proj{max-width:132px}
+  .mchip{max-width:172px}
+  .save span:last-child{display:none}
+  .tlbar .tb span{display:none}
+}
+@container ed (max-width:780px){
+  .ruler__lab:last-of-type{display:none}
+  .tlfoot__note,.tlfoot__sep{display:none}
+}
+@container ed (max-width:700px){
+  .brand{display:none}
+  .proj{max-width:158px}
+  .mchip{max-width:172px}
+  .ed__main{grid-template-rows:32px minmax(0,1fr) 48px}
+  .stagewrap{padding:8px 10px}
+  .viewh .chip--outline{display:none}
+  .tc--total,.tc--sep{display:none}
+  .picker{left:8px;right:8px;width:auto}
+  .picker::after{display:none}
+  .pkgrid{grid-template-columns:repeat(2,1fr)}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3.5 13.7 9 19 10.7 13.7 12.4 12 18l-1.7-5.6L5 10.7 10.3 9Z"/><path d="M18.5 15.5 19.2 17.3 21 18l-1.8.7-.7 1.8-.7-1.8L16 18l1.8-.7Z"/></symbol>
+<symbol id="i-panel-l" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9.5 4v16"/></symbol>
+<symbol id="i-panel-r" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M14.5 4v16"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12Z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5h3.2v14H8zM12.8 5H16v14h-3.2z" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M18 6v12l-9-6Z" fill="currentColor" stroke="none"/><path d="M6 5v14"/></symbol>
+<symbol id="i-fwd" viewBox="0 0 24 24"><path d="M6 6v12l9-6Z" fill="currentColor" stroke="none"/><path d="M18 5v14"/></symbol>
+<symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9.5v5h3l4 3.2V6.3L7 9.5Z"/><path d="M15 9.4a3.6 3.6 0 0 1 0 5.2M17.6 7a7 7 0 0 1 0 10"/></symbol>
+<symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6.5" cy="6.5" r="2.2"/><circle cx="6.5" cy="17.5" r="2.2"/><path d="M8.3 8.2 20 18M8.3 15.8 20 6"/></symbol>
+<symbol id="i-magnet" viewBox="0 0 24 24"><path d="M6 4v7a6 6 0 0 0 12 0V4h-4v7a2 2 0 0 1-4 0V4Z"/></symbol>
+<symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.2"/><path d="m15.6 15.6 4.4 4.4M11 8.4v5.2M8.4 11h5.2"/></symbol>
+<symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.2"/><path d="m15.6 15.6 4.4 4.4M8.4 11h5.2"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.2"/><path d="m15.6 15.6 4.4 4.4"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+<symbol id="i-video" viewBox="0 0 24 24"><rect x="3" y="6" width="12" height="12" rx="2"/><path d="m15 10.5 5-3v9l-5-3Z"/></symbol>
+<symbol id="i-audio" viewBox="0 0 24 24"><path d="M9 17V6l10-2v11"/><circle cx="7" cy="17.5" r="2.2"/><circle cx="17" cy="15.5" r="2.2"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m4 17.5 5-4 4 3 3-2 4 3"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.8 4.8L19 7"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9.5V4h5.5M20 9.5V4h-5.5M4 14.5V20h5.5M20 14.5V20h-5.5"/></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5"/><path d="M4 12h9.5a5.5 5.5 0 0 1 5.5 5.5V19"/></symbol>
+<symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 7 5 5-5 5"/><path d="M20 12h-9.5A5.5 5.5 0 0 0 5 17.5V19"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="9.5" rx="2"/><path d="M8.5 10.5V7.8a3.5 3.5 0 0 1 7 0v2.7"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6"/></symbol>
+<symbol id="i-paper" viewBox="0 0 24 24"><path d="M19.5 11.8 12 19.3a4.4 4.4 0 0 1-6.2-6.2l7.5-7.5a2.9 2.9 0 0 1 4.1 4.1l-7.5 7.5a1.5 1.5 0 0 1-2.1-2.1l6.9-6.9"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19.5V5M6 11l6-6 6 6"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="10" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+<symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 3.5 3.5 8 12 12.5 20.5 8Z"/><path d="m3.5 13 8.5 4.5L20.5 13"/></symbol>
+<symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5"/></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="7" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="7" r="1.4" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="9" cy="17" r="1.4" fill="currentColor" stroke="none"/><circle cx="15" cy="17" r="1.4" fill="currentColor" stroke="none"/></symbol>
+</defs></svg>
+
+<main class="doc">
+  <header class="doc__bar">
+    <div>
+      <div class="doc__t">Editor de vídeo · maqueta v3.1 · dock derecho compacto</div>
+      <div class="doc__s">1440 × 900 · chat 518 (36 %) / editor 922 (64 %) · mismo sistema de tokens que la v3 · 4 estados nuevos</div>
+    </div>
+    <span class="doc__sp"></span>
+    <div class="seg" role="group" aria-label="Estado de la maqueta">
+      <button data-state="edit">Edición</button>
+      <button data-state="picker" aria-pressed="true">Sustituir medio</button>
+      <button data-state="tip">Chip de modelo</button>
+      <button data-state="lib">Biblioteca (drawer)</button>
+      <button data-state="insp">Inspector (drawer)</button>
+    </div>
+    <div class="seg" role="group" aria-label="Tamaño de la maqueta">
+      <button data-size="1440" aria-pressed="true">1440×900</button>
+      <button data-size="1024">1024×700</button>
+      <button data-size="900">900×700</button>
+    </div>
+    <div class="seg" role="group" aria-label="Tema">
+      <button data-theme-btn="dark" aria-pressed="true">Oscuro</button>
+      <button data-theme-btn="light">Claro</button>
+    </div>
+  </header>
+
+  <!-- ===================== SHELL ===================== -->
+  <div class="shell" role="application" aria-label="Editor de vídeo en el dock derecho de Hermes">
+
+    <!-- CHAT 518 -->
+    <section class="chat" aria-label="Chat de Hermes">
+      <div class="chat__head">
+        <div class="chat__id">
+          <div class="chat__title">Lanzamiento Q4 · montaje</div>
+          <div class="chat__sub">Sesión de trabajo</div>
+        </div>
+        <span class="doc__sp"></span>
+        <button class="modelsel" type="button" aria-label="Modelo actual: deepseek-v4.1-flash. Cambiar modelo">
+          <svg class="i i--14"><use href="#i-spark"/></svg>
+          <span>deepseek-v4.1-flash</span>
+          <svg class="i i--14" style="color:var(--ink-3)"><use href="#i-chev"/></svg>
+        </button>
+        <button class="btn btn--icon" type="button" aria-label="Más acciones del chat"><svg class="i"><use href="#i-more"/></svg></button>
+      </div>
+
+      <div class="chat__body">
+        <div class="msg">
+          <div class="msg__who msg__who--ai"><svg class="i i--14"><use href="#i-film"/></svg></div>
+          <div class="msg__body">
+            <p class="msg__txt">El proyecto <b>Lanzamiento Q4</b> tiene 4 escenas y 00:00:16:06 en la secuencia. La escena 02 es la más larga: 00:00:05:18.</p>
+            <div class="toolcard"><svg class="i i--14"><use href="#i-panel-r"/></svg><span>Editor de vídeo · panel abierto a la derecha</span></div>
+          </div>
+        </div>
+        <div class="msg msg--me">
+          <div class="msg__body">
+            <p class="msg__txt">Sustituye la escena 02 por otro clip de producto y conserva la entrada y la salida.</p>
+            <div class="msg__meta">14:31</div>
+          </div>
+        </div>
+        <div class="msg">
+          <div class="msg__who msg__who--ai"><svg class="i i--14"><use href="#i-film"/></svg></div>
+          <div class="msg__body">
+            <p class="msg__txt">Abrí el selector filtrado a vídeo sobre la escena 02. Elige el medio y conservo <b>00:00:03:06 → 00:00:08:24</b> y el texto.</p>
+          </div>
+        </div>
+      </div>
+
+            <div class="chat__composer">
+        <div class="composer__ph">Pide un cambio o pega la ruta de un medio…</div>
+        <div class="composer__row">
+          <button class="cbtn" type="button" aria-label="Adjuntar"><svg class="i"><use href="#i-paper"/></svg></button>
+          <button class="cbtn" type="button" aria-label="Dictar"><svg class="i"><use href="#i-mic"/></svg></button>
+          <span class="doc__sp"></span>
+          <button class="csend" type="button" aria-label="Enviar"><svg class="i"><use href="#i-send"/></svg></button>
+        </div>
+      </div>
+      <div class="chat__foot"><kbd>Intro</kbd> envía · <kbd>Mayús</kbd>+<kbd>Intro</kbd> salto de línea</div>
+    </section>
+
+    <!-- EDITOR 922 -->
+    <section class="ed" aria-label="Editor de vídeo">
+      <div class="ed__top">
+        <div class="brand"><span class="plate"><svg class="i i--14"><use href="#i-film"/></svg></span><span>Editor</span></div>
+        <span class="vr"></span>
+        <button class="proj" type="button"><svg class="i i--14"><use href="#i-folder"/></svg><b>Lanzamiento Q4</b><svg class="i i--14"><use href="#i-chev"/></svg></button>
+        <span class="chip"><b>Rev 7</b></span>
+        <span class="save"><span class="dot"></span><span>Guardado · 12 s</span></span>
+        <span class="spacer"></span>
+        <!-- chip de modelo: SOLO LECTURA -->
+        <button class="mchip" type="button" aria-describedby="mchip-note" aria-label="Modelo del chat: deepseek-v4.1-flash. Solo lectura. Pulsa para ir al selector del chat">
+          <svg class="i i--14"><use href="#i-spark"/></svg>
+          <span class="mchip__txt">deepseek-v4.1-flash</span>
+          <span class="mchip__lock" aria-hidden="true"><svg class="i"><use href="#i-lock"/></svg></span>
+        </button>
+        <span class="vr"></span>
+        <button class="btn btn--icon" type="button" aria-pressed="false" aria-label="Biblioteca de medios"><svg class="i"><use href="#i-layers"/></svg></button>
+        <button class="btn btn--icon" type="button" aria-pressed="false" aria-label="Inspector de escena"><svg class="i"><use href="#i-panel-r"/></svg></button>
+        <button class="btn btn--icon" type="button" aria-label="Más acciones"><svg class="i"><use href="#i-more"/></svg></button>
+      </div>
+
+      <!-- popover del chip, contenido en el pane -->
+      <div class="tip" role="dialog" aria-label="Cómo cambiar el modelo" id="mchip-note">
+        <div class="tip__t"><svg class="i i--14"><use href="#i-lock"/></svg>El modelo se cambia en el chat</div>
+        <p class="tip__d">El editor solo lee el modelo de la sesión. Los plugins no pueden cambiarlo por diseño: usa el selector del chat, arriba del compositor.</p>
+        <div class="tip__row"><svg class="i i--14"><use href="#i-arrow"/></svg><span>El foco ya está en el compositor. Escribe o pulsa</span><kbd>Esc</kbd><span>para volver.</span></div>
+      </div>
+
+      <div class="ed__main">
+        <div class="viewh">
+          <span class="viewh__t">02 · Producto en mano <i>· escena de 00:00:05:18</i></span>
+          <span class="spacer"></span>
+          <span class="chip chip--outline">Vista previa</span>
+          <span class="chip chip--outline">1280×720 · 30 fps</span>
+          <button class="btn btn--icon" type="button" aria-label="Cuadrícula"><svg class="i"><use href="#i-grid"/></svg></button>
+          <button class="btn btn--icon" type="button" aria-label="Pantalla completa"><svg class="i"><use href="#i-expand"/></svg></button>
+        </div>
+
+        <div class="stagewrap">
+          <div class="stage" role="img" aria-label="Fotograma de ejemplo de la escena 02">
+            <div class="stage__grad"></div>
+            <div class="stage__bars"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            <div class="stage__safe"></div>
+            <span class="stage__tag">fotograma de ejemplo</span>
+            <span class="stage__hud"><span class="chip chip--outline">1.0×</span></span>
+          </div>
+        </div>
+
+        <div class="transport">
+          <button class="tbtn" type="button" aria-label="Escena anterior"><svg class="i"><use href="#i-back"/></svg></button>
+          <button class="tbtn tbtn--play" type="button" aria-label="Reproducir"><svg class="i"><use href="#i-play"/></svg></button>
+          <button class="tbtn" type="button" aria-label="Escena siguiente"><svg class="i"><use href="#i-fwd"/></svg></button>
+          <span class="tc">00:00:04:12</span>
+          <span class="tc tc--sep">/</span>
+          <span class="tc tc--total" style="color:var(--ink-3);font-weight:500">00:00:16:06</span>
+          <div class="scrub" aria-hidden="true">
+            <div class="scrub__rail"><div class="scrub__buf"></div><div class="scrub__fill"></div><div class="scrub__thumb"></div></div>
+          </div>
+          <span class="chip chip--outline">In 00:00:03:06</span>
+          <span class="chip chip--outline">Out 00:00:08:24</span>
+          <button class="tbtn" type="button" aria-label="Silenciar"><svg class="i"><use href="#i-vol"/></svg></button>
+        </div>
+      </div>
+
+      <!-- línea de tiempo 260 -->
+      <div class="tl">
+        <div class="tlbar">
+          <button class="tiw" type="button" aria-label="Selección"><svg class="i"><use href="#i-arrow"/></svg></button>
+          <button class="tiw" type="button" aria-label="Cuchilla"><svg class="i"><use href="#i-cut"/></svg></button>
+          <button class="tiw" type="button" aria-pressed="true" aria-label="Imán"><svg class="i"><use href="#i-magnet"/></svg></button>
+          <button class="tiw" type="button" aria-label="Deshacer"><svg class="i"><use href="#i-undo"/></svg></button>
+          <button class="tiw" type="button" aria-label="Rehacer"><svg class="i"><use href="#i-redo"/></svg></button>
+          <span class="vr"></span>
+          <button class="tb" type="button"><svg class="i i--14"><use href="#i-swap"/></svg><span>Sustituir medio</span></button>
+          <button class="tb" type="button"><svg class="i i--14"><use href="#i-plus"/></svg><span>Insertar</span></button>
+          <span class="doc__sp"></span>
+          <span class="chip chip--outline">Escena 02</span>
+          <button class="tiw" type="button" aria-label="Alejar"><svg class="i"><use href="#i-zoom-out"/></svg></button>
+          <span class="chip" id="zoomlbl">46 px/s</span>
+          <button class="tiw" type="button" aria-label="Acercar"><svg class="i"><use href="#i-zoom-in"/></svg></button>
+        </div>
+
+        <div class="ruler" aria-hidden="true">
+          <div class="ruler__corner">Secuencia</div>
+          <span class="ruler__tick ruler__tick--big" style="--s:0"></span>
+          <span class="ruler__lab" style="--s:0">00:00:00</span>
+          <span class="ruler__tick" style="--s:2"></span>
+          <span class="ruler__tick ruler__tick--big" style="--s:4"></span>
+          <span class="ruler__lab" style="--s:4">00:00:04</span>
+          <span class="ruler__tick" style="--s:6"></span>
+          <span class="ruler__tick ruler__tick--big" style="--s:8"></span>
+          <span class="ruler__lab" style="--s:8">00:00:08</span>
+          <span class="ruler__tick" style="--s:10"></span>
+          <span class="ruler__tick ruler__tick--big" style="--s:12"></span>
+          <span class="ruler__lab" style="--s:12">00:00:12</span>
+          <span class="ruler__tick" style="--s:14"></span>
+          <span class="ruler__tick ruler__tick--big" style="--s:16"></span>
+          <span class="ruler__lab" style="--s:16">00:00:16</span>
+        </div>
+
+        <div class="tracks">
+          <div class="lane lane--v1">
+            <div class="lane__head"><span class="lane__badge">V1</span><div class="lane__meta"><span class="lane__name">Escenas</span><span class="lane__sub">4 clips</span></div></div>
+            <button class="clip clip--v" type="button" style="--s:0;--d:3.2"><span class="clip__in"></span><span class="clip__lbl">01 Apertura</span><span class="clip__tc">00:00:03:06</span></button>
+            <button class="clip clip--v clip--sel" type="button" aria-pressed="true" style="--s:3.2;--d:5.6"><span class="clip__in"></span><span class="clip__lbl">02 Producto en mano</span><span class="clip__tc">00:00:05:18</span></button>
+            <button class="clip clip--v" type="button" style="--s:8.8;--d:4.4"><span class="clip__in"></span><span class="clip__lbl">03 Testimonio</span><span class="clip__tc">00:00:04:12</span></button>
+            <button class="clip clip--v" type="button" style="--s:13.2;--d:3"><span class="clip__in"></span><span class="clip__lbl">04 Cierre</span><span class="clip__tc">00:00:03:00</span></button>
+          </div>
+          <div class="lane lane--a1">
+            <div class="lane__head"><span class="lane__badge">A1</span><div class="lane__meta"><span class="lane__name">Audio</span><span class="lane__sub">−12 dB</span></div></div>
+            <div class="clip clip--audio" style="--s:0;--d:16.2"><div class="wave"></div></div>
+          </div>
+          <div class="lane lane--t1">
+            <div class="lane__head"><span class="lane__badge">T1</span><div class="lane__meta"><span class="lane__name">Subtítulos</span><span class="lane__sub">derivada</span></div></div>
+            <div class="clip clip--t" style="--s:0;--d:3.2"><span class="clip__lbl">T1 Apertura: el gancho</span></div>
+            <div class="clip clip--t" style="--s:3.2;--d:7.2"><span class="clip__lbl">T1 Texto de la escena 02 · se conserva al sustituir</span></div>
+            <div class="clip clip--t" style="--s:10.4;--d:5.8"><span class="clip__lbl">T1 Edita por escenas y exporta en 720p</span></div>
+          </div>
+          <div class="playhead" style="--s:4.4"></div>
+        </div>
+
+        <div class="tlfoot">
+          <span>4 clips · 00:00:16:06</span><span class="tlfoot__sep">·</span><span>30 fps · 1280×720</span><span class="tlfoot__sep">·</span><span class="tlfoot__note">onda de ejemplo</span>
+          <span class="doc__sp"></span>
+          <div class="zoom"><button class="tiw" type="button" aria-label="Ajustar a la ventana" style="width:auto;padding:0 7px;font-size:12px">Ajustar</button></div>
+        </div>
+      </div>
+
+      <!-- ================= overlays (dentro del pane) ================= -->
+      <div class="scrim" aria-hidden="true"></div>
+
+      <aside class="drawer drawer--lib" aria-label="Biblioteca de medios">
+        <div class="dhead"><span class="dhead__t">Medios · 6</span><span class="doc__sp"></span>
+          <button class="btn btn--icon" type="button" aria-label="Cerrar biblioteca"><svg class="i"><use href="#i-x"/></svg></button></div>
+        <div class="dbody">
+          <div class="drow"><div class="drow__th"><span><svg class="i i--14"><use href="#i-video"/></svg></span></div><div class="drow__meta"><span class="drow__n">clipA.mp4</span><span class="drow__s">00:00:03:06 · 4,1 MB</span></div></div>
+          <div class="drow" style="border-color:var(--accent);background:var(--accent-1)"><div class="drow__th"><span><svg class="i i--14"><use href="#i-video"/></svg></span></div><div class="drow__meta"><span class="drow__n">clipB.mp4</span><span class="drow__s">00:00:05:18 · 24,6 MB</span></div></div>
+          <div class="drow"><div class="drow__th"><span><svg class="i i--14"><use href="#i-video"/></svg></span></div><div class="drow__meta"><span class="drow__n">clipC.mp4</span><span class="drow__s">00:00:04:12 · 8,2 MB</span></div></div>
+          <div class="drow"><div class="drow__th"><span><svg class="i i--14"><use href="#i-video"/></svg></span></div><div class="drow__meta"><span class="drow__n">clipD.mp4</span><span class="drow__s">00:00:03:00 · 3,4 MB</span></div></div>
+          <div class="drow"><div class="drow__th"><span><svg class="i i--14"><use href="#i-audio"/></svg></span></div><div class="drow__meta"><span class="drow__n">ambiente.mp3</span><span class="drow__s">00:00:16:00 · 1,2 MB</span></div></div>
+          <div class="drow"><div class="drow__th"><span><svg class="i i--14"><use href="#i-image"/></svg></span></div><div class="drow__meta"><span class="drow__n">logo.svg</span><span class="drow__s">vector · 12 KB</span></div></div>
+        </div>
+      </aside>
+
+      <aside class="drawer drawer--insp" aria-label="Inspector de escena">
+        <div class="dhead"><span class="dhead__t">Escena 02</span><span class="doc__sp"></span>
+          <button class="btn btn--icon" type="button" aria-label="Cerrar inspector"><svg class="i"><use href="#i-x"/></svg></button></div>
+        <div class="dbody">
+          <div class="drow" style="padding:8px"><div class="drow__th" style="width:72px;height:40px"><span><svg class="i"><use href="#i-video"/></svg></span></div><div class="drow__meta"><span class="drow__n">clipB.mp4</span><span class="drow__s">1920×1080 · 30 fps · 24,6 MB</span></div></div>
+          <div class="drow"><button class="btn btn--outline" type="button" style="height:30px"><svg class="i i--14"><use href="#i-swap"/></svg>Reemplazar</button></div>
+          <div class="drow"><div class="drow__meta"><span class="drow__n">In 00:00:03:06</span><span class="drow__s">Out 00:00:08:24 · 00:00:05:18</span></div></div>
+          <div class="drow"><div class="drow__meta"><span class="drow__n">Texto</span><span class="drow__s">T1 · se conserva al sustituir</span></div></div>
+        </div>
+      </aside>
+
+      <!-- PICKER · sustituir el medio de la escena 02 -->
+      <div class="picker" role="dialog" aria-modal="false" aria-labelledby="pk-t" aria-describedby="pk-s">
+        <div class="pkhead">
+          <div class="pkhead__id">
+            <div class="pkhead__t" id="pk-t">Sustituir medio</div>
+            <div class="pkhead__s" id="pk-s">Escena 02 · <b>clipB.mp4</b> · conserva in 00:00:03:06 → out 00:00:08:24</div>
+          </div>
+          <button class="btn btn--icon" type="button" aria-label="Cancelar y cerrar"><svg class="i"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="pkbar">
+          <div class="seg" role="group" aria-label="Filtrar por tipo">
+            <button type="button" aria-pressed="false">Todos</button>
+            <button type="button" aria-pressed="true">Vídeo</button>
+            <button type="button" aria-pressed="false">Audio</button>
+            <button type="button" aria-pressed="false">Imagen</button>
+          </div>
+          <div class="pksearch"><svg class="i"><use href="#i-search"/></svg><span>Buscar medio…</span></div>
+        </div>
+        <div class="pkbody">
+          <div class="pkgrid" role="listbox" aria-label="Medios de vídeo">
+            <button class="pkitem" role="option" aria-selected="false" data-hover="1" type="button">
+              <span class="pkitem__th"><span class="ph"><svg class="i i--18"><use href="#i-video"/></svg></span><span class="pkitem__dur">00:00:03:06</span></span>
+              <span class="pkitem__n">clipA.mp4</span><span class="pkitem__use">4,1 MB</span>
+              <span class="pkitem__check"><svg class="i"><use href="#i-check"/></svg></span>
+            </button>
+            <button class="pkitem" role="option" aria-selected="true" type="button">
+              <span class="pkitem__th"><span class="ph"><svg class="i i--18"><use href="#i-video"/></svg></span><span class="pkitem__dur">00:00:04:12</span></span>
+              <span class="pkitem__n">clipC.mp4</span><span class="pkitem__use">8,2 MB</span>
+              <span class="pkitem__check"><svg class="i"><use href="#i-check"/></svg></span>
+            </button>
+            <button class="pkitem" role="option" aria-selected="false" type="button">
+              <span class="pkitem__th"><span class="ph"><svg class="i i--18"><use href="#i-video"/></svg></span><span class="pkitem__dur">00:00:03:00</span></span>
+              <span class="pkitem__n">clipD.mp4</span><span class="pkitem__use">3,4 MB</span>
+              <span class="pkitem__check"><svg class="i"><use href="#i-check"/></svg></span>
+            </button>
+            <button class="pkitem" role="option" aria-selected="false" aria-disabled="true" type="button">
+              <span class="pkitem__th"><span class="ph"><svg class="i i--18"><use href="#i-video"/></svg></span><span class="pkitem__dur">00:00:05:18</span></span>
+              <span class="pkitem__n">clipB.mp4</span><span class="pkitem__use">en uso en esta escena</span>
+            </button>
+            <button class="pkitem" role="option" aria-selected="false" type="button">
+              <span class="pkitem__th"><span class="ph"><svg class="i i--18"><use href="#i-audio"/></svg></span><span class="pkitem__dur">00:00:16:00</span></span>
+              <span class="pkitem__n">ambiente.mp3</span><span class="pkitem__use">audio · 1,2 MB</span>
+              <span class="pkitem__check"><svg class="i"><use href="#i-check"/></svg></span>
+            </button>
+            <button class="pkitem" role="option" aria-selected="false" type="button">
+              <span class="pkitem__th"><span class="ph"><svg class="i i--18"><use href="#i-image"/></svg></span><span class="pkitem__dur">vector</span></span>
+              <span class="pkitem__n">logo.svg</span><span class="pkitem__use">imagen · 12 KB</span>
+              <span class="pkitem__check"><svg class="i"><use href="#i-check"/></svg></span>
+            </button>
+          </div>
+        </div>
+        <div class="pkfoot">
+          <span>Doble clic o <b style="color:var(--ink-2);font-weight:600">Intro</b> sustituye</span>
+          <span class="doc__sp"></span>
+          <kbd>Esc</kbd>
+          <button class="btn btn--primary" type="button" style="height:28px;font-size:12px">Sustituir</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="doc__notes">
+    <h2>Qué cambia respecto a la v3</h2>
+    <p><b>1 · Reparto.</b> El pane ya no ocupa el ancho del workspace: es dock derecho y mide el 64 %. A 1440 el editor recibe <b>922</b> y el chat <b>518</b>; la v3 asumía 1440 para el editor solo. Por eso <b>biblioteca e inspector dejan de ser columnas</b>: pasan a drawers dentro del pane, y el visor y la línea de tiempo recuperan el ancho completo.</p>
+    <p><b>2 · Escala de tiempo.</b> La línea de tiempo ya no puede usar 62 px/s: a 922 el defecto es <b>46 px/s</b> (ajustar a ventana). Es el único número de la v3 que cambia de valor, no de regla.</p>
+    <p><b>3 · Chip de modelo.</b> Solo lectura, alimentado por <code>host.state.model</code>. Al pulsarlo, el foco va al compositor del chat y aparece un popover <b>contenido en el pane</b> que explica que el modelo se cambia en el chat.</p>
+    <p><b>4 · Nada flota fuera.</b> Picker, drawers, popover y diálogos son <code>absolute</code> dentro de <code>.ed</code> (que ya es <code>contain:layout paint</code>). Cero <code>position:fixed</code>. El scrim no cubre el chat: solo el editor.</p>
+    <p><b>5 · Sustituir.</b> El picker está anclado al clip seleccionado, filtrado a vídeo, con el medio en uso deshabilitado y el «conserva in/out + texto» dicho antes de elegir.</p>
+    <p>Los fotogramas son de ejemplo («fotograma de ejemplo», borde discontinuo) y la onda es sintética, igual que en la v3: el panel todavía no pide <code>/thumbnails</code> ni <code>/waveform</code>.</p>
+  </section>
+</main>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  document.querySelectorAll("[data-state]").forEach(function(b){
+    b.addEventListener("click",function(){
+      root.dataset.state=b.dataset.state;
+      document.querySelectorAll("[data-state]").forEach(function(o){o.setAttribute("aria-pressed",String(o===b));});
+    });
+  });
+  document.querySelectorAll("[data-size]").forEach(function(b){
+    b.addEventListener("click",function(){
+      root.dataset.size=b.dataset.size;
+      document.querySelectorAll("[data-size]").forEach(function(o){o.setAttribute("aria-pressed",String(o===b));});
+      root.style.setProperty("--pw",getComputedStyle(root).getPropertyValue("--pw").trim());
+      var s=b.dataset.size;
+      if(s==="1024"){document.querySelector(".shell").style.width="1024px";document.querySelector(".shell").style.height="700px";}
+      else if(s==="900"){document.querySelector(".shell").style.width="900px";document.querySelector(".shell").style.height="700px";}
+      else {document.querySelector(".shell").style.width="";document.querySelector(".shell").style.height="";}
+      var pps=parseFloat(getComputedStyle(root).getPropertyValue("--pps"));
+      document.getElementById("zoomlbl").textContent=pps+" px/s";
+    });
+  });
+  document.querySelectorAll("[data-theme-btn]").forEach(function(b){
+    b.addEventListener("click",function(){
+      root.dataset.theme=b.dataset.themeBtn;
+      document.querySelectorAll("[data-theme-btn]").forEach(function(o){o.setAttribute("aria-pressed",String(o===b));});
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+{
+  "assets": [
+    {
+      "addedAt": "2026-11-08T18:40:00Z",
+      "bytes": 2772029,
+      "id": "md_01",
+      "kind": "video",
+      "path": "media/intro.mp4",
+      "rights": {
+        "license": "grabación propia",
+        "notes": "Fixture sintético para pruebas",
+        "status": "owned"
+      },
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "addedAt": "2026-11-08T18:41:00Z",
+      "bytes": 48211,
+      "id": "md_02",
+      "kind": "image",
+      "path": "media/cierre.png",
+      "rights": {
+        "license": "CC0-1.0",
+        "notes": "Generado con lavfi",
+        "status": "licensed"
+      },
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "audio": {
+    "masterVolume": 80
+  },
+  "baseRevision": 6,
+  "createdAt": "2026-11-08T18:40:00Z",
+  "cwd": "C:/Users/EgtYP/proyectos/lanzamiento-q4",
+  "engineTag": "ffmpeg-9.0.1",
+  "fps": {
+    "den": 1,
+    "num": 30
+  },
+  "height": 720,
+  "orientation": "h",
+  "projectId": "prj_lanzamiento_q4",
+  "revision": 7,
+  "scenes": [
+    {
+      "audio": {
+        "fadeIn": 0.0,
+        "fadeOut": 0.3,
+        "volume": 80
+      },
+      "id": "sc_01",
+      "in": 0.0,
+      "name": "Intro",
+      "needsRelink": false,
+      "out": 3.2,
+      "source": {
+        "assetId": "md_01",
+        "kind": "video",
+        "path": "media/intro.mp4",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "text": [
+        {
+          "at": 0.0,
+          "content": "Exporta en 720p y vuelve al chat con el MP4 listo.",
+          "position": "bottom",
+          "until": 3.0
+        }
+      ],
+      "transition": "none"
+    },
+    {
+      "audio": {
+        "fadeIn": 0.3,
+        "fadeOut": 0.0,
+        "volume": 100
+      },
+      "id": "sc_02",
+      "in": 0.0,
+      "name": "Cierre",
+      "needsRelink": false,
+      "out": 2.0,
+      "source": {
+        "assetId": "md_02",
+        "kind": "image",
+        "path": "media/cierre.png",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "text": [],
+      "transition": "fade-0.3"
+    }
+  ],
+  "schemaVersion": 1,
+  "sessionId": "sess_4f2a",
+  "title": "Lanzamiento Q4",
+  "updatedAt": "2026-11-08T18:42:10Z",
+  "width": 1280
+}
