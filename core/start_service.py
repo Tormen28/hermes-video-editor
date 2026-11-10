@@ -6,7 +6,8 @@ pane mostró «Failed to fetch». Este lanzador evita que se repita: DETACHED_PR
 
 Uso:
   python start_service.py --data-root core/data --media-root <carpeta de medios> --port 8770
-  python start_service.py --stop            # opcional: pide /admin/stop si está habilitado
+  python start_service.py --ensure ...      # si ya responde, no hace nada; si no, lo arranca
+  python start_service.py --stop            # pide /admin/stop (con el token del servicio)
 """
 from __future__ import annotations
 
@@ -18,6 +19,9 @@ import sys
 import time
 import urllib.request
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from service import auth  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
 LOG_DIR = HERE / "logs"
@@ -45,6 +49,8 @@ def main() -> int:
     ap.add_argument("--tools-root", default=None)
     ap.add_argument("--no-admin", action="store_true")
     ap.add_argument("--stop", action="store_true")
+    ap.add_argument("--ensure", action="store_true", help="no relanza si ya hay un servicio sano en el puerto")
+    ap.add_argument("--token-file", default=None, help="archivo del token (por defecto el de Hermes)")
     args = ap.parse_args()
 
     config: dict = {}
@@ -66,8 +72,10 @@ def main() -> int:
 
     if args.stop:
         try:
+            token = auth.read_token(args.token_file)
             req = urllib.request.Request(
-                f"http://127.0.0.1:{port}/admin/stop", data=b"{}", method="POST"
+                f"http://127.0.0.1:{port}/admin/stop", data=b"{}", method="POST",
+                headers={auth.TOKEN_HEADER: token} if token else {},
             )
             urllib.request.urlopen(req, timeout=5).read()
             print(f"stop solicitado en {port}")
@@ -75,6 +83,12 @@ def main() -> int:
             print(f"no se pudo parar: {exc}")
             return 1
         return 0
+
+    if args.ensure:
+        info = health(port)
+        if info:
+            print(json.dumps({"port": port, "health": info, "alreadyRunning": True}, ensure_ascii=False))
+            return 0
 
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     cmd = [
@@ -88,6 +102,8 @@ def main() -> int:
         cmd += ["--tools-root", str(tools_root)]
     if args.no_admin:
         cmd.append("--no-admin")
+    if args.token_file:
+        cmd += ["--token-file", str(Path(args.token_file).expanduser().resolve())]
 
     base_flags = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
     # Primero intenta salir del Job Object del proceso que lanza (si no,

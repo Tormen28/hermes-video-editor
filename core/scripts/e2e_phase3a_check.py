@@ -55,7 +55,7 @@ def main() -> int:
     log = open(SCRATCH / "service.log", "w", encoding="utf-8")
     proc = subprocess.Popen(
         [sys.executable, "-m", "service.app", "--data-root", str(data_root),
-         "--media-root", str(media_root), "--port", str(port)],
+         "--media-root", str(media_root), "--port", str(port), "--no-token"],
         cwd=str(CORE), stdout=log, stderr=subprocess.STDOUT,
     )
     report: dict = {"base": base, "steps": {}}

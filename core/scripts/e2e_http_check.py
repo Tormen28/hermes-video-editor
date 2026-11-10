@@ -28,10 +28,13 @@ FFPROBE = os.environ.get(
 
 def call(base: str, method: str, path: str, body: dict | None = None, timeout: float = 30):
     data = None if body is None else json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(
-        base + path, data=data, method=method,
-        headers={"Content-Type": "application/json"} if data else {},
-    )
+    headers = {"Content-Type": "application/json"} if data else {}
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from service import auth  # noqa: PLC0415
+    token = auth.read_token()
+    if token:
+        headers[auth.TOKEN_HEADER] = token
+    req = urllib.request.Request(base + path, data=data, method=method, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             raw = resp.read()

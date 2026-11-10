@@ -94,7 +94,8 @@ python start_service.py --data-root C:/.../core/data --media-root C:/.../medios 
 
 ## 7. Seguridad operativa
 
-- Host/Origin validados; sin CORS abierto a orígenes externos.
+- Host/Origin validados; sin CORS abierto a orígenes externos y **nunca** `*`.
+- **Token obligatorio** (cabecera `X-VE-Token`, comparación en tiempo constante) en todo salvo `/health` (reducido) y las lecturas pasivas de `/media`, `/thumbnails` y `/jobs/<id>/output`, que no son legibles entre orígenes. Sin token → 401; token malo → 403. El pane se sirve desde `file://` y manda `Origin: null`, igual que cualquier página en sandbox: por eso `Origin: null` **solo** pasa con token (cierra el CSRF local). El token vive en `%LOCALAPPDATA%\hermes\video-editor\service.token` (o `--token-file`/`VE_TOKEN_FILE`; `VE_SERVICE_TOKEN` lo sobreescribe); nunca va en URLs, logs ni respuestas. `--no-token` existe solo para pruebas.
 - El worker lanza solo `ffmpeg.exe`/`ffprobe.exe` por ruta absoluta, con allowlist de flags y sin `shell=True`; entorno filtrado (sin secretos).
 - Job Objects: límites de memoria y kill-tree del proceso ffmpeg.
 - Promoción atómica: el MP4 se valida en staging y se renombra; nunca se publica una salida parcial.
@@ -112,3 +113,9 @@ python scripts/e2e_http_check.py --base http://127.0.0.1:8770 --media clipA.mp4 
 ```
 
 Reporte JSON completo: `core/logs/e2e-http-report.json`.
+
+## 9. Línea de tiempo por tiempo (chat ↔ pane)
+
+`GET /projects/<id>/timeline`, `GET /projects/<id>/at?t=<tiempo>` y `POST /projects/<id>/edit` (`{"ops":[...]}`).
+Las operaciones se aplican sobre la revisión actual con reintento ante `RevisionConflict` (hasta 5), todo o nada.
+Referencia completa de operaciones y ejemplos: [`docs/CHAT-Y-EDITOR.md`](../docs/CHAT-Y-EDITOR.md). Herramienta CLI: `core/scripts/ve_timeline.py`.

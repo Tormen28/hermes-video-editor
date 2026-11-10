@@ -43,8 +43,10 @@ if __package__ in (None, ""):  # allow `python core/service/app.py`
 
 import paths as path_rules  # noqa: E402
 import project  # noqa: E402
+from service import auth  # noqa: E402
 from service import generate as generation  # noqa: E402
 from service import journal as journal_module  # noqa: E402
+from service import timeline_ops  # noqa: E402
 from service import worker  # noqa: E402
 
 SERVICE_VERSION = "0.3.4"
@@ -157,6 +159,9 @@ class ServiceConfig:
     port: int = 8765
     allow_admin: bool = True
     extra_origins: tuple[str, ...] = ()
+    #: Shared secret required in ``X-VE-Token``. ``None`` disables the check
+    #: (library/tests only: ``main()`` always sets one unless ``--no-token``).
+    token: str | None = None
 
 
 class Service:
@@ -374,6 +379,104 @@ class Service:
             current = self.journal.get_project(project_id)
             raise HttpError(409, "hay una revisión más nueva", current_revision=(current or {}).get("revision")) from exc
         return self._project_payload(stored)
+
+    # -- timeline by time (chat <-> pane) ---------------------------------- #
+
+    _DURATION_CACHE: dict[str, float | None] = {}
+
+    def _asset_seconds(self, asset: dict) -> float | None:
+        """Length of an audio/video asset (cached by content hash); None if unknown."""
+        key = asset.get("sha256") or asset.get("path")
+        if key in self._DURATION_CACHE:
+            return self._DURATION_CACHE[key]
+        value = None
+        try:
+            path = worker.verify_media_file(self.media_root, asset["path"])
+            value = round(float(worker.probe_media(path, self.tools).get("duration") or 0.0), 3) or None
+        except Exception:
+            value = None
+        self._DURATION_CACHE[key] = value
+        return value
+
+    def timeline(self, project_id: str) -> dict:
+        stored = self.journal.get_project(project_id)
+        if stored is None:
+            raise HttpError(404, f"proyecto desconocido: {project_id}")
+        return timeline_ops.describe(stored["document"], self._asset_seconds)
+
+    def items_at(self, project_id: str, time_value: Any) -> dict:
+        stored = self.journal.get_project(project_id)
+        if stored is None:
+            raise HttpError(404, f"proyecto desconocido: {project_id}")
+        try:
+            t = timeline_ops.parse_time(time_value)
+        except timeline_ops.OpError as exc:
+            raise _bad_request(str(exc)) from None
+        return timeline_ops.items_at(stored["document"], t, self._asset_seconds)
+
+    def edit(self, project_id: str, body: dict) -> dict:
+        """Apply a list of timestamp ops to the CURRENT revision, atomically.
+
+        The write is revision-checked: if the pane saved in between we re-read and
+        re-apply (up to 5 times), so neither side overwrites the other. Pass
+        ``strict: true`` with ``revision`` to get a 409 instead of a rebase.
+        """
+        if self.journal.get_project(project_id) is None:
+            raise HttpError(404, f"proyecto desconocido: {project_id}")
+        ops = list(body.get("ops") or [])
+        # insert_media: import the file first (adds it as the last scene), then move it.
+        expanded: list[dict] = []
+        imported = False
+        for op in ops:
+            if isinstance(op, dict) and op.get("op") == "insert_media":
+                before = len((self.journal.get_project(project_id)["document"]).get("scenes") or [])
+                result = self.add_media(project_id, {"path": op.get("path")})
+                imported = True
+                scenes_now = result["project"]["scenes"]
+                if len(scenes_now) == before:  # audio file: no scene, place it as a sound event
+                    relative, _resolved = self._resolve_media_reference(op.get("path"))
+                    asset = next(a for a in result["project"]["assets"] if a.get("path") == relative)
+                    expanded.append({"op": "add_audio", "assetId": asset["id"], "at": op.get("at", 0),
+                                     "volume": op.get("volume", 80)})
+                    continue
+                last = len(scenes_now)
+                if op.get("duration") is not None:
+                    expanded.append({"op": "trim", "scene": last, "duration": op["duration"]})
+                if op.get("at") is not None or op.get("to_index") is not None:
+                    move = {"op": "move_scene", "scene": last}
+                    if op.get("to_index") is not None:
+                        move["to_index"] = op["to_index"]
+                    else:
+                        move["to_time"] = op["at"]
+                    expanded.append(move)
+            else:
+                expanded.append(op)
+        if not expanded:
+            if not imported:
+                raise _bad_request("'ops' debe ser una lista con al menos una operación")
+            return {"revision": self.journal.get_project(project_id)["document"]["revision"],
+                    "applied": ["medio importado al final"], "timeline": self.timeline(project_id)}
+        for _attempt in range(5):
+            stored = self.journal.get_project(project_id)
+            doc = stored["document"]
+            if body.get("strict") and body.get("revision") not in (None, doc["revision"]):
+                raise HttpError(409, "hay una revisión más nueva", current_revision=doc["revision"])
+            try:
+                new_doc, summary = timeline_ops.apply_ops(doc, expanded)
+            except timeline_ops.OpError as exc:
+                raise _bad_request(str(exc)) from None
+            try:
+                document = project.normalize_incoming(new_doc)
+                saved = self.journal.save_project(project_id, document, doc["revision"])
+            except project.RevisionConflict:
+                continue
+            return {
+                "revision": saved["document"]["revision"],
+                "baseRevision": doc["revision"],
+                "applied": summary,
+                "timeline": timeline_ops.describe(saved["document"], self._asset_seconds),
+            }
+        raise HttpError(409, "el proyecto cambia sin parar; reintenta", current_revision=None)
 
     # -- library (v3) ----------------------------------------------------- #
 
@@ -1041,28 +1144,39 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(exc.status, {"error": exc.message, **exc.extra})
             return
         self.send_response(204)
-        self._send_cors()
+        # Preflights never carry the token (browsers strip custom headers from them);
+        # the real request is what gets authenticated.
+        self._send_cors(force=True)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", f"Content-Type, {auth.TOKEN_HEADER}")
         self.send_header("Access-Control-Max-Age", "600")
         self.send_header("Content-Length", "0")
         self.end_headers()
 
-    def _send_cors(self) -> None:
-        """Refleja el Origin solo si está en la allowlist: nunca se refleja uno ajeno."""
+    def _send_cors(self, force: bool = False) -> None:
+        """Refleja el Origin solo si está en la allowlist: nunca se refleja uno ajeno.
+
+        Con token configurado, además, solo se reflejan las respuestas a peticiones
+        autenticadas (o el preflight): una página ``Origin: null`` ajena no puede
+        leer nada porque nunca recibe ``Access-Control-Allow-Origin``.
+        """
         origin = (self.headers.get("Origin") or "").strip()
         if not self._origin_allowed(origin):
+            return
+        if not force and self.svc.config.token and not getattr(self, "_authed", False):
             return
         self.send_header("Access-Control-Allow-Origin", origin)
         self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges")
 
     def _dispatch(self, method: str) -> None:
+        self._authed = False
         try:
             self._check_origin()
             parsed = urlparse(self.path)
             path = parsed.path.rstrip("/") or "/"
             query = parse_qs(parsed.query)
+            self._check_token(method, path)
             body = self._read_json() if method in ("POST", "PUT", "DELETE") else {}
             status, payload = self._route(method, path, query, body)
             if isinstance(payload, tuple):  # raw file response
@@ -1103,6 +1217,35 @@ class _Handler(BaseHTTPRequestHandler):
         allowed.update(item.lower() for item in self.svc.config.extra_origins)
         return origin.strip().lower() in allowed
 
+    #: Read-only byte streams that ``<video>``/``<img>`` fetch without custom
+    #: headers. They stay reachable without the token but are never CORS-readable.
+    _PASSIVE_GET = ("media", "thumbnails")
+
+    def _is_passive_get(self, method: str, path: str) -> bool:
+        if method != "GET":
+            return False
+        parts = [part for part in path.split("/") if part]
+        if len(parts) == 3 and parts[0] in self._PASSIVE_GET:
+            return True
+        return len(parts) == 3 and parts[0] == "jobs" and parts[2] == "output"
+
+    def _check_token(self, method: str, path: str) -> None:
+        expected = self.svc.config.token
+        if not expected:
+            self._authed = True
+            return
+        supplied = self.headers.get(auth.TOKEN_HEADER)
+        if auth.matches(expected, supplied):
+            self._authed = True
+            return
+        if self._is_passive_get(method, path):
+            return
+        if path == "/health" and method == "GET":
+            return
+        if supplied:
+            raise HttpError(403, "token inválido")
+        raise HttpError(401, "falta el token del servicio (cabecera X-VE-Token)")
+
     def _check_origin(self) -> None:
         host = (self.headers.get("Host") or "").strip().lower()
         port = self.svc.port
@@ -1141,6 +1284,9 @@ class _Handler(BaseHTTPRequestHandler):
         svc = self.svc
         parts = [part for part in path.split("/") if part]
 
+        if path == "/health" and method == "GET" and not self._authed:
+            return 200, {"ok": True, "service": SERVICE_VERSION, "authRequired": True}
+
         if path == "/health" and method == "GET":
             return 200, {
                 "ok": True,
@@ -1161,6 +1307,8 @@ class _Handler(BaseHTTPRequestHandler):
                 "providers": generation.provider_status()["providers"],
                 "providerModes": generation.provider_status()["providerModes"],
                 "startedAt": svc.started_at,
+                "authRequired": bool(svc.config.token),
+                "voiceModes": generation.voice_status(),
             }
 
         if path == "/grants" and method == "GET":
@@ -1206,6 +1354,12 @@ class _Handler(BaseHTTPRequestHandler):
                 return 200, svc.save_project(project_id, body)
             if len(parts) == 2 and method == "DELETE":
                 return 200, svc.delete_project(project_id, confirm=_confirmed(body, query))
+            if len(parts) == 3 and parts[2] == "timeline" and method == "GET":
+                return 200, svc.timeline(project_id)
+            if len(parts) == 3 and parts[2] == "at" and method == "GET":
+                return 200, svc.items_at(project_id, _first(query, "t") if _first(query, "t") is not None else "0")
+            if len(parts) == 3 and parts[2] == "edit" and method == "POST":
+                return 200, svc.edit(project_id, body)
             if len(parts) == 3 and parts[2] == "duplicate" and method == "POST":
                 return 201, svc.duplicate_project(project_id)
             if len(parts) == 3 and parts[2] == "media" and method == "POST":
@@ -1343,11 +1497,13 @@ def build_service(
     host: str = "127.0.0.1",
     allow_admin: bool = True,
     extra_origins: tuple[str, ...] = (),
+    token: str | None = None,
 ) -> Service:
     return Service(ServiceConfig(
         data_root=Path(data_root), media_root=Path(media_root),
         tools_root=Path(tools_root) if tools_root else None,
         host=host, port=port, allow_admin=allow_admin, extra_origins=extra_origins,
+        token=token,
     ))
 
 
@@ -1362,12 +1518,21 @@ def main(argv: list[str] | None = None) -> int:
         "--allow-origin", action="append", default=[], metavar="ORIGIN",
         help="origen adicional permitido (solo para pruebas locales; repetible)",
     )
+    parser.add_argument(
+        "--token-file", default=None,
+        help="archivo con el token del servicio (por defecto %%LOCALAPPDATA%%/hermes/video-editor/service.token; se crea si falta)",
+    )
+    parser.add_argument(
+        "--no-token", action="store_true",
+        help="DESACTIVA la autenticación por token (solo depuración local; no recomendado)",
+    )
     args = parser.parse_args(argv)
 
+    token = None if args.no_token else auth.load_or_create_token(args.token_file)
     service = build_service(
         args.data_root, args.media_root, tools_root=args.tools_root,
         port=args.port, allow_admin=not args.no_admin,
-        extra_origins=tuple(args.allow_origin),
+        extra_origins=tuple(args.allow_origin), token=token,
     ).start()
     print(json.dumps({
         "service": SERVICE_VERSION,
@@ -1375,6 +1540,7 @@ def main(argv: list[str] | None = None) -> int:
         "dataRoot": str(service.data_root),
         "mediaRoot": str(service.media_root),
         "restartedJobs": [job["jobId"] for job in service.recovered],
+        "auth": "token" if token else "DISABLED",
     }, ensure_ascii=False))
     try:
         while not service.stopped.is_set():

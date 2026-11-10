@@ -13,6 +13,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { jsx, jsxs } from 'react/jsx-runtime'
 
 const DEFAULT_SERVICE = 'http://127.0.0.1:8770'
+// El instalador (instalar.py / activar-editor.cmd) sustituye el marcador por el token del
+// servicio. Sin token el servicio rechaza toda llamada (anti-CSRF del origen file://).
+const SERVICE_TOKEN = '__VE_TOKEN__'
 const PRESET = 'mp4-720p30'
 const MAX_CAPTION = 90
 const MIN_SCENE = 0.3
@@ -143,6 +146,24 @@ function fmtTime(seconds) {
   const whole = Math.floor(rest)
   const tenth = Math.floor((rest - whole) * 10 + 1e-6)
   return `${String(minutes).padStart(2, '0')}:${String(whole).padStart(2, '0')},${tenth}`
+}
+
+// Código de tiempo exacto mm:ss.mmm (el que se usa para pedirle cambios a Hermes: "en 01:23.500").
+function fmtTimecode(seconds) {
+  const total = Math.round(Math.max(0, Number(seconds) || 0) * 1000)
+  const mm = Math.floor(total / 60000)
+  const ss = Math.floor((total % 60000) / 1000)
+  const ms = total % 1000
+  return `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}.${String(ms).padStart(3, '0')}`
+}
+
+// Acepta "83.5", "83,5", "1:23.5" o "01:23.500" y devuelve segundos (o null).
+function parseTimecode(text) {
+  const raw = String(text == null ? '' : text).trim().replace(',', '.')
+  if (!raw) return null
+  const parts = raw.split(':')
+  if (parts.length > 3 || parts.some((part) => !/^\d+(\.\d+)?$/.test(part))) return null
+  return parts.reduce((acc, part) => acc * 60 + Number(part), 0)
 }
 
 function fmtBytes(bytes) {
@@ -351,6 +372,70 @@ function stageIndex(stage) {
   return stage === 'failed' ? -1 : 0
 }
 
+// ---- merge:start
+// ---------------------------------------------------------------- fusión
+// Une tus cambios a mano con los que llegaron del chat (misma revisión base):
+// por id de escena/sonido/medio; en la misma escena gana lo que TÚ cambiaste y
+// se conserva lo que cambió el chat en el resto de campos. Nada se pierde en silencio.
+const sameJson = (a, b) => JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b)
+
+function mergeById(base, mine, theirs) {
+  const b = new Map((base || []).map((x) => [x.id, x]))
+  const m = new Map((mine || []).map((x) => [x.id, x]))
+  const t = new Map((theirs || []).map((x) => [x.id, x]))
+  const orderBase = (base || []).map((x) => x.id)
+  const orderMine = (mine || []).map((x) => x.id)
+  const orderTheirs = (theirs || []).map((x) => x.id)
+  const mineReordered = !sameJson(orderMine.filter((id) => b.has(id)), orderBase.filter((id) => m.has(id)))
+  const first = mineReordered ? orderMine : orderTheirs
+  const secondSide = mineReordered ? t : m
+  const order = first.slice()
+  const other = mineReordered ? orderTheirs : orderMine
+  for (const id of other) {
+    if (!order.includes(id) && !b.has(id)) order.push(id) // lo añadió el otro lado
+  }
+  const out = []
+  for (const id of order) {
+    const mi = m.get(id)
+    const th = t.get(id)
+    const ba = b.get(id)
+    if (!th && ba) continue // el chat la borró
+    if (!mi && ba) continue // yo la borré
+    if (!th) { out.push(mi); continue }
+    if (!mi) { out.push(th); continue }
+    if (!ba) { out.push(mi); continue }
+    const mineChanged = !sameJson(mi, ba)
+    const theirsChanged = !sameJson(th, ba)
+    if (!mineChanged) { out.push(th); continue }
+    if (!theirsChanged) { out.push(mi); continue }
+    const merged = { ...th }
+    for (const key of Object.keys(mi)) if (!sameJson(mi[key], ba[key])) merged[key] = mi[key]
+    out.push(merged)
+  }
+  void secondSide
+  return out
+}
+
+function mergeDocs(base, mine, theirs) {
+  const out = JSON.parse(JSON.stringify(theirs))
+  const skip = new Set(['scenes', 'assets', 'audioEvents', 'revision', 'baseRevision', 'updatedAt', 'createdAt', 'projectId'])
+  for (const key of Object.keys(mine)) {
+    if (skip.has(key)) continue
+    if (!sameJson(mine[key], base[key])) out[key] = mine[key]
+  }
+  for (const key of Object.keys(base)) {
+    if (skip.has(key)) continue
+    if (!(key in mine) && sameJson(theirs[key], base[key])) delete out[key]
+  }
+  out.scenes = mergeById(base.scenes, mine.scenes, theirs.scenes)
+  out.assets = mergeById(base.assets, mine.assets, theirs.assets)
+  const events = mergeById(base.audioEvents, mine.audioEvents, theirs.audioEvents)
+  if (events.length) out.audioEvents = events
+  else delete out.audioEvents
+  return out
+}
+// ---- merge:end
+
 function uid(prefix) {
   const random = Math.random().toString(36).slice(2, 10)
   return `${prefix}_${random}`
@@ -368,15 +453,27 @@ const staticAtom = (value) => ({ get: () => value, subscribe: () => () => {} })
 const stateAtom = (name, fallback) =>
   (host && host.state && host.state[name]) || staticAtom(fallback)
 
+function serviceToken(ctx) {
+  const fromWindow = typeof window !== 'undefined' && window.__VE_TOKEN__ ? window.__VE_TOKEN__ : ''
+  const fromStorage =
+    ctx && ctx.storage && typeof ctx.storage.get === 'function' ? ctx.storage.get('service.token') : ''
+  const embedded = SERVICE_TOKEN.startsWith('__VE_') ? '' : SERVICE_TOKEN
+  return String(fromWindow || fromStorage || embedded || '')
+}
+
 async function request(ctx, path, { method = 'GET', body, timeout = 30000 } = {}) {
   const base = serviceBase(ctx)
+  const token = serviceToken(ctx)
+  const headers = {}
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  if (token) headers['X-VE-Token'] = token
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeout)
   let response
   try {
     response = await fetch(base.replace(/\/+$/, '') + path, {
       method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal
     })
@@ -395,7 +492,13 @@ async function request(ctx, path, { method = 'GET', body, timeout = 30000 } = {}
     }
   }
   if (!response.ok) {
-    const failure = new Error((payload && (payload.error || (payload.errors || []).join(' · '))) || `HTTP ${response.status}`)
+    const authHint =
+      response.status === 401 || response.status === 403
+        ? token
+          ? 'El servicio no acepta el token de este editor. Ejecuta activar-editor.cmd para volver a emparejarlos.'
+          : 'Este editor no tiene el token del servicio. Ejecuta activar-editor.cmd (o instalar.py) y recarga el plugin.'
+        : null
+    const failure = new Error(authHint || (payload && (payload.error || (payload.errors || []).join(' · '))) || `HTTP ${response.status}`)
     failure.status = response.status
     failure.payload = payload
     throw failure
@@ -630,6 +733,13 @@ const STYLES = `
 .ve-counter{align-self:flex-end;font-size:9px;color:var(--ve-ink2);font-variant-numeric:tabular-nums}
 .ve-volrow{display:flex;align-items:center;gap:8px}
 .ve-volrow input[type="range"]{width:auto;flex:1;min-width:0}
+.ve-goto{width:62px;height:22px;font-size:11px;background:transparent;border:1px solid var(--ve-line);border-radius:3px;color:var(--ve-fg);padding:0 6px}
+.ve-tl__row--audio{position:relative}
+.ve-evs{position:absolute;inset:0;pointer-events:none}
+.ve-ev{position:absolute;top:1px;bottom:1px;width:9px;margin-left:-4px;padding:0;border:0;border-radius:2px;background:var(--ve-accent);opacity:.85;pointer-events:auto;cursor:pointer;font-size:8px;color:#000;line-height:1}
+.ve-ev:hover{opacity:1}
+.ve-sfx__row{border-top:1px solid var(--ve-line);padding-top:8px;margin-top:6px}
+.ve-out__v{width:100%;max-height:260px;background:#000;border-radius:4px;margin:6px 0}
 .ve-volval{font-size:10.5px;font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
 .ve-seg{display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:2px;border-radius:4px;background:color-mix(in oklab,var(--ve-fg) 7%,transparent);height:30px;width:100%}
 .ve-seg button{display:flex;align-items:center;justify-content:center;border-radius:3px;font-size:10.5px;font-weight:600;color:var(--ve-ink2);border:0;background:transparent;cursor:pointer}
@@ -912,6 +1022,7 @@ function VideoPane({ ctx, onClose }) {
   const pollRef = useRef(null)
 
   const docRef = useRef(null)
+  const baseRef = useRef(null)
   docRef.current = doc
 
   const rows = useMemo(() => timeline(doc), [doc])
@@ -926,6 +1037,7 @@ function VideoPane({ ctx, onClose }) {
     return !!asset && asset.kind === 'image'
   }, [media, sel])
   const music = (doc && doc.music) || null
+  const sfxEvents = (doc && Array.isArray(doc.audioEvents) && doc.audioEvents) || []
   const logo = (doc && doc.logo) || null
   const audioAssets = useMemo(() => (media || []).filter((item) => item && item.kind === 'audio'), [media])
   const imageAssets = useMemo(() => (media || []).filter((item) => item && item.kind === 'image'), [media])
@@ -1033,7 +1145,8 @@ function VideoPane({ ctx, onClose }) {
     const timer = setInterval(async () => {
       if (!alive || dirty) return
       const active = document.activeElement
-      if (active && active.closest && active.closest('.ve')) return
+      // Solo se espera si estás escribiendo; un botón con foco no debe impedir ver lo que hizo el chat.
+      if (active && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName) && active.closest && active.closest('.ve')) return
       try {
         const payload = await request(ctx, `/projects/${encodeURIComponent(doc.projectId)}`)
         if (!alive) return
@@ -1124,21 +1237,45 @@ function VideoPane({ ctx, onClose }) {
       if (!options.force && !dirty) return
       savingRef.current = true
       setStatus('saving')
+      const sentJson = JSON.stringify(current)
       try {
         const payload = await request(ctx, `/projects/${encodeURIComponent(current.projectId)}`, {
           method: 'PUT',
           body: { revision: current.revision, project: current }
         })
-        setDoc(payload.project)
-        setDirty(false)
-        setStatus('saved')
-        setSavedAt(Date.now())
-        setNotice('')
+        const latest = docRef.current
+        baseRef.current = payload.project
+        if (latest && JSON.stringify(latest) !== sentJson) {
+          // Editaste mientras se guardaba: se conservan tus cambios nuevos y solo se
+          // actualiza la revisión (antes la respuesta del servidor los pisaba).
+          const saved = payload.project
+          setDoc({ ...latest, revision: saved.revision, baseRevision: saved.baseRevision, updatedAt: saved.updatedAt })
+          setStatus('idle')
+        } else {
+          setDoc(payload.project)
+          setDirty(false)
+          setStatus('saved')
+          setSavedAt(Date.now())
+          setNotice('')
+        }
       } catch (error) {
         if (error.status === 409) {
-          const theirs = (error.payload && error.payload.current_revision) || '?'
-          setDialog({ kind: 'conflict', theirs, mine: current.revision })
-          setStatus('idle')
+          // Alguien (normalmente Hermes desde el chat) guardó antes: se combinan los dos
+          // lados en vez de perder uno. Si no se puede, queda el diálogo de siempre.
+          try {
+            const remote = await request(ctx, `/projects/${encodeURIComponent(current.projectId)}`)
+            const mineNow = docRef.current || current
+            setDoc(mergeDocs(baseRef.current || current, mineNow, remote.project))
+            baseRef.current = remote.project
+            setMedia(remote.media || [])
+            setDirty(true)
+            setStatus('idle')
+            setNotice('Se combinaron tus cambios con los del chat.')
+          } catch (mergeError) {
+            const theirs = (error.payload && error.payload.current_revision) || '?'
+            setDialog({ kind: 'conflict', theirs, mine: current.revision })
+            setStatus('idle')
+          }
         } else {
           setStatus('failed')
           setNotice(error.message)
@@ -1149,6 +1286,10 @@ function VideoPane({ ctx, onClose }) {
     },
     [ctx, dirty]
   )
+
+  useEffect(() => {
+    if (!dirty && doc) baseRef.current = doc
+  }, [doc, dirty])
 
   useEffect(() => {
     if (!dirty || phase !== 'ready') return undefined
@@ -1393,6 +1534,42 @@ function VideoPane({ ctx, onClose }) {
       return draft
     })
     setNotice('Música quitada del proyecto.')
+  }
+
+  // -------------------------------------------------------------- sonidos y voz (audioEvents)
+
+  const setEvent = (id, patch) => {
+    mutate((draft) => {
+      draft.audioEvents = (draft.audioEvents || []).map((item) => (item.id === id ? { ...item, ...patch } : item))
+      return draft
+    })
+  }
+
+  const commitEventAt = (id, text) => {
+    const seconds = parseTimecode(text)
+    if (seconds === null) return
+    setEvent(id, { at: round3(clamp(seconds, 0, Math.max(total, 0))) })
+  }
+
+  const removeEvent = (id) => {
+    mutate((draft) => {
+      draft.audioEvents = (draft.audioEvents || []).filter((item) => item.id !== id)
+      if (!draft.audioEvents.length) delete draft.audioEvents
+      return draft
+    })
+    setNotice('Sonido quitado.')
+  }
+
+  const addEventAtCursor = (assetId) => {
+    if (!assetId) return
+    mutate((draft) => {
+      draft.audioEvents = [
+        ...(draft.audioEvents || []),
+        { id: uid('ae'), assetId, at: round3(clamp(cursor, 0, Math.max(total, 0))), volume: 80 }
+      ]
+      return draft
+    })
+    setNotice(`Sonido añadido en ${fmtTimecode(cursor)}.`)
   }
 
   const setNormalize = (value) => {
@@ -2312,7 +2489,21 @@ function VideoPane({ ctx, onClose }) {
         }
       }),
       h(Btn, { icon: 'end', variant: 'ghost', ariaLabel: 'Ir al final', onClick: () => setCursor(total) }),
-      h('span', { className: 've-tc' }, h('b', null, fmtTime(cursor)), ` / ${fmtTime(total)}`),
+      h('span', { className: 've-tc', title: 'Tiempo exacto (mm:ss.ms). Escribe uno a la derecha para saltar.' }, h('b', null, fmtTimecode(cursor)), ` / ${fmtTimecode(total)}`),
+      h('input', {
+        key: `goto-${Math.round(cursor * 1000)}`,
+        className: 've-goto',
+        defaultValue: '',
+        placeholder: 'ir a…',
+        inputMode: 'decimal',
+        'aria-label': 'Ir al tiempo (mm:ss.ms)',
+        onKeyDown: (event) => {
+          if (event.key !== 'Enter') return
+          const seconds = parseTimecode(event.target.value)
+          if (seconds !== null) setCursor(clamp(seconds, 0, total))
+          event.target.value = ''
+        }
+      }),
       h(
         'div',
         { className: 've-scrub' },
@@ -2324,7 +2515,7 @@ function VideoPane({ ctx, onClose }) {
           value: cursor,
           style: { '--ve-p': `${total ? (cursor / total) * 100 : 0}%` },
           'aria-label': 'Posición de reproducción',
-          'aria-valuetext': `${fmtTime(cursor)} de ${fmtTime(total)}`,
+          'aria-valuetext': `${fmtTimecode(cursor)} de ${fmtTimecode(total)}`,
           onChange: (event) => setCursor(Number(event.target.value))
         })
       ),
@@ -2403,7 +2594,28 @@ function VideoPane({ ctx, onClose }) {
               { className: 've-wave', 'aria-hidden': 'true' },
               h('i', { style: { width: `${clamp((sel && sel.audio && sel.audio.volume) || 0, 0, 100)}%` } })
             ),
-            h('small', null, sel ? `Audio ${(sel.audio && sel.audio.volume) || 0}%` : 'Audio')
+            h('small', null, sel ? `Audio ${(sel.audio && sel.audio.volume) || 0}%` : 'Audio'),
+            sfxEvents.length
+              ? h(
+                  'div',
+                  { className: 've-evs' },
+                  sfxEvents.map((ev, index) =>
+                    h(
+                      'button',
+                      {
+                        key: ev.id,
+                        type: 'button',
+                        className: 've-ev',
+                        style: { left: `${total ? clamp((Number(ev.at) || 0) / total, 0, 1) * 100 : 0}%` },
+                        title: `Sonido ${index + 1} · ${fmtTimecode(ev.at)} · volumen ${ev.volume == null ? 100 : ev.volume}%`,
+                        'aria-label': `Sonido ${index + 1} en ${fmtTimecode(ev.at)}`,
+                        onClick: () => setCursor(clamp(Number(ev.at) || 0, 0, total))
+                      },
+                      '♪'
+                    )
+                  )
+                )
+              : null
           ),
           h('div', { className: 've-playhead', style: { '--ve-ph': `${total ? (cursor / total) * 100 : 0}%` }, 'aria-hidden': 'true' })
         )
@@ -2653,7 +2865,14 @@ function VideoPane({ ctx, onClose }) {
                     onChange: (event) => setSceneVolume(event.target.value)
                   }),
                   h('span', { className: 've-volval' }, `${(sel.audio && sel.audio.volume) || 0} %`)
-                )
+                ),
+                h(Btn, {
+                  variant: 'text',
+                  size: 'sm',
+                  label: ((sel.audio && sel.audio.volume) || 0) === 0 ? 'Activar el sonido de la escena' : 'Silenciar la escena',
+                  ariaLabel: ((sel.audio && sel.audio.volume) || 0) === 0 ? 'Activar el sonido de la escena' : 'Silenciar la escena',
+                  onClick: () => setSceneVolume(((sel.audio && sel.audio.volume) || 0) === 0 ? 100 : 0)
+                })
               ),
               h(
                 'div',
@@ -2932,6 +3151,87 @@ function VideoPane({ ctx, onClose }) {
               }),
               h(Btn, { variant: 'text', label: 'Restablecer escena', onClick: () => resetScene(sel) })
             )
+      ),
+      h(
+        'div',
+        { className: 've-rail__sec ve-sfx', 'aria-label': 'Sonidos y voz' },
+        h(
+          'div',
+          { className: 've-rail__h' },
+          h('span', { className: 've-rail__t' }, 'Sonidos y voz'),
+          h(Badge, { outline: true }, String(sfxEvents.length))
+        ),
+        h(
+          'div',
+          { className: 've-props' },
+          !audioAssets.length
+            ? h('span', { className: 've-f__h' }, 'Importa o genera audios para colocarlos en la línea de tiempo.')
+            : h(Btn, {
+                variant: 'outline',
+                size: 'sm',
+                label: `Añadir sonido en ${fmtTimecode(cursor)}`,
+                ariaLabel: 'Añadir sonido en el cursor',
+                onClick: () => addEventAtCursor((audioAssets.find((item) => !music || item.id !== music.assetId) || audioAssets[0]).id)
+              }),
+          sfxEvents.map((ev, index) =>
+            h(
+              'div',
+              { key: ev.id, className: 've-props ve-sfx__row' },
+              h(
+                'label',
+                { className: 've-f' },
+                h('span', { className: 've-f__l' }, `Sonido ${index + 1}`),
+                h(
+                  'select',
+                  {
+                    className: 've-select',
+                    value: ev.assetId,
+                    'aria-label': `Archivo del sonido ${index + 1}`,
+                    onChange: (event) => setEvent(ev.id, { assetId: event.target.value })
+                  },
+                  audioAssets.map((item) => h('option', { key: item.id, value: item.id }, baseName(item.path) || item.id))
+                )
+              ),
+              h(
+                'div',
+                { className: 've-f' },
+                h('span', { className: 've-f__l' }, 'Empieza en (mm:ss.ms)'),
+                h('input', {
+                  key: `${ev.id}:${ev.at}`,
+                  className: 've-goto',
+                  style: { width: '100%' },
+                  defaultValue: fmtTimecode(ev.at),
+                  inputMode: 'decimal',
+                  'aria-label': `Inicio del sonido ${index + 1}`,
+                  onBlur: (event) => commitEventAt(ev.id, event.target.value),
+                  onKeyDown: (event) => {
+                    if (event.key === 'Enter') event.target.blur()
+                  }
+                })
+              ),
+              h(
+                'div',
+                { className: 've-f' },
+                h('span', { className: 've-f__l' }, 'Volumen'),
+                h(
+                  'div',
+                  { className: 've-volrow' },
+                  h('input', {
+                    type: 'range',
+                    min: 0,
+                    max: 100,
+                    step: 5,
+                    value: ev.volume == null ? 100 : ev.volume,
+                    'aria-label': `Volumen del sonido ${index + 1}`,
+                    onChange: (event) => setEvent(ev.id, { volume: clamp(Math.round(Number(event.target.value) / 5) * 5, 0, 100) })
+                  }),
+                  h('span', { className: 've-volval' }, `${ev.volume == null ? 100 : ev.volume} %`)
+                )
+              ),
+              h(Btn, { variant: 'text', size: 'sm', label: 'Quitar sonido', ariaLabel: `Quitar sonido ${index + 1}`, onClick: () => removeEvent(ev.id) })
+            )
+          )
+        )
       ),
       h(
         'div',
@@ -3521,6 +3821,15 @@ function VideoPane({ ctx, onClose }) {
                   { className: 've-dialog__b' },
                   `Listo · ${(live && live.artifacts && live.artifacts[0]) || 'output.mp4'}${live && live.outputBytes ? ` · ${fmtBytes(live.outputBytes)}` : ''}`
                 ),
+                live && live.jobId
+                  ? h('video', {
+                      className: 've-out__v',
+                      controls: true,
+                      preload: 'metadata',
+                      src: `${serviceBase(ctx)}/jobs/${encodeURIComponent(live.jobId)}/output`,
+                      'aria-label': 'Vídeo exportado: reproducir aquí'
+                    })
+                  : null,
                 h('code', { className: 've-out__p' }, (live && live.outputPath) || 'ruta no disponible'),
                 h(
                   'div',

@@ -1,3 +1,5 @@
+> **Nota:** esta guía es del spike inicial (puerto 8765). La instalación vigente es `activar-editor.cmd` / `python instalar.py` en la raíz (servicio en 8770 con token). Ver `../README.md`.
+
 # Editor de vídeo · pane local para Hermes Desktop
 
 Pane de edición de vídeo por escenas que corre **entero en esta máquina**. La
