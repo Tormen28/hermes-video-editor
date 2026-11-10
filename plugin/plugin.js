@@ -682,7 +682,10 @@ const STYLES = `
 .ve-clip__t{font-size:10.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1}
 .ve-clip__d{font-size:9px;color:var(--ve-ink2);font-variant-numeric:tabular-nums}
 .ve-clip--sel{border-color:var(--ve-accent);border-width:2px;padding:3px 5px;background-color:color-mix(in oklab,var(--ve-accent) 10%,transparent)}
-.ve-trim{position:absolute;top:0;bottom:0;width:3px;background:var(--ve-accent);cursor:ew-resize}
+.ve-trim{position:absolute;top:0;bottom:0;width:7px;background:color-mix(in oklab,var(--ve-accent) 55%,transparent);cursor:ew-resize;touch-action:none}
+.ve-clip{touch-action:none;user-select:none}
+.ve-clip--drag{opacity:.85;z-index:3;box-shadow:0 2px 10px rgba(0,0,0,.35);cursor:grabbing}
+.ve-clip--drop{outline:2px dashed var(--ve-accent);outline-offset:-2px}
 .ve-trim::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:7px;height:16px;border-radius:1px;background:var(--ve-accent);opacity:.35}
 .ve-trim--l{left:0}
 .ve-trim--r{right:0}
@@ -1020,6 +1023,9 @@ function VideoPane({ ctx, onClose }) {
   const savingRef = useRef(false)
   const seekRef = useRef(0)
   const pollRef = useRef(null)
+  const tlRowRef = useRef(null)
+  const dragRef = useRef(null)
+  const [dragUi, setDragUi] = useState(null)
 
   const docRef = useRef(null)
   const baseRef = useRef(null)
@@ -2541,6 +2547,133 @@ function VideoPane({ ctx, onClose }) {
     return h('div', { className: 've-tl__ruler' }, marks)
   }
 
+  // ---- Arrastrar en la línea de tiempo (mover escenas y recortar bordes) -----
+  // Se apoya en las mismas mutaciones que los botones y las flechas: un solo
+  // paso de deshacer por gesto y el mismo guardado con revisión.
+  const moveSceneTo = (from, to) => {
+    if (!doc || from === to || to < 0 || to >= doc.scenes.length) return
+    mutate((draft) => {
+      const [item] = draft.scenes.splice(from, 1)
+      draft.scenes.splice(to, 0, item)
+      return draft
+    })
+    setNotice(`Escena ${from + 1} movida a la posición ${to + 1}`)
+  }
+
+  const trimLimits = (scene) => {
+    const assetId = assetFor(scene)
+    const asset = (media || []).find((item) => item.id === assetId)
+    if (asset && asset.kind === 'image') return { maxOut: 600 }
+    // El servicio no entrega la duración de la fuente: el tope es lo más largo que
+    // ese medio ha tenido en el proyecto (se puede alargar más con el campo numérico).
+    let maxOut = Number(scene.out) || 0
+    ;(doc.scenes || []).forEach((other) => {
+      if (assetFor(other) === assetId) maxOut = Math.max(maxOut, Number(other.out) || 0)
+    })
+    const video = videoRef.current
+    if (video && Number.isFinite(video.duration) && activeAsset === assetId) maxOut = Math.max(maxOut, video.duration)
+    return { maxOut }
+  }
+
+  const trimScene = (id, edge, value) => {
+    mutate((draft) => {
+      const scene = draft.scenes.find((item) => item.id === id)
+      if (!scene) return draft
+      if (edge === 'in') scene.in = round3(clamp(value, 0, Number(scene.out) - MIN_SCENE))
+      else scene.out = round3(Math.max(Number(scene.in) + MIN_SCENE, value))
+      if (scene.text && scene.text[0]) scene.text[0].until = round3(visibleDuration(scene))
+      fitTransition(draft.scenes, scene)
+      return draft
+    })
+  }
+
+  const clipPointerDown = (event, row, index) => {
+    if (event.button !== undefined && event.button !== 0) return
+    const rowEl = tlRowRef.current
+    const el = event.currentTarget
+    if (!rowEl || !el) return
+    const rect = el.getBoundingClientRect()
+    const cls = (event.target && event.target.className) || ''
+    const edge = typeof cls === 'string' && cls.includes('ve-trim--l') ? 'in' : typeof cls === 'string' && cls.includes('ve-trim--r') ? 'out' : null
+    dragRef.current = {
+      id: row.id,
+      index,
+      mode: edge ? 'trim' : 'move',
+      edge,
+      startX: event.clientX,
+      pxPerSec: rect.width / Math.max(row.duration, 0.1),
+      startIn: Number(row.scene.in) || 0,
+      startOut: Number(row.scene.out) || 0,
+      limits: trimLimits(row.scene),
+      moved: false,
+      pointerId: event.pointerId
+    }
+    try { el.setPointerCapture(event.pointerId) } catch (error) { /* no-op */ }
+  }
+
+  const clipPointerMove = (event) => {
+    const d = dragRef.current
+    if (!d) return
+    const dx = event.clientX - d.startX
+    if (!d.moved && Math.abs(dx) < 4) return
+    d.moved = true
+    if (d.mode === 'move') {
+      const rowEl = tlRowRef.current
+      let target = d.index
+      if (rowEl) {
+        const kids = Array.from(rowEl.children)
+        const x = event.clientX
+        // el clip arrastrado lleva un translateX: se mide en su hueco original
+        const spans = kids.map((kid, i) => {
+          const r = kid.getBoundingClientRect()
+          const shift = i === d.index ? d.lastDx || 0 : 0
+          return { left: r.left - shift, right: r.right - shift }
+        })
+        target = spans.findIndex((r) => x >= r.left && x <= r.right)
+        if (target < 0) target = x < spans[0].left ? 0 : spans.length - 1
+      }
+      d.target = target
+      d.lastDx = dx
+      setDragUi({ id: d.id, mode: 'move', dx, target })
+      return
+    }
+    const delta = dx / d.pxPerSec
+    let nextIn = d.startIn
+    let nextOut = d.startOut
+    if (d.edge === 'in') nextIn = round3(clamp(d.startIn + delta, 0, d.startOut - MIN_SCENE))
+    else nextOut = round3(clamp(d.startOut + delta, d.startIn + MIN_SCENE, Math.max(d.limits.maxOut, d.startOut)))
+    d.nextIn = nextIn
+    d.nextOut = nextOut
+    setDragUi({ id: d.id, mode: 'trim', dur: nextOut - nextIn, edge: d.edge })
+  }
+
+  const clipPointerUp = (event) => {
+    const d = dragRef.current
+    if (!d) return
+    try { event.currentTarget.releasePointerCapture(d.pointerId) } catch (error) { /* no-op */ }
+    setDragUi(null)
+    if (!d.moved) {
+      dragRef.current = null
+      return
+    }
+    // el click que sigue al arrastre no debe cambiar la selección ni el cursor
+    const done = d
+    setTimeout(() => { if (dragRef.current === done) dragRef.current = null }, 0)
+    d.settled = true
+    if (d.mode === 'move') {
+      if (typeof d.target === 'number' && d.target !== d.index) moveSceneTo(d.index, d.target)
+    } else if (d.edge === 'in') {
+      if (Math.abs(d.nextIn - d.startIn) > 1e-6) trimScene(d.id, 'in', d.nextIn)
+    } else if (Math.abs(d.nextOut - d.startOut) > 1e-6) {
+      trimScene(d.id, 'out', d.nextOut)
+    }
+  }
+
+  const clipPointerCancel = () => {
+    dragRef.current = null
+    setDragUi(null)
+  }
+
   const timelineBlock = () => {
     if (!doc || !(doc.scenes || []).length) return null
     return h(
@@ -2556,7 +2689,7 @@ function VideoPane({ ctx, onClose }) {
           { className: 've-tl__tracks' },
           h(
             'div',
-            { className: 've-tl__row', role: 'list', 'aria-label': `Línea de tiempo, ${total.toFixed(1)} segundos` },
+            { className: 've-tl__row', ref: tlRowRef, role: 'list', 'aria-label': `Línea de tiempo, ${total.toFixed(1)} segundos` },
             rows.map((row, index) =>
               h(
                 'button',
@@ -2564,9 +2697,18 @@ function VideoPane({ ctx, onClose }) {
                   key: row.id,
                   type: 'button',
                   role: 'listitem',
-                  className: `ve-clip${row.id === selId ? ' ve-clip--sel' : ''}`,
-                  style: { flex: `${Math.max(row.duration, 0.1)} 1 0%` },
+                  className: `ve-clip${row.id === selId ? ' ve-clip--sel' : ''}${dragUi && dragUi.id === row.id && dragUi.mode === 'move' ? ' ve-clip--drag' : ''}${dragUi && dragUi.mode === 'move' && dragUi.target === index && dragUi.id !== row.id ? ' ve-clip--drop' : ''}`,
+                  style: {
+                    flex: `${Math.max(dragUi && dragUi.mode === 'trim' && dragUi.id === row.id ? dragUi.dur : row.duration, 0.1)} 1 0%`,
+                    transform: dragUi && dragUi.mode === 'move' && dragUi.id === row.id ? `translateX(${Math.round(dragUi.dx)}px)` : undefined,
+                    touchAction: 'none'
+                  },
+                  onPointerDown: (event) => clipPointerDown(event, row, index),
+                  onPointerMove: clipPointerMove,
+                  onPointerUp: clipPointerUp,
+                  onPointerCancel: clipPointerCancel,
                   onClick: () => {
+                    if (dragRef.current && dragRef.current.moved) return
                     setSelId(row.id)
                     setCursor(row.start)
                   },
@@ -2575,7 +2717,7 @@ function VideoPane({ ctx, onClose }) {
                 },
                 h('span', { className: 've-clip__n' }, String(index + 1).padStart(2, '0')),
                 h('span', { className: 've-clip__t' }, row.scene.name || `Escena ${index + 1}`),
-                h('span', { className: 've-clip__d' }, `${fmtTime(row.duration)}`),
+                h('span', { className: 've-clip__d' }, `${fmtTime(dragUi && dragUi.mode === 'trim' && dragUi.id === row.id ? dragUi.dur : row.duration)}`),
                 row.id === selId
                   ? [
                       h('span', { key: 'l', className: 've-trim ve-trim--l', role: 'presentation' }),
