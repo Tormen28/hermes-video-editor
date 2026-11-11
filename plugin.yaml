@@ -1,0 +1,15 @@
+name: hermes-video-editor
+label: Video Editor
+kind: standalone
+version: 0.3.4
+author: "Tormen28"
+license: MIT
+requires_hermes: ">=0.23.0"
+homepage: "https://github.com/Tormen28/hermes-video-editor"
+description: >
+  A Hermes Desktop pane that edits and exports real video on your own machine:
+  timeline, text, colour, speed and transitions, rendered to MP4 by the local
+  FFmpeg. Optional AI providers (images, music, voice) are choices, never
+  requirements — with no keys the editor still cuts, titles and exports. No
+  cloud account, no uploads, no watermark, no telemetry.
+tags: [desktop, video, editing, ffmpeg, local]

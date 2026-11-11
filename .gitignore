@@ -18,3 +18,6 @@ evidence/
 node_modules/
 .venv/
 paths.tmp
+
+# frames de render (se regeneran con build.py)
+demo/plugin-videos/*/frames/

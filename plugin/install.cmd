@@ -10,7 +10,7 @@ rem  El argumento opcional existe para probar el instalador en una carpeta de
 rem  staging sin tocar la instalacion real.
 rem ---------------------------------------------------------------------------
 
-set "SRC=%~dp0plugin.js"
+set "SRC=%~dp0..\desktop\plugin.js"
 set "DEST_DIR=%~1"
 if not defined DEST_DIR (
   if not defined LOCALAPPDATA (
