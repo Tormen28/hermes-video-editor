@@ -1,57 +1,178 @@
-# Editor de vÃ­deo para Hermes Desktop
+# Hermes Video Editor
 
-Editor de vÃ­deo **dentro** de Hermes: chat a la izquierda, editor a la derecha. Local-first, sin proveedores obligatorios, con generaciÃ³n opcional desde el chat.
+![Hermes Video Editor](docs/propuestas/img/editor-video.jpg)
 
-## Arranque rÃ¡pido
+**English** · [Español](#español)
+
+A video editor that lives **inside** Hermes: chat on the left, editor on the right.
+Local-first. No provider is required, and nothing leaves your machine.
+
+## Quick start
 
 ```
 instalar.cmd
 ```
 
-Luego en Hermes: **Capacidades â†’ Plugins â†’ Editor de vÃ­deo** (apagar/encender) y **Ctrl+K â†’ Â«Editor de vÃ­deoÂ»**.
+Then in Hermes: **Capacidades → Plugins → Editor de vídeo** (off/on) and
+**Ctrl+K → «Editor de vídeo»**. Or just `Ctrl+Shift+E`.
 
-GuÃ­as:
+## What it does
 
-- [`docs/README-USUARIO.md`](docs/README-USUARIO.md) â€” instalaciÃ³n, uso, proveedores, problemas.
-- [`docs/REGLAS-DEL-PLUGIN.md`](docs/REGLAS-DEL-PLUGIN.md) â€” quÃ© hace y quÃ© nunca harÃ¡.
-- [`docs/COMO-VERLO.md`](docs/COMO-VERLO.md) â€” recorrido de prueba.
-- [`core/CONTRATO.md`](core/CONTRATO.md) â€” contrato tÃ©cnico del servicio.
+- Scenes with trim, reorder, split and speed 0.5–2×.
+- Background music (volume, fades, loop, ducking, loudnorm) and per-event SFX.
+- Real transitions: fade, slide, wipe, circle, zoom.
+- Text with style and animation; filters; Ken Burns; logo with 9 anchors.
+- Export 720p30, vertical 9:16, square 1:1; 1080p experimental.
+- Optional generation (image/music/voice) with a free local provider or your own.
 
-## QuÃ© incluye
+## Provider keys are optional, never a requirement
 
-- Escenas con recorte, orden, split y velocidad 0.5â€“2Ã—.
-- MÃºsica de fondo (volumen, fades, loop, ducking, loudnorm) y SFX por eventos.
-- Transiciones reales: fundido, deslizar, barrido, cÃ­rculo, zoom.
-- Texto con estilo y animaciÃ³n; filtros; Ken Burns; logo con 9 anclas.
+The editor works fully offline with the local generator. If you configure a key,
+quality goes up:
+
+| Provider | Variable | What it improves |
+|---|---|---|
+| **Nano Banana** (Gemini 2.5 Flash Image) | `VE_GEMINI_KEY` | Images |
+| **ElevenLabs** | `VE_ELEVEN_KEY` | Voice |
+
+Without a key the service refuses before making a single network call. There is no
+silent fallback to a paid service, and no key ever appears in an error message.
+
+## Chat + editor are one thing
+
+- **By hand:** play with an `mm:ss.ms` clock, jump to an exact time, move/trim/reorder
+  scenes, edit text, mute or lower volume per scene, place voices and sounds on the
+  timeline, preview and export (the MP4 plays inside the editor).
+- **By chat:** Hermes reads and edits **the same project by time** («en el 3:13
+  cambia el texto…») with `core/scripts/ve_timeline.py` or the API; the pane updates
+  itself and your changes are not lost. → [`docs/CHAT-Y-EDITOR.md`](docs/CHAT-Y-EDITOR.md)
+- **Hermes skill:** [`hermes-skill/editor-video/SKILL.md`](hermes-skill/editor-video/SKILL.md)
+  teaches the whole flow, including Cinematic.
+
+## Start-up and security
+
+1. `activar-editor.cmd` (or `python instalar.py`): creates the service **token**,
+   embeds it in the installed plugin (with a `.bak` backup), starts the service with
+   the **detached** launcher (it survives closing terminals) and, only with
+   `--restart`, replaces an old service if no exports are running. Optional:
+   `--autostart` starts it with your session.
+2. In Hermes: Capacidades → Plugins → turn «Editor de vídeo» off and on.
+3. No token, no access: the API rejects requests without `X-VE-Token` or with a
+   foreign `Origin` (other web pages cannot drive your editor).
+
+## Guides
+
+- [`docs/propuestas/00-SUITE.md`](docs/propuestas/00-SUITE.md) — the three-plugin suite.
+- [`docs/propuestas/EDITOR-VIDEO.md`](docs/propuestas/EDITOR-VIDEO.md) — proposal, bilingual.
+- [`docs/README-USUARIO.md`](docs/README-USUARIO.md) — install, use, providers, problems.
+- [`docs/REGLAS-DEL-PLUGIN.md`](docs/REGLAS-DEL-PLUGIN.md) — what it does and what it never will.
+- [`docs/COMO-VERLO.md`](docs/COMO-VERLO.md) — walkthrough.
+- [`core/CONTRATO.md`](core/CONTRATO.md) — technical contract of the service.
+
+## Layout
+
+- `plugin/` — the Hermes pane (`plugin.js`).
+- `core/` — loopback service + FFmpeg engine + tests.
+- `docs/` — guides, design, QA.
+- `auditoria/` — test plans and verdicts.
+- `spike/` — evidence from the initial spike (fixtures).
+
+## Status
+
+Service version: see [`VERSION`](VERSION). Suite:
+`cd core && py -3.12 -m pytest tests -q` (408 passed, 3 skipped) plus
+`node plugin/tests/merge.test.cjs` for the pane merge. End-to-end smoke against a
+running service: `python core/scripts/e2e_smoke.py --help`.
+
+License: MIT.
+
+---
+
+# Editor de vídeo para Hermes Desktop
+
+![Editor de vídeo de Hermes](docs/propuestas/img/editor-video.jpg)
+
+Un editor de vídeo **dentro** de Hermes: chat a la izquierda, editor a la derecha.
+Local-first. Ningún proveedor es obligatorio y nada sale de tu máquina.
+
+## Arranque rápido
+
+```
+instalar.cmd
+```
+
+Luego en Hermes: **Capacidades → Plugins → Editor de vídeo** (apagar/encender) y
+**Ctrl+K → «Editor de vídeo»**. O directamente `Ctrl+Shift+E`.
+
+## Qué incluye
+
+- Escenas con recorte, orden, split y velocidad 0,5–2×.
+- Música de fondo (volumen, fades, loop, ducking, loudnorm) y SFX por eventos.
+- Transiciones reales: fundido, deslizar, barrido, círculo, zoom.
+- Texto con estilo y animación; filtros; Ken Burns; logo con 9 anclas.
 - Export 720p30, vertical 9:16, cuadrado 1:1; 1080p experimental.
-- GeneraciÃ³n opcional (imagen/mÃºsica) con proveedor local gratis o proveedor HTTP propio.
+- Generación opcional (imagen/música/voz) con proveedor local gratis o el tuyo.
 
-## Chat + editor, una sola cosa
+## Las claves de proveedor son opcionales, nunca un requisito
 
-- **A mano:** reproduce con reloj `mm:ss.ms`, salta a un tiempo exacto, mueve/recorta/reordena escenas, edita textos, silencia o baja el volumen por escena, coloca voces y sonidos en la lÃ­nea de tiempo, previsualiza y exporta (el MP4 se ve dentro del propio editor).
-- **Por chat:** Hermes lee y edita **el mismo proyecto por tiempo** (Â«en el 3:13 cambia el textoâ€¦Â») con `core/scripts/ve_timeline.py` o la API; el pane lo muestra solo y tus cambios no se pierden. â†’ [`docs/CHAT-Y-EDITOR.md`](docs/CHAT-Y-EDITOR.md)
-- **Skill de Hermes:** [`hermes-skill/editor-video/SKILL.md`](hermes-skill/editor-video/SKILL.md) enseÃ±a todo el flujo (incluido el Cinematic).
+El editor funciona entero sin red con el generador local. Si configuras una clave,
+sube la calidad:
+
+| Proveedor | Variable | Qué mejora |
+|---|---|---|
+| **Nano Banana** (Gemini 2.5 Flash Image) | `VE_GEMINI_KEY` | Imágenes |
+| **ElevenLabs** | `VE_ELEVEN_KEY` | Voz |
+
+Sin clave, el servicio rechaza antes de hacer una sola petición de red. No hay
+respaldo silencioso a un servicio de pago, y la clave nunca aparece en un mensaje
+de error.
+
+## Chat y editor son una sola cosa
+
+- **A mano:** reproduce con reloj `mm:ss.ms`, salta a un tiempo exacto, mueve,
+  recorta y reordena escenas, edita textos, silencia o baja el volumen por escena,
+  coloca voces y sonidos en la línea de tiempo, previsualiza y exporta (el MP4 se ve
+  dentro del propio editor).
+- **Por chat:** Hermes lee y edita **el mismo proyecto por tiempo** («en el 3:13
+  cambia el texto…») con `core/scripts/ve_timeline.py` o la API; el panel se
+  actualiza solo y tus cambios no se pierden. →
+  [`docs/CHAT-Y-EDITOR.md`](docs/CHAT-Y-EDITOR.md)
+- **Skill de Hermes:** [`hermes-skill/editor-video/SKILL.md`](hermes-skill/editor-video/SKILL.md)
+  enseña todo el flujo, incluido el Cinematic.
 
 ## Arranque y seguridad
 
-1. `activar-editor.cmd` (o `python instalar.py`): crea el **token** del servicio, lo incrusta en el plugin instalado (con respaldo `.bak`), arranca el servicio con el lanzador **desacoplado** (sobrevive al cerrar terminales) y, solo con `--restart`, reemplaza un servicio viejo si no hay exportaciones en curso. Opcional: `--autostart` lo arranca al iniciar sesiÃ³n.
-2. En Hermes: Capacidades â†’ Plugins â†’ apagar/encender Â«Editor de vÃ­deoÂ».
-3. Sin token no hay acceso: la API rechaza peticiones sin `X-VE-Token` o con `Origin` ajeno (otras pÃ¡ginas web no pueden manejar tu editor).
+1. `activar-editor.cmd` (o `python instalar.py`): crea el **token** del servicio, lo
+   incrusta en el plugin instalado (con respaldo `.bak`), arranca el servicio con el
+   lanzador **desacoplado** (sobrevive al cierre de terminales) y, solo con
+   `--restart`, reemplaza un servicio viejo si no hay exportaciones en curso.
+   Opcional: `--autostart` lo arranca al iniciar sesión.
+2. En Hermes: Capacidades → Plugins → apagar/encender «Editor de vídeo».
+3. Sin token no hay acceso: la API rechaza peticiones sin `X-VE-Token` o con
+   `Origin` ajeno (otras páginas web no pueden manejar tu editor).
 
-## VersiÃ³n Plus (opcional, solo documentada)
+## Guías
 
-Todo funciona **sin claves**. Si quieres voz profesional (ElevenLabs) o imÃ¡genes con la API de OpenAI, u otros proveedores, el servicio ya trae un hueco HTTP (`VE_PROVIDER_VOICE_URL/KEY`, `VE_PROVIDER_IMAGE_URL/KEY`) y Hermes hace de orquestador. Su ausencia nunca bloquea nada. â†’ [`docs/PLUS.md`](docs/PLUS.md)
+- [`docs/propuestas/00-SUITE.md`](docs/propuestas/00-SUITE.md) — la suite de los tres plugins.
+- [`docs/propuestas/EDITOR-VIDEO.md`](docs/propuestas/EDITOR-VIDEO.md) — propuesta, bilingüe.
+- [`docs/README-USUARIO.md`](docs/README-USUARIO.md) — instalación, uso, proveedores, problemas.
+- [`docs/REGLAS-DEL-PLUGIN.md`](docs/REGLAS-DEL-PLUGIN.md) — qué hace y qué nunca hará.
+- [`docs/COMO-VERLO.md`](docs/COMO-VERLO.md) — recorrido de prueba.
+- [`core/CONTRATO.md`](core/CONTRATO.md) — contrato técnico del servicio.
 
 ## Estructura
 
-- `plugin/` â€” pane de Hermes (`plugin.js`).
-- `core/` â€” servicio loopback + motor FFmpeg + tests.
-- `docs/` â€” guÃ­as, diseÃ±o, QA.
-- `auditoria/` â€” planes de prueba y veredictos.
-- `spike/` â€” evidencia del spike inicial (fixtures).
+- `plugin/` — el panel de Hermes (`plugin.js`).
+- `core/` — servicio loopback + motor FFmpeg + tests.
+- `docs/` — guías, diseño, QA.
+- `auditoria/` — planes de prueba y veredictos.
+- `spike/` — evidencia del spike inicial (fixtures).
 
 ## Estado
 
-VersiÃ³n del servicio: ver [`VERSION`](VERSION). Suite: `cd core && python -m unittest discover -s tests` (+ `node plugin/tests/merge.test.cjs` para la fusión del pane). Smoke de punta a punta contra un servicio en marcha: `python core/scripts/e2e_smoke.py --help`.
+Versión del servicio: ver [`VERSION`](VERSION). Suite:
+`cd core && py -3.12 -m pytest tests -q` (408 pasan, 3 saltadas) más
+`node plugin/tests/merge.test.cjs` para la fusión del panel. Smoke de punta a punta
+contra un servicio en marcha: `python core/scripts/e2e_smoke.py --help`.
 
-Uso privado. La licencia de distribuciÃ³n se decide antes de publicar el plugin.
+Licencia: MIT.
