@@ -605,390 +605,389 @@ function TitlebarToggle({ getOpen, subscribe, onToggle }) {
 // --------------------------------------------------------------------------- #
 
 const STYLES = `
+/* Editor de vídeo · rediseño v0.5 — «estudio oscuro» sobre los tokens de Hermes Web
+   (--ui-bg-*, --ui-text-*, --ui-accent, --ui-stroke-*). Escala de 8 px. Cada token
+   tiene un respaldo oscuro propio por si el pane vive fuera de Hermes. */
 .ve-root{
-  --ve-fg:var(--ui-text-primary,var(--foreground));
-  --ve-ink2:color-mix(in oklab,var(--ve-fg) 80%,transparent);
-  --ve-ink3:color-mix(in oklab,var(--ve-fg) 68%,transparent);
-  --ve-accent:var(--ui-accent,var(--accent));
-  --ve-line:var(--ui-stroke-tertiary,var(--border));
-  --ve-surface:var(--ui-bg-editor,var(--card));
-  --ve-soft:color-mix(in oklab,var(--ve-fg) 6%,transparent);
-  --ve-card:var(--ui-bg-quaternary,var(--card));
-  position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:44px minmax(0,1fr) 44px;
+  --ve-fg:var(--ui-text-primary,#e8e9ee);
+  --ve-ink2:color-mix(in oklab,var(--ve-fg) 76%,transparent);
+  --ve-ink3:color-mix(in oklab,var(--ve-fg) 56%,transparent);
+  --ve-accent:var(--ui-accent,#6f9dff);
+  --ve-base:var(--ui-bg-editor,#15161b);
+  --ve-chrome:var(--ui-bg-chrome,color-mix(in oklab,var(--ve-base) 86%,#000));
+  --ve-deep:color-mix(in oklab,var(--ve-base) 62%,#000);
+  --ve-raise:color-mix(in oklab,var(--ve-base) 91%,var(--ve-fg));
+  --ve-raise2:color-mix(in oklab,var(--ve-base) 84%,var(--ve-fg));
+  --ve-line:color-mix(in oklab,var(--ve-fg) 11%,transparent);
+  --ve-line2:color-mix(in oklab,var(--ve-fg) 18%,transparent);
+  --ve-soft:color-mix(in oklab,var(--ve-fg) 7%,transparent);
+  --ve-surface:var(--ve-base);
+  --ve-card:var(--ve-raise);
+  --ve-ok:var(--ui-green,#3ec486);
+  --ve-warn:var(--ui-yellow,#e2b04a);
+  --ve-bad:var(--ui-red,#ef5f7a);
+  --ve-c-video:var(--ve-accent);
+  --ve-c-text:var(--ui-purple,#b19cf2);
+  --ve-c-audio:var(--ve-ok);
+  --ve-c-music:var(--ui-orange,#f0925f);
+  --ve-r:8px;
+  --ve-ease:cubic-bezier(.2,.7,.2,1);
+  position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:48px minmax(0,1fr);
   height:100%;width:100%;min-height:0;overflow:hidden;contain:paint;
-  color:var(--ve-fg);background:var(--ve-surface);
-  font-size:12px;line-height:1.45;font-family:inherit;-webkit-font-smoothing:antialiased;
+  color:var(--ve-fg);background:var(--ve-chrome);
+  font-size:12px;line-height:1.5;font-family:inherit;-webkit-font-smoothing:antialiased;
 }
 .ve-root *,.ve-root *::before,.ve-root *::after{box-sizing:border-box}
 .ve-root :where(h1,h2,h3,p){margin:0}
 .ve-root :where(button){font:inherit;color:inherit}
-.ve-i{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-.ve-i--sm{width:12px;height:12px}
-.ve-hdr{display:flex;align-items:center;gap:8px;min-width:0;padding:0 10px;border-bottom:1px solid var(--ve-line);overflow:hidden}
-.ve-plate{width:26px;height:26px;border-radius:4px;display:grid;place-items:center;flex:none;color:var(--ve-accent);background:color-mix(in oklab,var(--ve-accent) 13%,transparent)}
-.ve-title{font-size:12.5px;font-weight:600;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.ve-sep{width:1px;height:18px;background:var(--ve-line);flex:none;margin:0 2px}
-.ve-chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 7px;max-width:230px;border:1px solid var(--ve-line);border-radius:3px;background:transparent;font-size:11.5px;font-weight:500;cursor:pointer;white-space:nowrap;overflow:hidden}
-.ve-chip:hover{background:var(--ve-soft)}
-.ve-chip__name{overflow:hidden;text-overflow:ellipsis}
-.ve-chip--ghost{border-color:transparent;color:var(--ve-ink2);font-weight:400;cursor:default;max-width:220px}
-.ve-chip--ghost:hover{background:transparent}
-.ve-chat{cursor:pointer;gap:5px}
-.ve-chat:hover{background:var(--ve-soft)}
-.ve-chat__b{font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ve-ink2)}
-.ve-out{display:flex;flex-direction:column;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--ve-line)}
-.ve-out__p{display:block;padding:6px 8px;border:1px solid var(--ve-line);border-radius:3px;background:var(--ve-card);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:10.5px;color:var(--ve-ink2);word-break:break-all}
-.ve-out__a{display:flex;gap:6px;flex-wrap:wrap}
-.ve-note{margin:0;font-size:10.5px;color:var(--ve-ink2)}
-.ve-auto{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--ve-ink2);white-space:nowrap}
+.ve-root ::-webkit-scrollbar{width:8px;height:8px}
+.ve-root ::-webkit-scrollbar-thumb{background:var(--ve-line2);border-radius:8px;border:2px solid transparent;background-clip:content-box}
+.ve-root ::-webkit-scrollbar-thumb:hover{background:color-mix(in oklab,var(--ve-fg) 32%,transparent);background-clip:content-box}
+.ve-root ::-webkit-scrollbar-track{background:transparent}
+.ve-i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ve-i--sm{width:14px;height:14px}
+.ve-i--fill{fill:currentColor}
+/* ---- barra superior ------------------------------------------------------ */
+.ve-hdr{display:flex;align-items:center;gap:8px;min-width:0;padding:0 12px;background:var(--ve-base);border-bottom:1px solid var(--ve-line);overflow:hidden}
+.ve-plate{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;flex:none;color:var(--ve-accent);background:color-mix(in oklab,var(--ve-accent) 16%,transparent)}
+.ve-title{font-size:13px;font-weight:600;letter-spacing:.01em;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.ve-sep{width:1px;height:24px;background:var(--ve-line);flex:none;margin:0 4px}
 .ve-spacer{flex:1 1 auto;min-width:0}
-.ve-dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--ve-ink3)}
-.ve-dot--good{background:var(--ve-accent)}
-.ve-dot--warn{background:var(--ve-fg);box-shadow:0 0 0 2px var(--ve-soft)}
-.ve-dot--bad{background:var(--ve-fg)}
-.ve-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;height:32px;padding:0 10px;flex:none;border:1px solid transparent;border-radius:3px;background:transparent;font-size:11.5px;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .1s linear,color .1s linear,border-color .1s linear}
+.ve-chip{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 8px 0 12px;flex:0 1 auto;min-width:40px;max-width:240px;border:1px solid transparent;border-radius:8px;background:var(--ve-soft);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;transition:background-color .15s,border-color .15s}
+.ve-chip:hover{background:color-mix(in oklab,var(--ve-fg) 11%,transparent)}
+.ve-chip:focus-visible{outline:2px solid var(--ve-accent);outline-offset:1px}
+.ve-chip__name{overflow:hidden;text-overflow:ellipsis}
+.ve-chip--ghost{background:transparent;color:var(--ve-ink2);font-weight:500;max-width:168px;padding:0 12px}
+.ve-chip--ghost:hover{background:var(--ve-soft);color:var(--ve-fg)}
+.ve-chat__b{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ve-warn)}
+.ve-auto{display:inline-flex;align-items:center;gap:8px;height:24px;padding:0 12px 0 8px;border-radius:12px;font-size:11px;color:var(--ve-ink2);white-space:nowrap;background:transparent;transition:background-color .2s,color .2s}
+.ve-auto--warn{color:var(--ve-warn)}
+.ve-auto--bad{color:var(--ve-bad);background:color-mix(in oklab,var(--ve-bad) 12%,transparent)}
+.ve-dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--ve-ink3);transition:background-color .2s,box-shadow .2s}
+.ve-dot--good{background:var(--ve-ok);box-shadow:0 0 0 3px color-mix(in oklab,var(--ve-ok) 18%,transparent)}
+.ve-dot--warn{background:var(--ve-warn);box-shadow:0 0 0 3px color-mix(in oklab,var(--ve-warn) 18%,transparent)}
+.ve-dot--bad{background:var(--ve-bad);box-shadow:0 0 0 3px color-mix(in oklab,var(--ve-bad) 18%,transparent)}
+/* ---- botones ------------------------------------------------------------- */
+.ve-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:32px;padding:0 12px;flex:none;border:1px solid transparent;border-radius:8px;background:transparent;font-size:12px;font-weight:500;white-space:nowrap;cursor:pointer;transition:background-color .15s,color .15s,border-color .15s,transform .1s,box-shadow .15s}
+.ve-btn:active{transform:translateY(1px)}
 .ve-btn:focus-visible{outline:2px solid var(--ve-accent);outline-offset:2px}
-.ve-btn--primary{background:var(--dt-primary-solid,color-mix(in oklab,var(--ve-accent) 10%,var(--ve-surface)));color:var(--dt-primary-foreground,color-mix(in oklab,var(--ve-accent) 70%,var(--ve-fg)));border-color:color-mix(in oklab,var(--ve-accent) 45%,var(--ve-line));font-weight:600}
-.ve-btn--primary:hover{background:var(--dt-primary-solid,color-mix(in oklab,var(--ve-accent) 17%,var(--ve-surface)))}
-.ve-btn--outline{border-color:var(--ve-line)}
-.ve-btn--outline:hover{background:var(--ve-soft)}
+.ve-btn--primary{background:var(--ve-accent);color:var(--ui-accent-foreground,#0b0f1a);border-color:transparent;font-weight:600;box-shadow:0 1px 0 color-mix(in oklab,#fff 25%,transparent) inset,0 4px 14px -6px var(--ve-accent)}
+.ve-btn--primary:hover{background:color-mix(in oklab,var(--ve-accent) 88%,#fff)}
+.ve-btn--outline{border-color:var(--ve-line2);background:transparent}
+.ve-btn--outline:hover{background:var(--ve-soft);border-color:color-mix(in oklab,var(--ve-fg) 28%,transparent)}
 .ve-btn--ghost{color:var(--ve-ink2)}
-.ve-btn--ghost:hover{background:color-mix(in oklab,var(--ve-fg) 7%,transparent);color:var(--ve-fg)}
-.ve-btn--text{color:var(--ve-ink2);padding:0 4px;text-decoration:underline;text-underline-offset:3px;text-decoration-color:color-mix(in oklab,var(--ve-fg) 25%,transparent)}
-.ve-btn--text:hover{color:var(--ve-fg)}
+.ve-btn--ghost:hover{background:var(--ve-soft);color:var(--ve-fg)}
+.ve-btn--ghost[aria-pressed="true"]{background:color-mix(in oklab,var(--ve-accent) 16%,transparent);color:var(--ve-accent)}
+.ve-btn--text{color:var(--ve-ink2);padding:0 8px}
+.ve-btn--text:hover{color:var(--ve-fg);background:var(--ve-soft)}
 .ve-btn--icon{width:32px;padding:0}
 .ve-btn--block{width:100%}
-.ve-btn[disabled]{opacity:.45;cursor:default;pointer-events:none}
-.ve-badge{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 6px;border-radius:3px;flex:none;font-size:10px;font-weight:600;white-space:nowrap;background:var(--ve-soft);color:var(--ve-ink2)}
-.ve-badge--outline{background:transparent;border:1px solid var(--ve-line)}
-.ve-badge--accent{background:color-mix(in oklab,var(--ve-accent) 14%,transparent);color:color-mix(in oklab,var(--ve-accent) 78%,var(--ve-fg))}
-.ve-badge--warn{background:color-mix(in oklab,var(--ve-fg) 12%,transparent);color:var(--ve-fg)}
-.ve-body{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 292px;min-height:0;min-width:0;overflow:hidden;contain:paint}
-.ve-left{display:flex;flex-direction:column;min-width:0;min-height:0;border-right:1px solid var(--ve-line)}
-.ve-stage{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;padding:8px 12px 10px;background:color-mix(in oklab,var(--ve-fg) 3%,transparent);position:relative;gap:6px}
-.ve-stage__bar{display:flex;align-items:center;gap:6px;flex:none;min-height:20px}
-.ve-stage__sp{flex:1}
-.ve-stage__count{font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--ve-ink2)}
-.ve-stage__canvas{flex:1 1 auto;min-height:0;display:grid;place-items:center}
-.ve-frame{position:relative;max-height:100%;max-width:100%;overflow:hidden;border:1px solid var(--ve-line);border-radius:2px;background:color-mix(in oklab,var(--ve-fg) 5%,transparent)}
-.ve-frame video{display:block;width:100%;height:100%;object-fit:contain;background:color-mix(in oklab,var(--ve-fg) 8%,transparent)}
-.ve-frame img{display:block;width:100%;height:100%;object-fit:contain;background:color-mix(in oklab,var(--ve-fg) 8%,transparent)}
-.ve-frame__meta{position:absolute;top:7px;left:7px;display:flex;gap:5px;align-items:center;z-index:2}
-.ve-frame__meta--r{left:auto;right:7px}
-.ve-cap{position:absolute;left:8%;right:8%;bottom:8%;padding:6px 9px;border-radius:3px;background:color-mix(in oklab,var(--ve-surface) 80%,transparent);border:1px solid var(--ve-line);color:var(--ve-fg);font-size:12px;font-weight:500;line-height:1.35;text-align:center;backdrop-filter:blur(3px)}
-.ve-guides{position:absolute;inset:6%;border:1px dashed color-mix(in oklab,var(--ve-fg) 30%,transparent);pointer-events:none}
-.ve-transport{height:34px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px;border-top:1px solid var(--ve-line)}
-.ve-tc{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10.5px;font-variant-numeric:tabular-nums;color:var(--ve-ink2);white-space:nowrap}
-.ve-tc b{color:var(--ve-fg);font-weight:600}
-.ve-scrub{flex:1 1 auto;min-width:60px;display:flex;align-items:center}
-.ve-root input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:32px;margin:0;background:transparent;cursor:pointer;accent-color:var(--ve-accent)}
-.ve-root input[type="range"]:focus-visible{outline:2px solid var(--ve-accent);outline-offset:1px;border-radius:2px}
-.ve-root input[type="range"]::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:linear-gradient(to right,var(--ve-accent) 0 var(--ve-p,0%),color-mix(in oklab,var(--ve-fg) 16%,transparent) var(--ve-p,0%) 100%)}
-.ve-root input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:11px;height:11px;border-radius:50%;margin-top:-4px;background:var(--ve-accent);border:2px solid var(--ve-surface);box-shadow:0 0 0 1px color-mix(in oklab,var(--ve-accent) 55%,transparent)}
-.ve-root input[type="range"].ve-range--vol{width:64px;flex:none}
-.ve-tl{height:118px;flex:none;display:flex;flex-direction:column;border-top:1px solid var(--ve-line);min-height:0;background:transparent}
-.ve-tl__ruler{height:20px;margin-left:46px;margin-right:10px;position:relative;flex:none;border-bottom:1px solid var(--ve-line);background-image:repeating-linear-gradient(90deg,color-mix(in oklab,var(--ve-fg) 18%,transparent) 0 1px,transparent 1px 33.5px)}
-.ve-tl__ruler span{position:absolute;top:2px;font-size:9px;line-height:1;color:var(--ve-ink2);font-variant-numeric:tabular-nums}
-.ve-tl__lane{position:relative;display:flex;min-height:0;flex:1}
-.ve-tl__gutter{width:46px;flex:none;display:flex;flex-direction:column;font-size:9px;font-weight:600;letter-spacing:.04em;color:var(--ve-ink2)}
-.ve-tl__gutter span{height:46px;display:flex;align-items:center;padding-left:10px}
-.ve-tl__gutter span+span{height:22px}
-.ve-tl__tracks{position:relative;flex:1;min-width:0;padding-right:10px}
-.ve-tl__row{height:46px;display:flex;gap:2px;align-items:stretch}
-.ve-clip{position:relative;min-width:0;border:1px solid var(--ve-line);border-radius:2px;background:color-mix(in oklab,var(--ve-fg) 4%,transparent);display:flex;flex-direction:column;justify-content:space-between;padding:4px 6px;overflow:hidden;cursor:pointer;text-align:left;background-image:repeating-linear-gradient(115deg,color-mix(in oklab,var(--ve-fg) 4%,transparent) 0 6px,transparent 6px 13px)}
-.ve-clip:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-2px}
-.ve-clip__n{font-size:9.5px;font-weight:600;letter-spacing:.04em;color:var(--ve-ink2)}
-.ve-clip__t{font-size:10.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.1}
-.ve-clip__d{font-size:9px;color:var(--ve-ink2);font-variant-numeric:tabular-nums}
-.ve-clip--sel{border-color:var(--ve-accent);border-width:2px;padding:3px 5px;background-color:color-mix(in oklab,var(--ve-accent) 10%,transparent)}
-.ve-trim{position:absolute;top:0;bottom:0;width:7px;background:color-mix(in oklab,var(--ve-accent) 55%,transparent);cursor:ew-resize;touch-action:none}
-.ve-clip{touch-action:none;user-select:none}
-.ve-clip--drag{opacity:.85;z-index:3;box-shadow:0 2px 10px rgba(0,0,0,.35);cursor:grabbing}
-.ve-clip--drop{outline:2px dashed var(--ve-accent);outline-offset:-2px}
-.ve-trim::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:7px;height:16px;border-radius:1px;background:var(--ve-accent);opacity:.35}
-.ve-trim--l{left:0}
-.ve-trim--r{right:0}
-.ve-playhead{position:absolute;top:0;bottom:0;left:var(--ve-ph,0%);width:1px;background:var(--ve-accent);pointer-events:none;z-index:2}
-.ve-playhead::before{content:"";position:absolute;top:0;left:-4px;width:9px;height:8px;background:var(--ve-accent);clip-path:polygon(0 0,100% 0,50% 100%)}
-.ve-audio{height:22px;margin-top:2px;border:1px solid var(--ve-line);border-radius:2px;background:color-mix(in oklab,var(--ve-fg) 3%,transparent);display:flex;align-items:center;padding:0 6px;gap:6px}
-.ve-audio small{font-size:9px;color:var(--ve-ink2);white-space:nowrap}
-.ve-wave{flex:1;height:12px;color:color-mix(in oklab,var(--ve-accent) 65%,transparent);overflow:hidden;display:flex;align-items:center}
-.ve-wave>i{display:block;height:8px;border-radius:1px;background:currentColor;min-width:1px}
-.ve-rail{display:flex;flex-direction:column;min-height:0;min-width:0}
-.ve-rail__sec{padding:6px 10px;border-bottom:1px solid var(--ve-line);min-width:0}
-.ve-rail__sec:last-child{border-bottom:0}
-.ve-rail__h{display:flex;align-items:center;gap:6px;height:22px;margin-bottom:5px}
-.ve-rail__t{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ve-ink2);white-space:nowrap}
-.ve-scenes{display:flex;flex-direction:column;gap:2px;max-height:152px;overflow:auto;margin:0 -4px;padding:0 4px}
-.ve-scene-row{display:grid;grid-template-columns:minmax(0,1fr) 32px 32px;align-items:center;gap:1px}
-.ve-scene{display:grid;grid-template-columns:12px 16px 40px minmax(0,1fr);align-items:center;gap:5px;height:36px;padding:0 2px;border-radius:3px;border:1px solid transparent;background:transparent;text-align:left;cursor:pointer;width:100%}
-.ve-scene:hover{background:color-mix(in oklab,var(--ve-fg) 5%,transparent)}
-.ve-scene:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-2px}
-.ve-scene[aria-current="true"]{background:color-mix(in oklab,var(--ve-accent) 9%,transparent);border-color:color-mix(in oklab,var(--ve-accent) 38%,transparent)}
-.ve-scene__n{font-size:9.5px;color:var(--ve-ink2);font-variant-numeric:tabular-nums}
-.ve-scene__grip{color:var(--ve-ink2);opacity:.5;display:grid;place-items:center}
-.ve-thumb{width:40px;height:23px;border-radius:2px;border:1px solid var(--ve-line);background:var(--ve-soft)}
-.ve-scene__m{min-width:0}
-.ve-scene__name{display:block;font-size:11.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.25}
-.ve-scene__dur{display:block;font-size:9px;color:var(--ve-ink2);font-variant-numeric:tabular-nums}
-.ve-mv{width:32px;height:32px;display:grid;place-items:center;border-radius:3px;border:0;background:transparent;color:var(--ve-ink2);cursor:pointer}
-.ve-mv:hover{background:color-mix(in oklab,var(--ve-fg) 8%,transparent);color:var(--ve-fg)}
+.ve-btn--sm{height:24px;padding:0 8px;font-size:11px;border-radius:8px}
+.ve-btn--sm.ve-btn--icon{width:24px;padding:0}
+.ve-btn[disabled]{opacity:.38;cursor:default;pointer-events:none}
+.ve-badge{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 8px;border-radius:10px;flex:none;font-size:10.5px;font-weight:600;white-space:nowrap;background:var(--ve-soft);color:var(--ve-ink2)}
+.ve-badge--outline{background:transparent;border:1px solid var(--ve-line2)}
+.ve-badge--accent{background:color-mix(in oklab,var(--ve-accent) 20%,transparent);color:color-mix(in oklab,var(--ve-accent) 70%,var(--ve-fg))}
+.ve-badge--warn{background:color-mix(in oklab,var(--ve-warn) 20%,transparent);color:var(--ve-warn)}
+/* ---- cuerpo: panel izquierdo · centro · inspector --------------------------- */
+.ve-body{position:relative;display:grid;grid-template-columns:minmax(0,1fr);min-height:0;min-width:0;overflow:hidden;contain:paint}
+.ve-root[data-layout="wide"] .ve-body{grid-template-columns:256px minmax(0,1fr) 312px}
+.ve-root[data-layout="mid"] .ve-body{grid-template-columns:minmax(0,1fr) 296px}
+.ve-root[data-doc="0"] .ve-body{grid-template-columns:minmax(0,1fr)!important}
+.ve-main{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--ve-chrome)}
+.ve-ov{position:absolute;inset:0;background:color-mix(in oklab,#000 52%,transparent);backdrop-filter:blur(2px);z-index:8;animation:ve-fade .18s var(--ve-ease)}
+@keyframes ve-fade{from{opacity:0}to{opacity:1}}
+/* ---- panel izquierdo: escenas y medios -------------------------------------- */
+.ve-side{display:flex;flex-direction:column;min-height:0;min-width:0;background:var(--ve-base);border-right:1px solid var(--ve-line)}
+.ve-root:not([data-layout="wide"]) .ve-side{position:absolute;left:0;top:0;bottom:0;width:min(296px,92%);z-index:9;box-shadow:24px 0 48px -24px #000;animation:ve-slide-l .22s var(--ve-ease)}
+@keyframes ve-slide-l{from{transform:translateX(-24px);opacity:0}to{transform:none;opacity:1}}
+@keyframes ve-slide-r{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+.ve-pt{display:flex;align-items:center;gap:8px;height:40px;flex:none;padding:0 8px 0 16px;border-bottom:1px solid var(--ve-line)}
+.ve-pt__t{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ve-ink2)}
+.ve-segtabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:12px 12px 8px;padding:4px;border-radius:8px;background:var(--ve-deep);flex:none}
+.ve-segtabs button{display:flex;align-items:center;justify-content:center;gap:8px;height:28px;border:0;border-radius:6px;background:transparent;color:var(--ve-ink2);font-size:12px;font-weight:600;cursor:pointer;transition:background-color .15s,color .15s}
+.ve-segtabs button:hover{color:var(--ve-fg)}
+.ve-segtabs button[aria-pressed="true"]{background:var(--ve-raise2);color:var(--ve-fg);box-shadow:0 1px 2px #0006}
+.ve-segtabs button:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-2px}
+.ve-segtabs em{font-style:normal;font-size:10.5px;color:var(--ve-ink3);font-variant-numeric:tabular-nums}
+.ve-side__bar{display:flex;align-items:center;gap:8px;padding:4px 12px 8px 16px;flex:none}
+.ve-side__cnt{font-size:11px;color:var(--ve-ink3)}
+.ve-side__foot{flex:none;padding:12px;border-top:1px solid var(--ve-line);display:flex;flex-direction:column;gap:8px}
+.ve-scenes,.ve-lib__list{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:0 8px 8px}
+.ve-scene-row,.ve-lib__row{position:relative;display:flex;align-items:center;gap:4px;border-radius:8px;transition:background-color .15s}
+.ve-scene,.ve-lib__item{display:grid;align-items:center;gap:8px;min-height:56px;padding:8px;border-radius:8px;border:1px solid transparent;background:transparent;text-align:left;cursor:pointer;width:100%;min-width:0;flex:1 1 auto;transition:background-color .15s,border-color .15s}
+.ve-scene{grid-template-columns:16px 64px minmax(0,1fr)}
+.ve-lib__item{grid-template-columns:64px minmax(0,1fr)}
+.ve-scene:hover,.ve-lib__item:hover{background:var(--ve-soft)}
+.ve-scene:focus-visible,.ve-lib__item:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-2px}
+.ve-scene[aria-current="true"],.ve-lib__item[aria-current="true"]{background:color-mix(in oklab,var(--ve-accent) 14%,transparent);border-color:color-mix(in oklab,var(--ve-accent) 55%,transparent)}
+.ve-scene__n{font-size:10.5px;color:var(--ve-ink3);font-variant-numeric:tabular-nums;font-weight:600}
+.ve-scene__m,.ve-lib__m{min-width:0;display:flex;flex-direction:column;gap:2px}
+.ve-scene__name,.ve-lib__n{display:block;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
+.ve-scene__dur,.ve-lib__s{display:block;font-size:11px;color:var(--ve-ink3);font-variant-numeric:tabular-nums;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ve-thumb{width:64px;height:36px;object-fit:cover;display:grid;place-items:center;color:var(--ve-ink3);background:var(--ve-deep);border-radius:4px;overflow:hidden;pointer-events:none;flex:none}
+.ve-scene-row__mv{display:flex;flex-direction:column;opacity:0;transition:opacity .15s;flex:none}
+.ve-scene-row:hover .ve-scene-row__mv,.ve-scene-row:focus-within .ve-scene-row__mv,.ve-scene-row:has([aria-current="true"]) .ve-scene-row__mv{opacity:1}
+.ve-mv{width:24px;height:24px;display:grid;place-items:center;border-radius:6px;border:0;background:transparent;color:var(--ve-ink2);cursor:pointer;flex:none;transition:background-color .15s,color .15s}
+.ve-mv:hover{background:var(--ve-raise2);color:var(--ve-fg)}
 .ve-mv:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-1px}
-.ve-mv[disabled]{opacity:.35;cursor:default}
-.ve-props{display:flex;flex-direction:column;gap:5px;min-width:0}
-.ve-f{display:flex;flex-direction:column;gap:3px;min-width:0}
-.ve-f__l{font-size:10px;font-weight:600;display:flex;align-items:center;gap:5px}
-.ve-f__h{font-size:9.5px;color:var(--ve-ink2);line-height:1.35}
-.ve-f__err{font-size:9.5px;color:var(--ve-fg);font-weight:600}
-.ve-f__row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.ve-mus__empty{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
-.ve-mus__chks{display:flex;flex-direction:column;gap:2px}
-.ve-mus__chk{display:flex;align-items:center;gap:7px;min-height:32px;font-size:11px;cursor:pointer;color:var(--ve-fg);border-radius:3px}
-.ve-mus__chk input{accent-color:var(--ve-accent);margin:0;flex:none;width:14px;height:14px}
+.ve-mv[disabled]{opacity:.3;cursor:default}
+.ve-lib__row .ve-mv{width:32px;height:32px}
+.ve-lib__empty{margin:8px 16px;padding:16px;border:1px dashed var(--ve-line2);border-radius:8px;font-size:12px;color:var(--ve-ink3);line-height:1.5;text-align:center}
+/* ---- escena: vista previa ----------------------------------------------------- */
+.ve-stage{flex:1 1 auto;min-height:160px;display:flex;flex-direction:column;padding:48px 24px 16px;background:radial-gradient(120% 90% at 50% 0%,color-mix(in oklab,var(--ve-deep) 88%,var(--ve-accent)) 0%,var(--ve-deep) 62%);position:relative;gap:8px}
+.ve-stage__bar{position:absolute;top:8px;left:16px;right:16px;display:flex;align-items:center;gap:8px;height:32px;pointer-events:none}
+.ve-stage__name{font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ve-stage__sp{flex:1}
+.ve-stage__count{font-size:11px;font-variant-numeric:tabular-nums;color:var(--ve-ink2);padding:4px 8px;border-radius:12px;background:color-mix(in oklab,#000 40%,transparent)}
+.ve-stage__canvas{flex:1 1 auto;min-height:0;display:grid;place-items:center}
+.ve-frame{position:relative;max-height:100%;max-width:100%;overflow:hidden;border-radius:8px;background:#000;box-shadow:0 0 0 1px var(--ve-line2),0 24px 64px -24px #000,0 8px 24px -12px #000}
+.ve-frame video,.ve-frame img{display:block;width:100%;height:100%;object-fit:contain;background:#000}
+.ve-cap{position:absolute;left:6%;right:6%;bottom:8%;padding:0 4px;color:#fff;font-size:12px;font-weight:600;line-height:1.35;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.8),0 0 2px rgba(0,0,0,.7);pointer-events:none}
+.ve-cap--top{top:8%;bottom:auto}
+.ve-cap--center{top:50%;bottom:auto;transform:translateY(-50%)}
+.ve-guides{position:absolute;inset:6%;border:1px dashed color-mix(in oklab,#fff 45%,transparent);border-radius:4px;pointer-events:none}
+/* ---- transporte --------------------------------------------------------------- */
+.ve-transport{flex:none;display:flex;flex-direction:column;background:var(--ve-base);border-top:1px solid var(--ve-line)}
+.ve-scrub{display:flex;align-items:center;height:16px;padding:0;margin-top:-8px;position:relative;z-index:2}
+.ve-root input[type="range"]{-webkit-appearance:none;appearance:none;width:100%;height:24px;margin:0;background:transparent;cursor:pointer;accent-color:var(--ve-accent)}
+.ve-root input[type="range"]:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-2px;border-radius:4px}
+.ve-root input[type="range"]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,var(--ve-accent) 0 var(--ve-p,0%),color-mix(in oklab,var(--ve-fg) 18%,transparent) var(--ve-p,0%) 100%)}
+.ve-root input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:12px;height:12px;border-radius:50%;margin-top:-4px;background:#fff;border:0;box-shadow:0 0 0 3px color-mix(in oklab,var(--ve-accent) 55%,transparent),0 1px 4px #0008;transition:transform .12s}
+.ve-root input[type="range"]:hover::-webkit-slider-thumb{transform:scale(1.25)}
+.ve-scrub input[type="range"]{height:16px}
+.ve-scrub input[type="range"]::-webkit-slider-runnable-track{height:3px}
+.ve-scrub input[type="range"]:hover::-webkit-slider-runnable-track{height:5px}
+.ve-transport__row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;height:56px;padding:0 16px}
+.ve-transport__c{display:flex;align-items:center;gap:4px}
+.ve-transport__r{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0}
+.ve-tc{font-family:var(--dt-font-mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);font-size:12px;font-variant-numeric:tabular-nums;color:var(--ve-ink3);white-space:nowrap}
+.ve-tc b{color:var(--ve-fg);font-weight:600;font-size:15px;letter-spacing:.01em}
+.ve-play{width:40px;height:40px;border-radius:50%;padding:0;background:var(--ve-fg);color:var(--ve-base);border:0;margin:0 8px;box-shadow:0 4px 16px -6px #000}
+.ve-play:hover{background:var(--ve-fg);transform:scale(1.06)}
+.ve-play:active{transform:scale(.97)}
+.ve-play .ve-i{width:18px;height:18px;fill:currentColor;stroke:currentColor}
+.ve-goto{width:80px;height:32px;font-size:12px;background:var(--ve-raise);border:1px solid transparent;border-radius:8px;color:var(--ve-fg);padding:0 8px;transition:border-color .15s,background-color .15s}
+.ve-goto:hover{background:var(--ve-raise2)}
+.ve-goto:focus-visible{outline:none;border-color:var(--ve-accent)}
+/* ---- línea de tiempo ------------------------------------------------------------ */
+.ve-tl{flex:none;display:flex;flex-direction:column;background:var(--ve-base);border-top:1px solid var(--ve-line);min-height:0;--h-ruler:24px;--h-video:56px;--h-text:32px;--h-audio:32px;--h-music:24px;--w-head:96px}
+.ve-tl__bar{display:flex;align-items:center;gap:8px;height:40px;flex:none;padding:0 12px 0 8px;border-bottom:1px solid var(--ve-line)}
+.ve-tl__sum{font-size:11px;color:var(--ve-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;font-variant-numeric:tabular-nums}
+.ve-zoom{display:flex;align-items:center;gap:4px}
+.ve-zoom__v{min-width:48px;text-align:center;font-size:11px;font-variant-numeric:tabular-nums;color:var(--ve-ink2)}
+.ve-tl__body{display:grid;grid-template-columns:var(--w-head) minmax(0,1fr);min-height:0;overflow:hidden;padding-bottom:8px}
+.ve-tl__heads{display:flex;flex-direction:column;border-right:1px solid var(--ve-line);padding-top:var(--h-ruler);background:var(--ve-base);position:relative;z-index:3}
+.ve-lh{display:flex;align-items:center;gap:8px;padding:0 12px;font-size:11px;font-weight:600;color:var(--ve-ink2);margin-top:4px;white-space:nowrap}
+.ve-lh .ve-i{color:var(--lc)}
+.ve-lh--video{height:var(--h-video);--lc:var(--ve-c-video)}
+.ve-lh--text{height:var(--h-text);--lc:var(--ve-c-text)}
+.ve-lh--audio{height:var(--h-audio);--lc:var(--ve-c-audio)}
+.ve-lh--music{height:var(--h-music);--lc:var(--ve-c-music)}
+.ve-tl__scroll{min-width:0;overflow-x:hidden;overflow-y:hidden;position:relative}
+.ve-tl__scroll[data-zoom="1"]{overflow-x:hidden}
+.ve-tl__scroll:not([data-zoom="1"]){overflow-x:auto}
+.ve-tl__inner{position:relative;min-width:100%}
+.ve-tl__lanes{position:relative;margin:0 16px 0 8px}
+.ve-tl__ruler{height:var(--h-ruler);position:relative;border-bottom:1px solid var(--ve-line);cursor:col-resize;touch-action:none;user-select:none;background:color-mix(in oklab,var(--ve-deep) 55%,transparent)}
+.ve-tick{position:absolute;bottom:0;height:8px;border-left:1px solid var(--ve-line2)}
+.ve-tick--major{height:100%}
+.ve-tick em{position:absolute;top:4px;left:4px;font-style:normal;font-size:10.5px;line-height:1;color:var(--ve-ink3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ve-tl__row{position:relative;display:flex;align-items:stretch;margin-top:4px;min-width:0}
+.ve-tl__row--video{height:var(--h-video)}
+.ve-tl__row--text{height:var(--h-text);border-radius:8px;background:repeating-linear-gradient(90deg,var(--ve-soft) 0 1px,transparent 1px 24px)}
+.ve-tl__row--audio{height:var(--h-audio);border-radius:8px;background:color-mix(in oklab,var(--ve-deep) 55%,transparent)}
+.ve-tl__row--music{height:var(--h-music);border-radius:8px;background:color-mix(in oklab,var(--ve-deep) 55%,transparent);align-items:center}
+.ve-clip{position:relative;min-width:0;border:0;border-radius:8px;display:block;padding:0;overflow:hidden;cursor:grab;text-align:left;touch-action:none;user-select:none;color:#fff;background:color-mix(in oklab,var(--ve-c-video) 26%,var(--ve-deep));box-shadow:0 0 0 1px var(--ve-base) inset,0 0 0 2px var(--ve-base);transition:box-shadow .15s,filter .15s}
+.ve-clip:hover{filter:brightness(1.15)}
+.ve-clip:focus-visible{outline:2px solid var(--ve-accent);outline-offset:1px}
+.ve-clip__thumbs{position:absolute;inset:0;display:flex;opacity:.62;pointer-events:none}
+.ve-clip__thumbs .ve-thumb{flex:1 1 0;min-width:56px;width:auto;height:100%;border-radius:0;background:transparent;object-fit:cover}
+.ve-clip::before{content:"";position:absolute;inset:0;background:linear-gradient(to top,#000b 0%,#0004 52%,#0001 100%);pointer-events:none}
+.ve-clip__n{position:absolute;top:4px;right:8px;font-size:10px;font-weight:700;color:#fffc;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000}
+.ve-clip__t{position:absolute;left:8px;right:28px;bottom:20px;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;text-shadow:0 1px 3px #000}
+.ve-clip__d{position:absolute;left:8px;bottom:4px;font-size:10.5px;color:#fffd;font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000;line-height:1.2}
+.ve-clip--sel{box-shadow:0 0 0 2px var(--ve-accent) inset,0 0 0 2px var(--ve-base),0 0 18px -4px var(--ve-accent);z-index:1}
+.ve-clip--drag{opacity:.92;z-index:5;box-shadow:0 12px 28px -8px #000,0 0 0 2px var(--ve-accent) inset;cursor:grabbing;transition:none}
+.ve-clip--drop::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--ve-ok);box-shadow:0 0 12px var(--ve-ok);z-index:4}
+.ve-trim{position:absolute;top:0;bottom:0;width:8px;background:var(--ve-accent);cursor:ew-resize;touch-action:none;z-index:2;display:grid;place-items:center;transition:filter .15s}
+.ve-trim::after{content:"";width:2px;height:14px;border-radius:1px;background:#0b0f1a;opacity:.7}
+.ve-trim:hover{filter:brightness(1.2)}
+.ve-trim--l{left:0;border-radius:8px 0 0 8px}
+.ve-trim--r{right:0;border-radius:0 8px 8px 0}
+.ve-clip .ve-badge{position:absolute;top:4px;left:8px;z-index:3}
+.ve-tx{position:relative;min-width:0;height:100%}
+.ve-txb{position:absolute;top:2px;bottom:2px;display:flex;align-items:center;gap:8px;padding:0 8px;border:0;border-radius:6px;background:color-mix(in oklab,var(--ve-c-text) 34%,var(--ve-deep));box-shadow:0 0 0 1px color-mix(in oklab,var(--ve-c-text) 60%,transparent) inset;color:var(--ve-fg);font-size:11px;font-weight:500;cursor:pointer;overflow:hidden;white-space:nowrap;text-align:left;transition:filter .15s,box-shadow .15s}
+.ve-txb:hover{filter:brightness(1.18)}
+.ve-txb:focus-visible{outline:2px solid var(--ve-accent);outline-offset:1px}
+.ve-txb--sel{box-shadow:0 0 0 2px var(--ve-c-text) inset,0 0 14px -4px var(--ve-c-text)}
+.ve-txb span{overflow:hidden;text-overflow:ellipsis}
+.ve-txb .ve-i{color:var(--ve-c-text);width:14px;height:14px}
+.ve-ab{position:relative;min-width:0;display:flex;align-items:flex-end;overflow:hidden;border-radius:6px;background:color-mix(in oklab,var(--ve-c-audio) 18%,var(--ve-deep));box-shadow:0 0 0 1px var(--ve-base) inset,0 0 0 2px var(--ve-base)}
+.ve-ab i{display:block;width:100%;background:repeating-linear-gradient(90deg,color-mix(in oklab,var(--ve-c-audio) 62%,transparent) 0 2px,transparent 2px 5px);min-height:0;transition:height .2s var(--ve-ease)}
+.ve-ab small{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:10.5px;font-weight:600;color:var(--ve-fg);white-space:nowrap;text-shadow:0 1px 2px #000a}
+.ve-ab--sel{box-shadow:0 0 0 1px var(--ve-c-audio) inset,0 0 0 2px var(--ve-base)}
+.ve-evs{position:absolute;inset:0;pointer-events:none}
+.ve-ev{position:absolute;top:2px;bottom:2px;width:16px;margin-left:-8px;padding:0;border:0;border-radius:4px;background:var(--ve-warn);pointer-events:auto;cursor:pointer;font-size:10px;color:#1a1305;line-height:1;transition:transform .12s}
+.ve-ev:hover{transform:scaleY(1.1)}
+.ve-mrow{position:relative;height:100%;width:100%;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:6px;background:color-mix(in oklab,var(--ve-c-music) 30%,var(--ve-deep));box-shadow:0 0 0 1px color-mix(in oklab,var(--ve-c-music) 55%,transparent) inset;font-size:11px;color:var(--ve-fg);overflow:hidden;white-space:nowrap}
+.ve-mrow .ve-i{color:var(--ve-c-music);width:14px;height:14px}
+.ve-lane-hint{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ve-ink3);pointer-events:none;white-space:nowrap}
+.ve-playhead{position:absolute;top:0;bottom:0;left:var(--ve-ph,0%);width:2px;margin-left:-1px;background:#fff;pointer-events:none;z-index:6;box-shadow:0 0 0 1px #0006}
+.ve-playhead::before{content:"";position:absolute;top:0;left:-6px;width:14px;height:14px;background:#fff;clip-path:polygon(0 0,100% 0,100% 55%,50% 100%,0 55%);border-radius:2px}
+.ve-snapline{position:absolute;top:0;bottom:0;left:var(--ve-sn,0%);width:1px;margin-left:-.5px;background:var(--ve-ok);z-index:5;pointer-events:none;box-shadow:0 0 8px var(--ve-ok)}
+.ve-snapline::after{content:"";position:absolute;top:calc(var(--h-ruler) - 6px);left:-3px;width:7px;height:7px;transform:rotate(45deg);background:var(--ve-ok)}
+/* ---- inspector ----------------------------------------------------------------- */
+.ve-rail{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;background:var(--ve-base);border-left:1px solid var(--ve-line)}
+.ve-root[data-compact="1"] .ve-rail{position:absolute;top:0;right:0;bottom:0;width:min(344px,94%);z-index:9;box-shadow:-24px 0 48px -24px #000;animation:ve-slide-r .22s var(--ve-ease)}
+.ve-rail__top{display:flex;align-items:center;gap:8px;height:40px;flex:none;padding:0 8px 0 16px;border-bottom:1px solid var(--ve-line)}
+.ve-rail__t{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ve-ink2);white-space:nowrap}
+.ve-rail__who{font-size:12px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ve-fg);text-transform:none;letter-spacing:0}
+.ve-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));flex:none;padding:0 8px;border-bottom:1px solid var(--ve-line)}
+.ve-tabs button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:56px;border:0;background:transparent;color:var(--ve-ink3);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:color .15s}
+.ve-tabs button::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:2px;border-radius:2px 2px 0 0;background:var(--ve-accent);transform:scaleX(0);transition:transform .2s var(--ve-ease)}
+.ve-tabs button:hover{color:var(--ve-fg)}
+.ve-tabs button[aria-selected="true"]{color:var(--ve-fg)}
+.ve-tabs button[aria-selected="true"]::after{transform:scaleX(1)}
+.ve-tabs button[aria-selected="true"] .ve-i{color:var(--ve-accent)}
+.ve-tabs button:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-2px;border-radius:6px}
+.ve-rail__body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;display:flex;flex-direction:column}
+.ve-rail__body>*{flex:none;padding:16px;border-bottom:1px solid var(--ve-line);min-width:0}
+.ve-rail__body>:last-child{border-bottom:0;padding-bottom:32px}
+.ve-rail__body>.ve-es{margin:32px auto;border:0;max-width:264px}
+.ve-rail__sec{min-width:0}
+.ve-rail__body .ve-rail__t{font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--ve-fg)}
+.ve-rail__h{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.ve-props{display:flex;flex-direction:column;gap:16px;min-width:0}
+.ve-f{display:flex;flex-direction:column;gap:8px;min-width:0}
+.ve-f__l{display:flex;align-items:center;gap:8px;width:100%;font-size:12px;font-weight:600;color:var(--ve-fg)}
+.ve-f__h{font-size:11px;color:var(--ve-ink3);line-height:1.5}
+.ve-f__err{font-size:11px;color:var(--ve-bad);font-weight:600}
+.ve-f__row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ve-counter{margin-left:auto;font-size:11px;font-weight:500;color:var(--ve-ink3);font-variant-numeric:tabular-nums}
+.ve-input,.ve-textarea,.ve-select,.ve-tex__in{width:100%;min-width:0;border:1px solid transparent;border-radius:8px;background:var(--ve-raise);color:var(--ve-fg);font:inherit;font-size:12px;padding:0 12px;height:32px;transition:border-color .15s,background-color .15s,box-shadow .15s}
+.ve-input:hover,.ve-textarea:hover,.ve-select:hover,.ve-tex__in:hover{background:var(--ve-raise2)}
+.ve-input:focus,.ve-textarea:focus,.ve-select:focus,.ve-tex__in:focus,.ve-input:focus-visible,.ve-textarea:focus-visible,.ve-select:focus-visible,.ve-tex__in:focus-visible{outline:none;border-color:var(--ve-accent);background:var(--ve-raise);box-shadow:0 0 0 3px color-mix(in oklab,var(--ve-accent) 22%,transparent)}
+.ve-input::placeholder,.ve-textarea::placeholder{color:var(--ve-ink3)}
+.ve-input[aria-invalid="true"]{border-color:var(--ve-bad)}
+.ve-textarea{height:80px;padding:8px 12px;resize:vertical;min-height:56px;max-height:200px;line-height:1.5}
+select.ve-select,.ve-tex select.ve-tex__in{display:block;-webkit-appearance:auto;appearance:auto;padding:0 8px;line-height:1.2;cursor:pointer;background-color:var(--ve-raise)}
+.ve-select option,.ve-tex__in option{background:var(--ve-base);color:var(--ve-fg)}
+.ve-tex{display:grid;grid-template-columns:1fr 1fr;gap:12px 8px}
+.ve-tex__f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ve-tex__k{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ve-ink3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ve-tex__in[type="color"]{padding:4px;cursor:pointer}
+.ve-tex__in:disabled{opacity:.45;cursor:not-allowed}
+.ve-seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px;padding:4px;border-radius:8px;background:var(--ve-deep);height:40px;width:100%}
+.ve-seg button{display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:12px;font-weight:600;color:var(--ve-ink2);border:0;background:transparent;cursor:pointer;transition:background-color .15s,color .15s}
+.ve-seg button:hover{color:var(--ve-fg)}
+.ve-seg button[aria-pressed="true"]{background:var(--ve-raise2);color:var(--ve-fg);box-shadow:0 1px 2px #0006}
+.ve-seg button[disabled]{opacity:.45;cursor:default}
+.ve-seg button:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-2px}
+.ve-volrow{display:flex;align-items:center;gap:12px}
+.ve-volrow input[type="range"]{width:auto;flex:1;min-width:0}
+.ve-volval{font-size:12px;font-variant-numeric:tabular-nums;min-width:48px;text-align:right;color:var(--ve-ink2)}
+.ve-actions{display:flex;flex-direction:row;flex-wrap:wrap;gap:8px}
+.ve-facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 16px;margin:0;font-size:12px}
+.ve-facts dt{color:var(--ve-ink3)}
+.ve-facts dd{margin:0;font-variant-numeric:tabular-nums}
+.ve-mus__empty{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.ve-mus__chks{display:flex;flex-direction:column;gap:4px}
+.ve-mus__chk{display:flex;align-items:center;gap:8px;min-height:32px;padding:0 8px;margin:0 -8px;font-size:12px;cursor:pointer;color:var(--ve-fg);border-radius:8px;transition:background-color .15s}
+.ve-mus__chk input{accent-color:var(--ve-accent);margin:0;flex:none;width:16px;height:16px}
 .ve-mus__chk span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .ve-mus__chk:hover{background:var(--ve-soft)}
 .ve-mus__chk:focus-within{outline:2px solid var(--ve-accent);outline-offset:-1px}
-.ve-input,.ve-textarea{width:100%;min-width:0;border:1px solid var(--ve-line);border-radius:3px;background:transparent;color:var(--ve-fg);font:inherit;font-size:11.5px;padding:0 7px;height:30px}
-.ve-textarea{height:44px;padding:5px 7px;resize:none;line-height:1.35}
-.ve-input:focus-visible,.ve-textarea:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-1px}
-.ve-input[aria-invalid="true"]{border-color:var(--ve-fg);border-width:2px}
-.ve-counter{align-self:flex-end;font-size:9px;color:var(--ve-ink2);font-variant-numeric:tabular-nums}
-.ve-volrow{display:flex;align-items:center;gap:8px}
-.ve-volrow input[type="range"]{width:auto;flex:1;min-width:0}
-.ve-goto{width:62px;height:22px;font-size:11px;background:transparent;border:1px solid var(--ve-line);border-radius:3px;color:var(--ve-fg);padding:0 6px}
-.ve-tl__row--audio{position:relative}
-.ve-evs{position:absolute;inset:0;pointer-events:none}
-.ve-ev{position:absolute;top:1px;bottom:1px;width:9px;margin-left:-4px;padding:0;border:0;border-radius:2px;background:var(--ve-accent);opacity:.85;pointer-events:auto;cursor:pointer;font-size:8px;color:#000;line-height:1}
-.ve-ev:hover{opacity:1}
-.ve-sfx__row{border-top:1px solid var(--ve-line);padding-top:8px;margin-top:6px}
-.ve-out__v{width:100%;max-height:260px;background:#000;border-radius:4px;margin:6px 0}
-.ve-volval{font-size:10.5px;font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
-.ve-seg{display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px;padding:2px;border-radius:4px;background:color-mix(in oklab,var(--ve-fg) 7%,transparent);height:30px;width:100%}
-.ve-seg button{display:flex;align-items:center;justify-content:center;border-radius:3px;font-size:10.5px;font-weight:600;color:var(--ve-ink2);border:0;background:transparent;cursor:pointer}
-.ve-seg button[aria-pressed="true"]{background:var(--ve-surface);color:var(--ve-fg);box-shadow:0 1px 2px color-mix(in oklab,var(--ve-fg) 18%,transparent)}
-.ve-seg button:focus-visible{outline:2px solid var(--ve-accent);outline-offset:1px}
-.ve-select{display:flex;align-items:center;justify-content:space-between;gap:6px;text-align:left;cursor:pointer;width:100%;border:1px solid var(--ve-line);border-radius:3px;background:transparent;font-size:11.5px;height:30px;padding:0 7px}
-.ve-select:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-1px}
-.ve-select span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-select.ve-select{display:block;padding:0 6px;-webkit-appearance:auto;appearance:auto;line-height:1.2}
-.ve-inout{display:flex;align-items:center;gap:5px}
-.ve-tcout{flex:1;height:30px;display:flex;align-items:center;gap:4px;border:1px solid var(--ve-line);border-radius:3px;padding:0 6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:var(--ve-fg)}
-.ve-tcout input{border:0;background:transparent;color:inherit;font:inherit;width:100%;min-width:0;padding:0}
-.ve-tcout input:focus-visible{outline:2px solid var(--ve-accent);outline-offset:1px;border-radius:2px}
-.ve-tex{display:grid;grid-template-columns:1fr 1fr;gap:5px}
-.ve-tex__f{display:flex;flex-direction:column;gap:2px;min-width:0}
-.ve-tex__k{font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--ve-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ve-tex__in{height:32px;min-width:0;width:100%;border:1px solid var(--ve-line);border-radius:3px;background:transparent;color:var(--ve-fg);font-size:11.5px;padding:0 6px}
-.ve-tex__in:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-1px}
-.ve-tex__in[type="color"]{padding:3px;cursor:pointer}
-.ve-tex__in:disabled{opacity:.5;cursor:not-allowed}
-.ve-tex select.ve-tex__in{padding:0 4px}
-.ve-mus__chk--off{opacity:.55;cursor:not-allowed}
+.ve-mus__chk--off{opacity:.5;cursor:not-allowed}
 .ve-mus__chk--off:hover{background:transparent}
-.ve-ftr{display:flex;align-items:center;gap:8px;padding:0 10px;border-top:1px solid var(--ve-line)}
-.ve-ftr__hint{font-size:9.5px;color:var(--ve-ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ve-center{flex:1;display:grid;place-items:center;padding:18px;min-height:0}
-.ve-es{max-width:430px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
-.ve-es__icon{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:var(--ve-ink2);background:var(--ve-soft);margin-bottom:2px}
-.ve-es__icon--err{color:var(--ve-surface);background:var(--ve-fg)}
-.ve-es__t{font-size:13px;font-weight:600}
-.ve-es__b{font-size:11.5px;color:var(--ve-ink2);line-height:1.5;max-width:380px}
-.ve-es__actions{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;justify-content:center}
-.ve-drop{width:100%;max-width:430px;height:190px;border:1px dashed color-mix(in oklab,var(--ve-fg) 26%,transparent);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;padding:14px}
-.ve-drop--active{border-color:var(--ve-accent);border-style:solid;background:color-mix(in oklab,var(--ve-accent) 7%,transparent)}
-.ve-skel{background:color-mix(in oklab,var(--ve-fg) 9%,transparent);border-radius:3px;animation:ve-pulse 1.7s ease-in-out infinite}
-@keyframes ve-pulse{0%,100%{opacity:.55}50%{opacity:1}}
-.ve-loadrow{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ve-ink2)}
-.ve-spin{width:12px;height:12px;border-radius:50%;border:1.5px solid color-mix(in oklab,var(--ve-fg) 18%,transparent);border-top-color:var(--ve-accent);animation:ve-spin .8s linear infinite}
+.ve-sfx__row{border-top:1px solid var(--ve-line);padding-top:12px;margin-top:8px}
+.ve-tcout{flex:1;height:32px;display:flex;align-items:center;gap:4px;border-radius:8px;background:var(--ve-raise);padding:0 12px;font-family:var(--dt-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:12px;color:var(--ve-fg)}
+.ve-tcout input{border:0;background:transparent;color:inherit;font:inherit;width:100%;min-width:0;padding:0}
+.ve-tcout input:focus-visible{outline:2px solid var(--ve-accent);outline-offset:2px;border-radius:2px}
+.ve-note{margin:0;font-size:11px;color:var(--ve-ink3)}
+.ve-out{display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:12px;border-top:1px solid var(--ve-line)}
+.ve-out__p{display:block;padding:8px;border-radius:8px;background:var(--ve-deep);font-family:var(--dt-font-mono,ui-monospace,SFMono-Regular,Consolas,monospace);font-size:11px;color:var(--ve-ink2);word-break:break-all}
+.ve-out__a{display:flex;gap:8px;flex-wrap:wrap}
+.ve-out__v{width:100%;max-height:260px;background:#000;border-radius:8px;margin:8px 0}
+/* ---- estados: vacío, carga, error ------------------------------------------------ */
+.ve-center{flex:1;display:grid;place-items:center;padding:24px;min-height:0}
+.ve-es{max-width:440px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
+.ve-es__icon{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;color:var(--ve-accent);background:color-mix(in oklab,var(--ve-accent) 15%,transparent);margin-bottom:8px}
+.ve-es__icon .ve-i{width:24px;height:24px}
+.ve-es__icon--err{color:var(--ve-bad);background:color-mix(in oklab,var(--ve-bad) 15%,transparent)}
+.ve-es__t{font-size:16px;font-weight:600}
+.ve-es__b{font-size:12px;color:var(--ve-ink2);line-height:1.6;max-width:384px}
+.ve-es__actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;justify-content:center}
+.ve-drop{width:100%;max-width:480px;min-height:216px;border:1.5px dashed var(--ve-line2);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:24px;background:color-mix(in oklab,var(--ve-fg) 3%,transparent);transition:border-color .15s,background-color .15s}
+.ve-drop--active{border-color:var(--ve-accent);border-style:solid;background:color-mix(in oklab,var(--ve-accent) 10%,transparent)}
+.ve-skel{background:linear-gradient(100deg,var(--ve-raise) 30%,var(--ve-raise2) 50%,var(--ve-raise) 70%);background-size:200% 100%;border-radius:8px;animation:ve-shimmer 1.4s linear infinite}
+@keyframes ve-shimmer{to{background-position:-200% 0}}
+.ve-loadrow{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ve-ink2);padding:8px 16px;border-radius:20px;background:var(--ve-base);box-shadow:0 8px 24px -12px #000}
+.ve-spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--ve-line2);border-top-color:var(--ve-accent);animation:ve-spin .8s linear infinite;flex:none}
 @keyframes ve-spin{to{transform:rotate(360deg)}}
-.ve-scrim{position:absolute;inset:0;background:color-mix(in oklab,var(--ve-surface) 58%,transparent);backdrop-filter:blur(1.5px);z-index:10}
-.ve-dialog{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(430px,92%);max-height:86%;overflow:auto;background:var(--ve-surface);border:1px solid var(--ve-line);border-radius:6px;padding:16px;z-index:11;display:flex;flex-direction:column;gap:10px;box-shadow:0 24px 60px -22px color-mix(in oklab,var(--ve-fg) 60%,transparent)}
-.ve-dialog__t{font-size:13px;font-weight:600}
-.ve-dialog__b{font-size:11.5px;color:var(--ve-ink2);line-height:1.5}
-.ve-dialog__f{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
-.ve-progress{height:4px;border-radius:2px;background:color-mix(in oklab,var(--ve-fg) 12%,transparent);overflow:hidden}
-.ve-progress>i{display:block;height:100%;background:var(--ve-accent);transition:width .12s linear}
-.ve-stages{display:flex;flex-direction:column;gap:4px;font-size:11px}
-.ve-stages li{display:flex;align-items:center;gap:6px;list-style:none;color:var(--ve-ink2)}
+.ve-plist{display:flex;flex-direction:column;gap:4px;width:min(400px,92%);max-height:232px;overflow:auto;border:1px solid var(--ve-line);border-radius:12px;padding:8px;margin-top:8px;background:var(--ve-base)}
+/* ---- avisos (toasts) -------------------------------------------------------------- */
+.ve-toasts{position:absolute;top:56px;left:50%;transform:translateX(-50%);z-index:14;display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;width:min(480px,92%)}
+.ve-toast{pointer-events:auto;display:flex;align-items:center;gap:12px;min-width:200px;max-width:100%;padding:8px 8px 8px 16px;border-radius:12px;background:var(--ve-raise2);color:var(--ve-fg);font-size:12px;box-shadow:0 12px 32px -12px #000,0 0 0 1px var(--ve-line2);animation:ve-toast-in .24s var(--ve-ease)}
+.ve-toast .ve-i{flex:none}
+.ve-toast--ok .ve-i:first-child{color:var(--ve-ok)}
+.ve-toast--bad{box-shadow:0 12px 32px -12px #000,0 0 0 1px color-mix(in oklab,var(--ve-bad) 60%,transparent)}
+.ve-toast--bad .ve-i:first-child{color:var(--ve-bad)}
+.ve-toast--info .ve-i:first-child{color:var(--ve-accent)}
+.ve-toast__m{flex:1;min-width:0;line-height:1.4;overflow-wrap:anywhere}
+.ve-toast__bar{display:block;height:3px;border-radius:2px;background:var(--ve-line2);overflow:hidden;margin-top:4px}
+.ve-toast__bar i{display:block;height:100%;background:var(--ve-accent);transition:width .2s linear}
+@keyframes ve-toast-in{from{opacity:0;transform:translateY(-8px) scale(.98)}to{opacity:1;transform:none}}
+/* ---- diálogos, menús ------------------------------------------------------------- */
+.ve-scrim{position:absolute;inset:0;background:color-mix(in oklab,#000 55%,transparent);backdrop-filter:blur(3px);z-index:10;animation:ve-fade .18s var(--ve-ease)}
+.ve-dialog{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(448px,92%);max-height:88%;overflow:auto;background:var(--ve-base);border:1px solid var(--ve-line2);border-radius:16px;padding:24px;z-index:11;display:flex;flex-direction:column;gap:16px;box-shadow:0 32px 80px -24px #000;animation:ve-pop .2s var(--ve-ease)}
+@keyframes ve-pop{from{opacity:0;transform:translate(-50%,-48%) scale(.97)}to{opacity:1;transform:translate(-50%,-50%)}}
+.ve-dialog__t{font-size:16px;font-weight:600}
+.ve-dialog__b{font-size:12px;color:var(--ve-ink2);line-height:1.6}
+.ve-dialog__f{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.ve-progress{height:6px;border-radius:3px;background:var(--ve-line2);overflow:hidden}
+.ve-progress>i{display:block;height:100%;background:var(--ve-accent);border-radius:3px;transition:width .15s linear}
+.ve-stages{display:flex;flex-direction:column;gap:8px;font-size:12px;padding:0;margin:0}
+.ve-stages li{display:flex;align-items:center;gap:8px;list-style:none;color:var(--ve-ink3)}
 .ve-stages li[data-state="active"]{color:var(--ve-fg);font-weight:600}
-.ve-stages li[data-state="done"]{color:var(--ve-fg)}
-.ve-list{display:flex;flex-direction:column;gap:2px;max-height:230px;overflow:auto;border:1px solid var(--ve-line);border-radius:4px;padding:4px}
-.ve-file{display:flex;align-items:center;gap:7px;height:30px;padding:0 6px;border-radius:3px;font-size:11px;cursor:pointer;text-align:left;border:0;background:transparent;width:100%}
+.ve-stages li[data-state="done"]{color:var(--ve-ink2)}
+.ve-list{display:flex;flex-direction:column;gap:4px;max-height:232px;overflow:auto;border:1px solid var(--ve-line);border-radius:12px;padding:8px}
+.ve-file{display:flex;align-items:center;gap:8px;height:32px;padding:0 8px;border-radius:8px;font-size:12px;cursor:pointer;text-align:left;border:0;background:transparent;width:100%;transition:background-color .15s}
 .ve-file:hover{background:var(--ve-soft)}
 .ve-file input{accent-color:var(--ve-accent);margin:0}
 .ve-file__n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-.ve-file__s{font-size:9.5px;color:var(--ve-ink2);font-variant-numeric:tabular-nums}
-.ve-menu{position:absolute;z-index:12;min-width:190px;background:var(--ve-surface);border:1px solid var(--ve-line);border-radius:4px;padding:4px;box-shadow:0 16px 40px -20px color-mix(in oklab,var(--ve-fg) 60%,transparent);display:flex;flex-direction:column;gap:1px}
-.ve-menu button{display:flex;align-items:center;height:28px;padding:0 8px;border:0;background:transparent;border-radius:3px;font-size:11.5px;text-align:left;cursor:pointer;width:100%}
+.ve-file__s{font-size:11px;color:var(--ve-ink3);font-variant-numeric:tabular-nums}
+.ve-menu{position:absolute;z-index:12;min-width:216px;background:var(--ve-raise);border:1px solid var(--ve-line2);border-radius:12px;padding:4px;box-shadow:0 20px 48px -16px #000;display:flex;flex-direction:column;gap:2px;animation:ve-pop-m .16s var(--ve-ease)}
+@keyframes ve-pop-m{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.ve-menu button{display:flex;align-items:center;height:32px;padding:0 12px;border:0;background:transparent;border-radius:8px;font-size:12px;text-align:left;cursor:pointer;width:100%;transition:background-color .12s}
 .ve-menu button:hover{background:var(--ve-soft)}
-.ve-log{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;border:1px solid var(--ve-line);border-radius:4px;padding:6px;color:var(--ve-ink2)}
+.ve-menu button:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-2px}
+.ve-log{font-family:var(--dt-font-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;border-radius:8px;background:var(--ve-deep);padding:8px;color:var(--ve-ink2)}
 .ve-stub{border-style:dashed}
 .ve-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .ve-compact-hide{display:none}
-@media (max-width:520px){
-  .ve-auto{display:none}
-  .ve-chat .ve-chip__name,.ve-chat__b{display:none}
-  .ve-chat{padding:0 6px}
-  .ve-hdr .ve-badge{display:none}
-  .ve-hdr .ve-title,.ve-hdr .ve-sep{display:none}
-  .ve-hdr{padding:0 6px;gap:5px}
-  .ve-chip{max-width:112px}
-  .ve-transport{gap:1px;padding:0 4px}
-  .ve-transport [aria-label="Partir en el cursor"]{display:none}
-  .ve-tc{font-size:10px}
-}
-/* --- v3.1 · dock derecho (922 px / 655 px) -------------------------------
-   Los drawers son absolute DENTRO de .ve-body (position:relative + contain:paint),
-   nunca fixed: si el pane cambia de sitio, el overlay viaja con él. ---------- */
-.ve-lib{position:absolute;left:0;top:0;bottom:0;width:220px;display:flex;flex-direction:column;min-height:0;background:var(--ve-surface);border-right:1px solid var(--ve-line);z-index:9;overflow:hidden;contain:paint;box-shadow:14px 0 30px -24px color-mix(in oklab,var(--ve-fg) 60%,transparent)}
-.ve-lib__h{display:flex;align-items:center;gap:6px;height:34px;flex:none;padding:0 6px 0 10px;border-bottom:1px solid var(--ve-line);min-width:0}
-.ve-lib__t{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ve-ink2);white-space:nowrap}
-.ve-lib__list{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:2px;padding:4px}
-.ve-lib__item{display:grid;grid-template-columns:9px minmax(0,1fr);align-items:center;gap:7px;height:32px;padding:0 6px;border:1px solid transparent;border-radius:3px;background:transparent;text-align:left;cursor:pointer;width:100%;min-width:0}
-.ve-lib__item:hover{background:var(--ve-soft)}
-.ve-lib__item[aria-current="true"]{border-color:color-mix(in oklab,var(--ve-accent) 38%,transparent);background:color-mix(in oklab,var(--ve-accent) 9%,transparent)}
-.ve-lib__m{min-width:0;display:flex;flex-direction:column;gap:1px}
-.ve-lib__n{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.2}
-.ve-lib__s{font-size:9px;color:var(--ve-ink2);font-variant-numeric:tabular-nums;line-height:1.2}
-.ve-lib__empty{padding:10px;font-size:10.5px;color:var(--ve-ink2);line-height:1.45}
-.ve-ov{position:absolute;inset:0;background:color-mix(in oklab,var(--ve-surface) 52%,transparent);z-index:8}
-.ve-root[data-compact="1"] .ve-body{grid-template-columns:minmax(0,1fr)}
-.ve-root[data-compact="1"] .ve-left{border-right:0}
-.ve-root[data-compact="1"] .ve-rail{position:absolute;left:0;right:0;bottom:0;height:240px;max-height:72%;width:auto;background:var(--ve-surface);border-top:1px solid var(--ve-line);z-index:9;overflow:auto;box-shadow:0 -18px 40px -24px color-mix(in oklab,var(--ve-fg) 60%,transparent)}
-.ve-root[data-compact="1"] .ve-scenes{max-height:96px}
-.ve-root[data-compact="1"] .ve-tl{height:96px}
-.ve-root[data-compact="1"] .ve-rail__sec{padding:6px 10px}
-.ve-root[data-tight="1"] .ve-tl{height:84px}
-.ve-root[data-tight="1"] .ve-hdr{padding:0 6px;gap:5px}
-.ve-root[data-tight="1"] .ve-auto,.ve-root[data-tight="1"] .ve-title{display:none}
-.ve-root[data-tight="1"] .ve-chat .ve-chip__name{display:none}
-.ve-root[data-tight="1"] .ve-chip{max-width:124px}
-.ve-tip{position:absolute;right:10px;top:46px;z-index:13;max-width:240px;padding:6px 9px;border:1px solid var(--ve-line);border-radius:4px;background:var(--ve-card);color:var(--ve-fg);font-size:10.5px;line-height:1.4;box-shadow:0 12px 30px -18px color-mix(in oklab,var(--ve-fg) 60%,transparent)}
-/* --- v0.4 · pulido de la interfaz ---------------------------------------------
-   Un solo bloque de ajustes sobre lo anterior: más legible (nada por debajo de
-   10,5 px), panel de propiedades con pestañas y scroll propio, línea de tiempo
-   alineada con el cursor y cajón de propiedades usable en paneles estrechos. ---- */
-.ve-root{--ve-ink2:color-mix(in oklab,var(--ve-fg) 86%,transparent);--ve-ink3:color-mix(in oklab,var(--ve-fg) 74%,transparent);font-size:12.5px}
-.ve-title{font-size:13px}
-.ve-chip{font-size:12px}
-.ve-btn{font-size:12px}
-.ve-btn--sm{height:28px;padding:0 9px}
-.ve-btn--text.ve-btn--sm{padding:0 4px}
-.ve-badge{font-size:10.5px;height:19px}
-.ve-auto{font-size:11.5px}
-.ve-stage__name{font-size:12.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ve-stage__count{font-size:11.5px}
-.ve-cap{background:none;border:0;backdrop-filter:none;padding:0 4px;color:#fff;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,.8),0 0 2px rgba(0,0,0,.7);pointer-events:none;left:6%;right:6%}
-.ve-cap--top{top:8%;bottom:auto}
-.ve-cap--center{top:50%;bottom:auto;transform:translateY(-50%)}
-.ve-tc{font-size:11.5px}
-.ve-goto{width:70px;height:26px;font-size:11.5px}
-.ve-transport{height:38px}
-/* línea de tiempo */
-.ve-tl{height:auto;max-height:200px;overflow:hidden}
-.ve-tl__ruler{height:24px;background-image:none;cursor:pointer;touch-action:none;user-select:none}
-.ve-tick{position:absolute;top:0;bottom:0;border-left:1px solid color-mix(in oklab,var(--ve-fg) 28%,transparent)}
-.ve-tick em{position:absolute;top:4px;left:4px;font-style:normal;font-size:10.5px;line-height:1;color:var(--ve-ink2);font-variant-numeric:tabular-nums;white-space:nowrap}
-.ve-tl__gutter{width:52px;font-size:10.5px;letter-spacing:0}
-.ve-tl__ruler{margin-left:52px}
-.ve-tl__gutter span{height:48px;padding-left:10px}
-.ve-tl__gutter span+span{height:28px}
-.ve-tl__gutter span:nth-child(3){height:24px}
-.ve-tl__tracks{padding-right:0;margin-right:10px}
-.ve-tl__row{height:48px;gap:0}
-.ve-clip{padding:6px 8px;justify-content:flex-start;gap:1px}
-.ve-clip__n{position:absolute;top:5px;right:8px;font-size:10px;color:var(--ve-ink3)}
-.ve-clip__t{font-size:11.5px;line-height:1.25;padding-right:18px}
-.ve-clip__d{font-size:10.5px}
-.ve-clip--sel{padding:5px 7px}
-.ve-trim{width:8px}
-.ve-tl__row--audio{height:26px;margin-top:2px;display:flex;position:relative}
-.ve-ab{position:relative;min-width:0;display:flex;align-items:flex-end;overflow:hidden;border:1px solid var(--ve-line);background:var(--ve-soft)}
-.ve-ab i{display:block;width:100%;background:color-mix(in oklab,var(--ve-accent) 36%,transparent)}
-.ve-ab small{position:absolute;left:5px;top:50%;transform:translateY(-50%);font-size:10.5px;color:var(--ve-fg);white-space:nowrap}
-.ve-ab--sel{border-color:var(--ve-accent)}
-.ve-ab--sel i{background:color-mix(in oklab,var(--ve-accent) 60%,transparent)}
-.ve-tl__row--music{height:22px;margin-top:2px;display:flex;align-items:center;gap:6px;padding:0 8px;border:1px solid var(--ve-line);border-radius:2px;font-size:10.5px;color:var(--ve-ink2);background:color-mix(in oklab,var(--ve-accent) 10%,transparent);overflow:hidden;white-space:nowrap}
-.ve-evs{pointer-events:none}
-/* panel derecho: escenas fijas, pestañas y cuerpo con scroll */
-.ve-body{grid-template-columns:minmax(0,1fr) 320px}
-.ve-rail{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;background:var(--ve-surface)}
-.ve-rail__top{display:flex;align-items:center;gap:6px;height:40px;flex:none;padding:0 6px 0 12px;border-bottom:1px solid var(--ve-line)}
-.ve-rail__sec--scenes{flex:none;border-bottom:1px solid var(--ve-line);padding:8px 10px 10px}
-.ve-rail__t{font-size:10.5px}
-.ve-rail__h{height:28px;margin-bottom:6px}
-.ve-scenes{max-height:184px;overflow:auto}
-.ve-scene-row{grid-template-columns:minmax(0,1fr) 28px 28px}
-.ve-scene{grid-template-columns:18px 46px minmax(0,1fr);height:42px;gap:7px;padding:0 6px}
-.ve-scene__n{font-size:10.5px}
-.ve-scene__name{font-size:12px}
-.ve-scene__dur{font-size:10.5px}
-.ve-mv{width:28px;height:30px}
-.ve-thumb{width:46px;height:26px;object-fit:cover;display:grid;place-items:center;color:var(--ve-ink3);background:var(--ve-soft);border-radius:3px;overflow:hidden;pointer-events:none}
-.ve-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;flex:none;padding:6px 8px;border-bottom:1px solid var(--ve-line)}
-.ve-tabs button{height:30px;border:0;border-radius:4px;background:transparent;color:var(--ve-ink2);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ve-tabs button:hover{background:var(--ve-soft);color:var(--ve-fg)}
-.ve-tabs button[aria-selected="true"]{background:color-mix(in oklab,var(--ve-accent) 12%,transparent);color:var(--ve-fg);box-shadow:inset 0 -2px 0 var(--ve-accent)}
-.ve-tabs button:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-2px}
-.ve-rail__body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;display:flex;flex-direction:column}
-.ve-rail__body>*{flex:none;padding:12px;border-bottom:1px solid var(--ve-line);min-width:0}
-.ve-rail__body>:last-child{border-bottom:0;padding-bottom:20px}
-.ve-rail__body>.ve-es{margin:28px auto;border:0;max-width:260px}
-.ve-rail__body>.ve-rail__sec{padding:12px}
-.ve-f{gap:5px}
-.ve-f__l{font-size:12px;font-weight:600;color:var(--ve-fg)}
-.ve-f__h{font-size:11px;color:var(--ve-ink3);line-height:1.4}
-.ve-f__err{font-size:11px}
-.ve-props{gap:10px}
-.ve-tex__k{font-size:10.5px;letter-spacing:.03em}
-.ve-tex{gap:8px}
-.ve-tex__in{height:32px;font-size:12px}
-.ve-input,.ve-textarea{font-size:12px;height:32px}
-.ve-textarea{height:72px;resize:vertical;min-height:56px;max-height:160px}
-.ve-counter{font-size:10.5px;margin-left:auto}
-.ve-f__l .ve-counter{margin-left:auto}
-.ve-f__l{width:100%}
-.ve-volval{font-size:11.5px;min-width:42px}
-.ve-select,select.ve-select{font-size:12px;height:32px;color:var(--ve-fg);background-color:var(--ve-surface)}
-.ve-select option,.ve-tex__in option{background:var(--ve-surface);color:var(--ve-fg)}
-.ve-tex select.ve-tex__in{background-color:var(--ve-surface)}
-.ve-chip{flex:0 1 auto;min-width:34px}
-.ve-chip--ghost{max-width:150px}
-.ve-root[data-compact="1"] .ve-chat .ve-chip__name{display:none}
-.ve-root[data-compact="1"] .ve-chat{padding:0 8px}
-.ve-seg{height:32px}
-.ve-seg button{font-size:11.5px}
-.ve-seg button[disabled]{opacity:.5;cursor:default}
-.ve-tcout{height:32px;font-size:12px}
-.ve-mus__chk{font-size:12px}
-.ve-actions{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px}
-.ve-facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 14px;margin:0;font-size:12px}
-.ve-facts dt{color:var(--ve-ink2)}
-.ve-facts dd{margin:0;font-variant-numeric:tabular-nums}
-.ve-lib{width:240px}
-.ve-lib__t{font-size:10.5px}
-.ve-lib__n{font-size:12px}
-.ve-lib__s{font-size:10.5px}
-.ve-plist{display:flex;flex-direction:column;gap:2px;width:min(380px,92%);max-height:220px;overflow:auto;border:1px solid var(--ve-line);border-radius:6px;padding:4px;margin-top:6px}
-.ve-plist .ve-file{height:34px;font-size:12px}
-.ve-ftr{padding:0 12px}
-.ve-ftr__hint{font-size:11.5px}
-.ve-menu button{font-size:12px;height:30px}
-.ve-es__b{font-size:12px}
-.ve-dialog__b{font-size:12px}
-/* anchos: el panel de propiedades es un cajón lateral solo cuando no cabe al lado */
-.ve-root[data-compact="1"] .ve-rail{position:absolute;top:0;right:0;bottom:0;left:auto;height:auto;max-height:none;width:min(340px,100%);border-top:0;border-left:1px solid var(--ve-line);z-index:9;box-shadow:-18px 0 36px -26px color-mix(in oklab,var(--ve-fg) 70%,transparent)}
-.ve-root[data-compact="1"] .ve-tl,.ve-root[data-tight="1"] .ve-tl{height:auto}
-.ve-root[data-tight="1"] .ve-model{display:none}
-@media (max-width:520px){.ve-hdr .ve-title{display:none}}
-.ve-root[data-compact="1"] .ve-scenes{max-height:184px}
-.ve-root[data-compact="1"] .ve-rail__sec{padding:12px}
-.ve-root[data-compact="1"] .ve-rail__sec--scenes{padding:8px 10px 10px}
-
-@media (prefers-reduced-motion:reduce){
-  .ve-root *{transition:none!important;animation:none!important}
-}
-/* Botón de la barra de título (vive fuera de .ve-root: tokens con fallback). */
+.ve-tip{position:absolute;right:16px;top:56px;z-index:13;max-width:264px;padding:8px 12px;border-radius:12px;background:var(--ve-raise2);color:var(--ve-fg);font-size:12px;line-height:1.5;box-shadow:0 12px 32px -12px #000,0 0 0 1px var(--ve-line2)}
+/* ---- anchos ----------------------------------------------------------------------- */
+.ve-root[data-layout="mid"] .ve-hdr .ve-model,.ve-root[data-layout="mid"] .ve-title{display:none}
+.ve-root[data-layout="mid"] .ve-transport__row{padding:0 12px}
+.ve-root[data-layout="narrow"] .ve-hdr{padding:0 8px;gap:4px}
+.ve-root[data-layout="narrow"] .ve-hdr .ve-title,.ve-root[data-layout="narrow"] .ve-hdr .ve-model,.ve-root[data-layout="narrow"] .ve-hdr .ve-sep,.ve-root[data-layout="narrow"] .ve-hdr .ve-chip--ghost{display:none}
+.ve-root[data-layout="narrow"] .ve-chip{max-width:136px}
+.ve-root[data-layout="narrow"] .ve-auto{padding:0 4px}
+.ve-root[data-layout="narrow"] .ve-auto span.ve-auto__t{display:none}
+.ve-root[data-layout="narrow"] .ve-stage{padding:40px 12px 8px}
+.ve-root[data-layout="narrow"] .ve-transport__row{padding:0 8px;grid-template-columns:auto 1fr auto}
+.ve-root[data-layout="narrow"] .ve-transport__r .ve-goto{display:none}
+.ve-root[data-layout="narrow"] .ve-tl{--w-head:40px}
+.ve-root[data-layout="narrow"] .ve-lh{padding:0;justify-content:center}
+.ve-root[data-layout="narrow"] .ve-lh span{display:none}
+.ve-root[data-layout="narrow"] .ve-tl__bar .ve-tl__sum{display:none}
+.ve-root[data-layout="narrow"] .ve-tc{font-size:11px}
+.ve-root[data-layout="narrow"] .ve-tc b{font-size:13px}
+.ve-root[data-layout="narrow"] .ve-play{margin:0 4px}
+@media (max-height:700px){.ve-tl{--h-video:48px;--h-text:24px;--h-audio:24px;--h-music:24px}}
+@media (prefers-reduced-motion:reduce){.ve-root *{transition:none!important;animation:none!important}}
+/* Botón de la barra de título (vive fuera de .ve-root: tokens con respaldo). */
 .ve-tb{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 8px;border-radius:7px;border:1px solid var(--ui-stroke-tertiary,var(--border));background:transparent;color:var(--ui-text-secondary,var(--foreground));font:inherit;font-size:11px;line-height:1;cursor:pointer;white-space:nowrap}
 .ve-tb:hover{background:var(--ui-surface-2,rgba(127,127,127,.14));color:var(--ui-text-primary,var(--foreground))}
 .ve-tb[aria-pressed="true"]{color:var(--ui-accent,var(--accent));border-color:color-mix(in oklab,var(--ui-accent,var(--accent)) 55%,transparent);background:color-mix(in oklab,var(--ui-accent,var(--accent)) 12%,transparent)}
@@ -1035,6 +1034,17 @@ const PATHS = {
   panel: 'M4 5h16v14H4z M15 5v14',
   image: 'M4 5h16v14H4z M8 11l3 3 2-2 3 3',
   plus: 'M12 5v14 M5 12h14',
+  mute: 'M5 9v6h3l4 4V5L8 9z M17 9l5 6 M22 9l-5 6',
+  type: 'M5 6V4h14v2 M12 4v16 M9 20h6',
+  music: 'M9 18V5l11-2v13 M6 21a3 3 0 100-6 3 3 0 000 6z M17 19a3 3 0 100-6 3 3 0 000 6z',
+  zoomin: 'M11 4a7 7 0 100 14 7 7 0 000-14z M21 21l-5-5 M8 11h6 M11 8v6',
+  zoomout: 'M11 4a7 7 0 100 14 7 7 0 000-14z M21 21l-5-5 M8 11h6',
+  fit: 'M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5',
+  layers: 'M12 3l9 5-9 5-9-5z M3 13l9 5 9-5',
+  sliders: 'M4 7h9 M17 7h3 M4 12h3 M11 12h9 M4 17h11 M19 17h1 M15 5v4 M9 10v4 M17 15v4',
+  info: 'M12 4a8 8 0 100 16 8 8 0 000-16z M12 11v5 M12 8h.01',
+  checkcircle: 'M12 4a8 8 0 100 16 8 8 0 000-16z M8 12l3 3 5-6',
+  sparkle: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z',
   trash: 'M5 7h14 M9 7V4h6v3 M7 7l1 13h8l1-13 M10 11v6 M14 11v6'
 }
 
@@ -1244,6 +1254,10 @@ function VideoPane({ ctx, onClose }) {
   const tlRowRef = useRef(null)
   const dragRef = useRef(null)
   const [dragUi, setDragUi] = useState(null)
+  const [zoom, setZoom] = useState(1)
+  const [leftTab, setLeftTab] = useState('scenes')
+  const [snapT, setSnapT] = useState(null)
+  const tlScrollRef = useRef(null)
 
   const docRef = useRef(null)
   const baseRef = useRef(null)
@@ -1465,9 +1479,16 @@ function VideoPane({ ctx, onClose }) {
   }, [])
   useEffect(() => {
     if (!notice) return undefined
-    const timer = setTimeout(() => setNotice(''), 6000)
+    const timer = setTimeout(() => setNotice(''), /^Guardado$/.test(notice) ? 2200 : 6000)
     return () => clearTimeout(timer)
   }, [notice])
+  // Con zoom, el cursor se mantiene a la vista mientras reproduces o saltas.
+  useEffect(() => {
+    const box = tlScrollRef.current
+    if (!box || zoom <= 1.001 || !total) return
+    const x = (cursor / total) * (box.scrollWidth - 24)
+    if (x < box.scrollLeft + 24 || x > box.scrollLeft + box.clientWidth - 48) box.scrollLeft = Math.max(0, x - box.clientWidth * 0.35)
+  }, [cursor, zoom, total])
 
   // -------------------------------------------------------------- guardado
 
@@ -1502,7 +1523,7 @@ function VideoPane({ ctx, onClose }) {
           setDirty(false)
           setStatus('saved')
           setSavedAt(Date.now())
-          setNotice('')
+          setNotice(options.force ? 'Guardado' : '')
         }
         return true
       } catch (error) {
@@ -2133,7 +2154,7 @@ function VideoPane({ ctx, onClose }) {
       for (let waited = 0; savingRef.current && waited < 150; waited += 1) await new Promise((resolve) => setTimeout(resolve, 100))
       if (dirtyRef.current) {
         const saved = await save({ force: false })
-        if (saved === false) throw new Error('No se pudo guardar antes de exportar. Revisa el aviso del pie y vuelve a intentarlo.')
+        if (saved === false) throw new Error('No se pudo guardar antes de exportar. Revisa el aviso y vuelve a intentarlo.')
       }
       const payload = await request(ctx, `/projects/${encodeURIComponent(doc.projectId)}/export`, {
         method: 'POST',
@@ -2337,7 +2358,8 @@ function VideoPane({ ctx, onClose }) {
 
   // -------------------------------------------------------------- derivados de render
 
-  const compact = width < 900
+  const layout = width >= 1100 ? 'wide' : width >= 760 ? 'mid' : 'narrow'
+  const compact = layout === 'narrow'
   const tight = width < 600
   const modelName = (() => {
     const raw = typeof modelSlug === 'string' ? modelSlug.trim() : ''
@@ -2445,69 +2467,17 @@ function VideoPane({ ctx, onClose }) {
     setNotice(`Medio reemplazado: ${baseName(item.path)} · in/out conservados`)
   }
 
-  const library = () =>
-    !libOpen || !doc
-      ? null
-      : h(
-          'aside',
-          { className: 've-lib', 'aria-label': 'Biblioteca de medios del proyecto' },
-          h(
-            'div',
-            { className: 've-lib__h' },
-            h('span', { className: 've-lib__t' }, 'Medios'),
-            h('span', { className: 've-spacer' }),
-            h(Btn, {
-              variant: 'text',
-              label: 'Añadir',
-              title: 'Añadir un medio de la biblioteca como escena',
-              onClick: () => {
-                setDialog({ kind: 'picker' })
-                openPicker('add')
-              }
-            }),
-            h(Btn, { icon: 'close', variant: 'ghost', ariaLabel: 'Cerrar medios', onClick: () => setLibOpen(false) })
-          ),
-          media.length
-            ? h(
-                'div',
-                { className: 've-lib__list' },
-                media.map((item) =>
-                  h(
-                    'button',
-                    {
-                      key: item.id,
-                      type: 'button',
-                      className: 've-lib__item',
-                      'aria-current': activeAsset === item.id ? 'true' : undefined,
-                      title: item.path,
-                      onClick: () => {
-                        const target = (doc.scenes || []).find((scene) => (scene.source && scene.source.assetId) === item.id)
-                        if (target) setSelId(target.id)
-                        setLibOpen(false)
-                        setNotice(`Medio seleccionado: ${baseName(item.path)}`)
-                      }
-                    },
-                    h(Dot, { tone: activeAsset === item.id ? 'good' : item.exists === false ? 'bad' : undefined }),
-                    h(
-                      'span',
-                      { className: 've-lib__m' },
-                      h('span', { className: 've-lib__n' }, baseName(item.path)),
-                      h('span', { className: 've-lib__s' }, `${item.kind || 'medio'}${item.exists === false ? ' · falta' : ''}${item.bytes ? ` · ${fmtBytes(item.bytes)}` : ''}`)
-                    )
-                  )
-                )
-              )
-            : h('p', { className: 've-lib__empty' }, 'Sin medios todavía. «Añadir» elige de la biblioteca; «Importar medios» trae archivos de la carpeta concedida.')
-        )
-
   // -------------------------------------------------------------- regiones
 
-  const header = () =>
-    h(
+  const header = () => {
+    const layoutName = layout
+    const wide = layoutName === 'wide'
+    const narrow = layoutName === 'narrow'
+    return h(
       'header',
       { className: 've-hdr' },
       h('span', { className: 've-plate' }, h(Icon, { name: 'film' })),
-      width >= 1000 ? h('span', { className: 've-title' }, 'Editor de vídeo') : null,
+      !narrow ? h('span', { className: 've-title' }, 'Editor de vídeo') : null,
       h('span', { className: 've-sep' }),
       h(
         'button',
@@ -2519,10 +2489,16 @@ function VideoPane({ ctx, onClose }) {
           'aria-haspopup': 'menu',
           'aria-expanded': menu === 'projects'
         },
-        h(Icon, { name: 'film', size: 'sm' }),
         h('span', { className: 've-chip__name' }, doc ? doc.title : 'Sin proyecto'),
         h(Icon, { name: 'down', size: 'sm' })
       ),
+      h(
+        'span',
+        { className: `ve-auto ve-auto--${autosaveTone}`, 'aria-live': 'polite', title: savedLabel },
+        status === 'saving' ? h(Spinner) : h(Dot, { tone: autosaveTone }),
+        h('span', { className: 've-auto__t' }, savedLabel)
+      ),
+      h('span', { className: 've-spacer' }),
       h(
         'button',
         {
@@ -2540,7 +2516,7 @@ function VideoPane({ ctx, onClose }) {
         h('span', { className: 've-chip__name' }, sessionId ? `Chat ${shortChat(sessionId)}` : 'Sin chat'),
         liveBusy ? h('span', { className: 've-chat__b' }, 'trabajando') : null
       ),
-      modelName
+      modelName && wide
         ? h(
             'button',
             {
@@ -2562,40 +2538,27 @@ function VideoPane({ ctx, onClose }) {
             h('span', { className: 've-chip__name' }, modelName)
           )
         : null,
-      h('span', { className: 've-spacer' }),
-      h('span', { className: 've-auto', 'aria-live': 'polite' }, h(Dot, { tone: autosaveTone }), savedLabel),
+      h('span', { className: 've-sep' }),
       h(Btn, { icon: 'undo', variant: 'ghost', ariaLabel: 'Deshacer', title: 'Deshacer · Ctrl+Z', onClick: undo, disabled: !undoDepth }),
       h(Btn, { icon: 'redo', variant: 'ghost', ariaLabel: 'Rehacer', title: 'Rehacer · Ctrl+Shift+Z', onClick: redo, disabled: !redoDepth }),
-      h(Btn, {
-        variant: 'primary',
-        ...(compact
-          ? { icon: 'save', ariaLabel: 'Guardar', title: 'Guardar · Ctrl+S' }
-          : { label: status === 'saving' ? 'Guardando…' : 'Guardar' }),
-        onClick: () => save({ force: true }),
-        disabled: !doc
-      }),
-      h(Btn, {
-        icon: 'more',
-        variant: 'ghost',
-        ariaLabel: 'Más acciones',
-        onClick: () => setMenu(menu === 'more' ? null : 'more')
-      }),
-      h(Btn, {
-        icon: 'image',
-        variant: libOpen ? 'outline' : 'ghost',
-        ...(width >= 700 ? { label: 'Medios' } : { ariaLabel: 'Medios' }),
-        title: 'Medios · archivos del proyecto',
-        disabled: !doc,
-        onClick: () => {
-          setLibOpen((prev) => !prev)
-          setRailOpen(false)
-        }
-      }),
+      !wide
+        ? h(Btn, {
+            icon: 'layers',
+            variant: libOpen ? 'outline' : 'ghost',
+            ariaLabel: 'Medios y escenas',
+            title: 'Medios y escenas',
+            disabled: !doc,
+            onClick: () => {
+              setLibOpen((prev) => !prev)
+              setRailOpen(false)
+            }
+          })
+        : null,
       compact
         ? h(Btn, {
-            icon: 'panel',
+            icon: 'sliders',
             variant: railOpen ? 'outline' : 'ghost',
-            ...(width >= 700 ? { label: 'Propiedades' } : { ariaLabel: 'Propiedades' }),
+            ariaLabel: 'Propiedades',
             title: 'Escenas y propiedades',
             disabled: !doc,
             onClick: () => {
@@ -2605,16 +2568,32 @@ function VideoPane({ ctx, onClose }) {
           })
         : null,
       h(Btn, {
+        icon: 'save',
+        variant: 'outline',
+        ...(wide ? { label: status === 'saving' ? 'Guardando…' : 'Guardar', title: 'Guardar · Ctrl+S' } : { ariaLabel: 'Guardar', title: 'Guardar · Ctrl+S' }),
+        onClick: () => save({ force: true }),
+        disabled: !doc
+      }),
+      h(Btn, { icon: 'more', variant: 'ghost', ariaLabel: 'Más acciones', onClick: () => setMenu(menu === 'more' ? null : 'more') }),
+      h(Btn, {
+        variant: 'primary',
+        icon: 'download',
+        label: narrow ? 'Exportar' : `Exportar ${doc ? `${doc.height}p · ${docFps}` : 'MP4'}`,
+        disabled: !canExport,
+        title: canExport ? 'Exportar MP4 (Ctrl+E)' : !(doc && (doc.scenes || []).length) ? 'Añade al menos una escena para exportar' : missing.length ? 'Falta un medio: vuelve a vincularlo' : 'Ya hay una exportación en curso',
+        onClick: () => setDialog({ kind: 'exportForm' })
+      }),
+      h(Btn, {
         icon: 'close',
         variant: 'ghost',
         ariaLabel: 'Cerrar editor de vídeo (Ctrl+Shift+E)',
         title: 'Cerrar (Ctrl+Shift+E)',
-        label: width >= 700 ? 'Cerrar' : undefined,
         onClick: () => {
           if (typeof onClose === 'function') onClose()
         }
       })
     )
+  }
 
   const stage = () => {
     if (phase === 'boot') {
@@ -2774,60 +2753,12 @@ function VideoPane({ ctx, onClose }) {
     )
   }
 
-  const transport = () =>
-    h(
+  const transport = () => {
+    if (!doc || !(doc.scenes || []).length) return null
+    const hasScenes = true
+    return h(
       'div',
       { className: 've-transport' },
-      h(Btn, { icon: 'start', variant: 'ghost', ariaLabel: 'Ir al inicio', onClick: () => setCursor(0) }),
-      h(Btn, {
-        icon: 'prev',
-        variant: 'ghost',
-        ariaLabel: 'Escena anterior',
-        disabled: at.index <= 0,
-        onClick: () => {
-          const row = rows[Math.max(0, at.index - 1)]
-          if (row) {
-            setCursor(row.start)
-            setSelId(row.id)
-          }
-        }
-      }),
-      h(Btn, {
-        icon: playing ? 'pause' : 'play',
-        variant: 'ghost',
-        ariaLabel: playing ? 'Pausar' : 'Reproducir',
-        disabled: !doc || !(doc.scenes || []).length,
-        onClick: () => setPlaying((prev) => !prev)
-      }),
-      h(Btn, {
-        icon: 'next',
-        variant: 'ghost',
-        ariaLabel: 'Escena siguiente',
-        disabled: at.index < 0 || at.index >= rows.length - 1,
-        onClick: () => {
-          const row = rows[Math.min(rows.length - 1, at.index + 1)]
-          if (row) {
-            setCursor(row.start)
-            setSelId(row.id)
-          }
-        }
-      }),
-      h(Btn, { icon: 'end', variant: 'ghost', ariaLabel: 'Ir al final', onClick: () => setCursor(total) }),
-      h('span', { className: 've-tc', title: 'Tiempo exacto (mm:ss.ms). Escribe uno a la derecha para saltar.' }, h('b', null, fmtTimecode(cursor)), ` / ${fmtTimecode(total)}`),
-      h('input', {
-        className: 've-goto',
-        defaultValue: '',
-        placeholder: 'Ir a…',
-        title: 'Escribe un tiempo (ej. 1:23.5) y pulsa Enter para saltar',
-        inputMode: 'decimal',
-        'aria-label': 'Ir al tiempo (mm:ss.ms)',
-        onKeyDown: (event) => {
-          if (event.key !== 'Enter') return
-          const seconds = parseTimecode(event.target.value)
-          if (seconds !== null) setCursor(clamp(seconds, 0, total))
-          event.target.value = ''
-        }
-      }),
       h(
         'div',
         { className: 've-scrub' },
@@ -2843,45 +2774,129 @@ function VideoPane({ ctx, onClose }) {
           onChange: (event) => setCursor(Number(event.target.value))
         })
       ),
-      h(Btn, { icon: 'scissors', variant: 'ghost', ariaLabel: 'Partir en el cursor', title: 'Partir · S', onClick: splitHere, disabled: !sel }),
-      h(Btn, {
-        icon: 'volume',
-        variant: 'ghost',
-        ariaLabel: muted ? 'Activar sonido' : 'Silenciar',
-        onClick: () => {
-          const next = !muted
-          setMuted(next)
-          if (ctx && ctx.storage && ctx.storage.set) ctx.storage.set('transport.muted', next)
-        }
-      })
+      h(
+        'div',
+        { className: 've-transport__row' },
+        h('span', { className: 've-tc', title: 'Tiempo exacto (mm:ss.ms). Escribe uno a la derecha para saltar.' }, h('b', null, fmtTimecode(cursor)), ` / ${fmtTimecode(total)}`),
+        h(
+          'div',
+          { className: 've-transport__c' },
+          h(Btn, { icon: 'start', variant: 'ghost', ariaLabel: 'Ir al inicio', title: 'Ir al inicio · Inicio', onClick: () => setCursor(0) }),
+          h(Btn, {
+            icon: 'prev',
+            variant: 'ghost',
+            ariaLabel: 'Escena anterior',
+            title: 'Escena anterior',
+            disabled: at.index <= 0,
+            onClick: () => {
+              const row = rows[Math.max(0, at.index - 1)]
+              if (row) {
+                setCursor(row.start)
+                setSelId(row.id)
+              }
+            }
+          }),
+          h('button', {
+            type: 'button',
+            className: 've-btn ve-btn--icon ve-play',
+            'aria-label': playing ? 'Pausar' : 'Reproducir',
+            title: playing ? 'Pausar · Espacio' : 'Reproducir · Espacio',
+            disabled: !hasScenes,
+            onClick: () => setPlaying((prev) => !prev)
+          }, h(Icon, { name: playing ? 'pause' : 'play' })),
+          h(Btn, {
+            icon: 'next',
+            variant: 'ghost',
+            ariaLabel: 'Escena siguiente',
+            title: 'Escena siguiente',
+            disabled: at.index < 0 || at.index >= rows.length - 1,
+            onClick: () => {
+              const row = rows[Math.min(rows.length - 1, at.index + 1)]
+              if (row) {
+                setCursor(row.start)
+                setSelId(row.id)
+              }
+            }
+          }),
+          h(Btn, { icon: 'end', variant: 'ghost', ariaLabel: 'Ir al final', title: 'Ir al final · Fin', onClick: () => setCursor(total) })
+        ),
+        h(
+          'div',
+          { className: 've-transport__r' },
+          h('input', {
+            className: 've-goto',
+            defaultValue: '',
+            placeholder: 'Ir a…',
+            title: 'Escribe un tiempo (ej. 1:23.5) y pulsa Enter para saltar',
+            inputMode: 'decimal',
+            'aria-label': 'Ir al tiempo (mm:ss.ms)',
+            onKeyDown: (event) => {
+              if (event.key !== 'Enter') return
+              const seconds = parseTimecode(event.target.value)
+              if (seconds !== null) setCursor(clamp(seconds, 0, total))
+              event.target.value = ''
+            }
+          }),
+          h(Btn, {
+            icon: muted ? 'mute' : 'volume',
+            variant: 'ghost',
+            ariaLabel: muted ? 'Activar sonido' : 'Silenciar',
+            title: muted ? 'Activar sonido' : 'Silenciar',
+            onClick: () => {
+              const next = !muted
+              setMuted(next)
+              if (ctx && ctx.storage && ctx.storage.set) ctx.storage.set('transport.muted', next)
+            }
+          })
+        )
+      )
     )
+  }
 
-  const fmtRuler = (t) => (total >= 90 ? `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, '0')}` : `${Math.round(t)}s`)
+  const fmtRuler = (t) => (total >= 90 || t >= 60 ? `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, '0')}` : `${Math.round(t * 10) / 10}s`.replace('.', ','))
 
+  // Imán: el cursor se pega a los bordes de escena si pasa a ≤7 px (con aviso visual).
   const scrubTo = (event, settle) => {
     const rect = event.currentTarget.getBoundingClientRect()
     if (!(rect.width > 0) || !total) return
-    const time = round3(clamp(((event.clientX - rect.left) / rect.width) * total, 0, total))
+    let time = round3(clamp(((event.clientX - rect.left) / rect.width) * total, 0, total))
+    const threshold = 7 / (rect.width / total)
+    const marks = [0, ...rows.map((row) => row.start + row.duration)]
+    const near = marks.find((mark) => Math.abs(mark - time) <= threshold)
+    if (near !== undefined && !event.altKey) {
+      time = round3(clamp(near, 0, total))
+      setSnapT(time)
+    } else {
+      setSnapT(null)
+    }
     setCursor(time)
     if (settle) {
       const hit = sceneAt(docRef.current, time)
       if (hit.row) setSelId(hit.row.id)
+      setTimeout(() => setSnapT(null), 450)
     }
   }
 
   const ruler = () => {
-    const step = total > 300 ? 60 : total > 90 ? 20 : total > 40 ? 10 : total > 12 ? 5 : total > 5 ? 2 : 1
+    const pxFull = 600 * zoom
+    const want = Math.max(1, total / Math.max(3, Math.floor(pxFull / 90)))
+    const steps = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300]
+    const step = steps.find((value) => value >= want) || 600
     const marks = []
     for (let t = 0; t <= total + 0.01; t += step) {
       const pct = total ? (t / total) * 100 : 0
-      marks.push(h('span', { key: `m${t}`, className: 've-tick', style: { left: `${pct}%` } }, h('em', null, fmtRuler(t))))
+      marks.push(h('span', { key: `m${t}`, className: 've-tick ve-tick--major', style: { left: `${pct}%` } }, h('em', null, fmtRuler(t))))
+      const minor = step / 2
+      if (minor >= 0.25 && t + minor <= total) {
+        marks.push(h('span', { key: `n${t}`, className: 've-tick', style: { left: `${((t + minor) / total) * 100}%` }, 'aria-hidden': 'true' }))
+      }
     }
     return h(
       'div',
       {
         className: 've-tl__ruler',
         role: 'presentation',
-        title: 'Haz clic o arrastra para mover el cursor',
+        title: 'Haz clic o arrastra para mover el cursor (Alt: sin imán)',
         onPointerDown: (event) => {
           scrubRef.current = event.pointerId
           try { event.currentTarget.setPointerCapture(event.pointerId) } catch (error) { /* no-op */ }
@@ -2898,6 +2913,7 @@ function VideoPane({ ctx, onClose }) {
         },
         onPointerCancel: () => {
           scrubRef.current = null
+          setSnapT(null)
         }
       },
       marks
@@ -3032,121 +3048,362 @@ function VideoPane({ ctx, onClose }) {
     setDragUi(null)
   }
 
+  const zoomBy = (factor) => setZoom((prev) => clamp(Math.round(prev * factor * 100) / 100, 1, 12))
+
+  const clipThumbs = (row, index) => {
+    const scene = row.scene
+    const assetId = assetFor(scene)
+    const asset = assetId ? (media || []).find((item) => item.id === assetId) : null
+    if (!asset || asset.exists === false || !doc) return null
+    const src = mediaUrl(ctx, doc.projectId, assetId)
+    const tiles = index < 8 && asset.kind !== 'image' ? (zoom >= 3 ? 6 : zoom >= 1.5 ? 4 : 3) : 1
+    const span = Math.max(0, (Number(scene.out) || 0) - (Number(scene.in) || 0))
+    const list = []
+    for (let k = 0; k < tiles; k += 1) {
+      list.push(h(Thumb, { key: k, src, kind: asset.kind, at: (Number(scene.in) || 0) + (span * k) / Math.max(1, tiles) }))
+    }
+    return h('span', { className: 've-clip__thumbs', 'aria-hidden': 'true' }, list)
+  }
+
   const timelineBlock = () => {
-    if (!doc || !(doc.scenes || []).length) return null
+    if (!doc) return null
+    const scenes = doc.scenes || []
+    const empty = !scenes.length
+    const hasText = rows.some((row) => captionOf(row.scene))
+    const pct = (value) => (total ? clamp(value / total, 0, 1) * 100 : 0)
+    const tcls = (extra) => `ve-tl__row ve-tl__row--${extra}`
     return h(
       'div',
       { className: 've-tl' },
-      ruler(),
       h(
         'div',
-        { className: 've-tl__lane' },
-        h('div', { className: 've-tl__gutter' }, h('span', { title: 'Vídeo' }, 'Vídeo'), h('span', { title: 'Audio de las escenas' }, 'Audio'), music && musicAsset ? h('span', { title: 'Música de fondo' }, 'Música') : null),
+        { className: 've-tl__bar' },
+        h(Btn, { icon: 'scissors', variant: 'ghost', size: 'sm', label: layout === 'narrow' ? undefined : 'Dividir', ariaLabel: 'Partir en el cursor', title: 'Partir en el cursor · S', onClick: splitHere, disabled: !sel }),
+        h('span', { className: 've-sep' }),
+        h('span', { className: 've-tl__sum ve-ftr__hint', 'aria-live': 'polite' }, queueLabel()),
+        h('span', { className: 've-spacer' }),
         h(
           'div',
-          { className: 've-tl__tracks' },
+          { className: 've-zoom', role: 'group', 'aria-label': 'Zoom de la línea de tiempo' },
+          h(Btn, { icon: 'zoomout', variant: 'ghost', size: 'sm', ariaLabel: 'Alejar', title: 'Alejar · Ctrl+rueda', disabled: zoom <= 1, onClick: () => zoomBy(1 / 1.5) }),
+          h('span', { className: 've-zoom__v', 'aria-live': 'polite' }, `${Math.round(zoom * 100)} %`),
+          h(Btn, { icon: 'zoomin', variant: 'ghost', size: 'sm', ariaLabel: 'Acercar', title: 'Acercar · Ctrl+rueda', disabled: zoom >= 12, onClick: () => zoomBy(1.5) }),
+          h(Btn, { icon: 'fit', variant: 'ghost', size: 'sm', ariaLabel: 'Ajustar a la ventana', title: 'Ajustar a la ventana', disabled: zoom === 1, onClick: () => setZoom(1) })
+        )
+      ),
+      h(
+        'div',
+        { className: 've-tl__body' },
+        h(
+          'div',
+          { className: 've-tl__heads' },
+          h('div', { className: 've-lh ve-lh--video', title: 'Vídeo y escenas' }, h(Icon, { name: 'film', size: 'sm' }), h('span', null, 'Vídeo')),
+          h('div', { className: 've-lh ve-lh--text', title: 'Texto en pantalla' }, h(Icon, { name: 'type', size: 'sm' }), h('span', null, 'Texto')),
+          h('div', { className: 've-lh ve-lh--audio', title: 'Audio de las escenas y voz' }, h(Icon, { name: 'volume', size: 'sm' }), h('span', null, 'Audio')),
+          h('div', { className: 've-lh ve-lh--music', title: 'Música de fondo' }, h(Icon, { name: 'music', size: 'sm' }), h('span', null, 'Música'))
+        ),
+        h(
+          'div',
+          {
+            className: 've-tl__scroll',
+            ref: tlScrollRef,
+            'data-zoom': zoom <= 1.001 ? '1' : '0',
+            onWheel: (event) => {
+              if (!(event.ctrlKey || event.metaKey)) return
+              event.preventDefault()
+              zoomBy(event.deltaY < 0 ? 1.25 : 1 / 1.25)
+            }
+          },
           h(
             'div',
-            { className: 've-tl__row', ref: tlRowRef, role: 'list', 'aria-label': `Línea de tiempo, ${total.toFixed(1)} segundos` },
-            rows.map((row, index) =>
-              h(
-                'button',
-                {
-                  key: row.id,
-                  type: 'button',
-                  role: 'listitem',
-                  className: `ve-clip${row.id === selId ? ' ve-clip--sel' : ''}${dragUi && dragUi.id === row.id && dragUi.mode === 'move' ? ' ve-clip--drag' : ''}${dragUi && dragUi.mode === 'move' && dragUi.target === index && dragUi.id !== row.id ? ' ve-clip--drop' : ''}`,
-                  style: {
-                    flex: `${Math.max(dragUi && dragUi.mode === 'trim' && dragUi.id === row.id ? dragUi.dur : row.duration, 0.1)} 1 0%`,
-                    transform: dragUi && dragUi.mode === 'move' && dragUi.id === row.id ? `translateX(${Math.round(dragUi.dx)}px)` : undefined,
-                    touchAction: 'none'
+            { className: 've-tl__inner', style: { width: zoom <= 1.001 ? undefined : `${zoom * 100}%` } },
+            h(
+              'div',
+              { className: 've-tl__lanes' },
+            ruler(),
+            h(
+              'div',
+              { className: tcls('video'), ref: tlRowRef, role: 'list', 'aria-label': `Línea de tiempo, ${total.toFixed(1)} segundos` },
+              empty ? h('span', { className: 've-lane-hint' }, 'Aquí aparecerán tus escenas · importa medios para empezar') : null,
+              rows.map((row, index) =>
+                h(
+                  'button',
+                  {
+                    key: row.id,
+                    type: 'button',
+                    role: 'listitem',
+                    className: `ve-clip${row.id === selId ? ' ve-clip--sel' : ''}${dragUi && dragUi.id === row.id && dragUi.mode === 'move' ? ' ve-clip--drag' : ''}${dragUi && dragUi.mode === 'move' && dragUi.target === index && dragUi.id !== row.id ? ' ve-clip--drop' : ''}`,
+                    style: {
+                      flex: `${Math.max(dragUi && dragUi.mode === 'trim' && dragUi.id === row.id ? dragUi.dur : row.duration, 0.1)} 1 0%`,
+                      transform: dragUi && dragUi.mode === 'move' && dragUi.id === row.id ? `translateX(${Math.round(dragUi.dx)}px)` : undefined,
+                      touchAction: 'none'
+                    },
+                    onPointerDown: (event) => clipPointerDown(event, row, index),
+                    onPointerMove: clipPointerMove,
+                    onPointerUp: clipPointerUp,
+                    onPointerCancel: clipPointerCancel,
+                    onClick: (event) => {
+                      if (dragRef.current && dragRef.current.moved) return
+                      setSelId(row.id)
+                      // Clic de ratón: salta al punto exacto del clip; teclado: al inicio.
+                      const rect = event.currentTarget.getBoundingClientRect()
+                      const frac = event.detail > 0 && rect.width > 0 ? clamp((event.clientX - rect.left) / rect.width, 0, 0.999) : 0
+                      setCursor(round3(row.start + frac * row.duration))
+                    },
+                    'aria-label': `Escena ${index + 1}, ${row.scene.name || 'sin nombre'}, ${row.duration.toFixed(1)} segundos`,
+                    'aria-current': row.id === selId ? 'true' : undefined
                   },
-                  onPointerDown: (event) => clipPointerDown(event, row, index),
-                  onPointerMove: clipPointerMove,
-                  onPointerUp: clipPointerUp,
-                  onPointerCancel: clipPointerCancel,
-                  onClick: (event) => {
-                    if (dragRef.current && dragRef.current.moved) return
-                    setSelId(row.id)
-                    // Clic de ratón: salta al punto exacto del clip; teclado: al inicio.
-                    const rect = event.currentTarget.getBoundingClientRect()
-                    const frac = event.detail > 0 && rect.width > 0 ? clamp((event.clientX - rect.left) / rect.width, 0, 0.999) : 0
-                    setCursor(round3(row.start + frac * row.duration))
-                  },
-                  'aria-label': `Escena ${index + 1}, ${row.scene.name || 'sin nombre'}, ${row.duration.toFixed(1)} segundos`,
-                  'aria-current': row.id === selId ? 'true' : undefined
-                },
-                h('span', { className: 've-clip__n' }, String(index + 1).padStart(2, '0')),
-                h('span', { className: 've-clip__t' }, row.scene.name || `Escena ${index + 1}`),
-                h('span', { className: 've-clip__d' }, `${fmtTime(dragUi && dragUi.mode === 'trim' && dragUi.id === row.id ? dragUi.dur : row.duration)}`),
-                row.id === selId
-                  ? [
-                      h('span', { key: 'l', className: 've-trim ve-trim--l', role: 'presentation' }),
-                      h('span', { key: 'r', className: 've-trim ve-trim--r', role: 'presentation' })
-                    ]
-                  : null,
-                row.scene.needsRelink ? h(Badge, { tone: 'warn' }, 'falta') : null
+                  clipThumbs(row, index),
+                  h('span', { className: 've-clip__n' }, String(index + 1).padStart(2, '0')),
+                  h('span', { className: 've-clip__t' }, row.scene.name || `Escena ${index + 1}`),
+                  h('span', { className: 've-clip__d' }, `${fmtTime(dragUi && dragUi.mode === 'trim' && dragUi.id === row.id ? dragUi.dur : row.duration)}`),
+                  row.id === selId
+                    ? [
+                        h('span', { key: 'l', className: 've-trim ve-trim--l', role: 'presentation', title: 'Arrastra para recortar el inicio' }),
+                        h('span', { key: 'r', className: 've-trim ve-trim--r', role: 'presentation', title: 'Arrastra para recortar el final' })
+                      ]
+                    : null,
+                  row.scene.needsRelink ? h(Badge, { tone: 'warn' }, 'falta') : null
+                )
               )
-            )
-          ),
-          h(
-            'div',
-            { className: 've-tl__row ve-tl__row--audio', 'aria-label': 'Volumen de cada escena' },
-            rows.map((row) => {
-              const volume = clamp(Number(row.scene.audio && row.scene.audio.volume), 0, 100) || 0
-              return h(
-                'span',
-                {
-                  key: row.id,
-                  className: `ve-ab${row.id === selId ? ' ve-ab--sel' : ''}`,
-                  style: { flex: `${Math.max(row.duration, 0.1)} 1 0%` },
-                  title: `Escena ${rows.indexOf(row) + 1}: audio al ${volume} %`
-                },
-                h('i', { style: { height: `${Math.max(volume, volume ? 8 : 0)}%` } }),
-                h('small', null, volume === 0 ? 'mudo' : `${volume} %`)
-              )
-            }),
-            sfxEvents.length
-              ? h(
+            ),
+            h(
+              'div',
+              { className: tcls('text'), 'aria-label': 'Textos en pantalla' },
+              rows.map((row, index) => {
+                const text = captionOf(row.scene)
+                const item = textItemOf(row.scene) || {}
+                const vis = Math.max(row.duration, 0.1)
+                const from = clamp((Number(item.at) || 0) / vis, 0, 0.98)
+                const to = clamp((item.until == null ? vis : Number(item.until)) / vis, from + 0.02, 1)
+                return h(
                   'div',
-                  { className: 've-evs' },
-                  sfxEvents.map((ev, index) =>
-                    h(
-                      'button',
-                      {
-                        key: ev.id,
-                        type: 'button',
-                        className: 've-ev',
-                        style: { left: `${total ? clamp((Number(ev.at) || 0) / total, 0, 1) * 100 : 0}%` },
-                        title: `Sonido ${index + 1} · ${fmtTimecode(ev.at)} · volumen ${ev.volume == null ? 100 : ev.volume}%`,
-                        'aria-label': `Sonido ${index + 1} en ${fmtTimecode(ev.at)}`,
-                        onClick: () => setCursor(clamp(Number(ev.at) || 0, 0, total))
-                      },
-                      '♪'
+                  { key: row.id, className: 've-tx', style: { flex: `${vis} 1 0%` } },
+                  text
+                    ? h(
+                        'button',
+                        {
+                          type: 'button',
+                          className: `ve-txb${row.id === selId ? ' ve-txb--sel' : ''}`,
+                          style: { left: `${from * 100}%`, width: `${(to - from) * 100}%` },
+                          title: `Texto de la escena ${index + 1}: ${text}`,
+                          'aria-label': `Texto de la escena ${index + 1}`,
+                          onClick: () => {
+                            setSelId(row.id)
+                            setRailTab('scene')
+                            setCursor(round3(row.start + from * vis))
+                          }
+                        },
+                        h(Icon, { name: 'type', size: 'sm' }),
+                        h('span', null, text)
+                      )
+                    : null
+                )
+              }),
+              !hasText ? h('span', { className: 've-lane-hint' }, empty ? 'Sin textos' : 'Sin textos · escríbelos en Escena › Texto en pantalla') : null
+            ),
+            h(
+              'div',
+              { className: tcls('audio'), 'aria-label': 'Volumen de cada escena' },
+              rows.map((row) => {
+                const volume = clamp(Number(row.scene.audio && row.scene.audio.volume), 0, 100) || 0
+                return h(
+                  'span',
+                  {
+                    key: row.id,
+                    className: `ve-ab${row.id === selId ? ' ve-ab--sel' : ''}`,
+                    style: { flex: `${Math.max(row.duration, 0.1)} 1 0%` },
+                    title: `Escena ${rows.indexOf(row) + 1}: audio al ${volume} %`
+                  },
+                  h('i', { style: { height: `${Math.max(volume, volume ? 8 : 0)}%` } }),
+                  h('small', null, volume === 0 ? 'mudo' : `${volume} %`)
+                )
+              }),
+              sfxEvents.length
+                ? h(
+                    'div',
+                    { className: 've-evs' },
+                    sfxEvents.map((ev, index) =>
+                      h(
+                        'button',
+                        {
+                          key: ev.id,
+                          type: 'button',
+                          className: 've-ev',
+                          style: { left: `${pct(Number(ev.at) || 0)}%` },
+                          title: `Sonido ${index + 1} · ${fmtTimecode(ev.at)} · volumen ${ev.volume == null ? 100 : ev.volume}%`,
+                          'aria-label': `Sonido ${index + 1} en ${fmtTimecode(ev.at)}`,
+                          onClick: () => setCursor(clamp(Number(ev.at) || 0, 0, total))
+                        },
+                        '♪'
+                      )
                     )
                   )
-                )
-              : null
-          ),
-          music && musicAsset
-            ? h(
-                'div',
-                { className: 've-tl__row ve-tl__row--music', title: `Música de fondo: ${baseName(musicAsset.path)} · ${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %` },
-                h(Icon, { name: 'volume', size: 'sm' }),
-                h('span', null, `${baseName(musicAsset.path)} · ${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %`)
-              )
-            : null,
-          h('div', { className: 've-playhead', style: { '--ve-ph': `${total ? (cursor / total) * 100 : 0}%` }, 'aria-hidden': 'true' })
+                : null
+            ),
+            h(
+              'div',
+              { className: tcls('music') },
+              music && musicAsset
+                ? h(
+                    'div',
+                    { className: 've-mrow', title: `Música de fondo: ${baseName(musicAsset.path)} · ${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %` },
+                    h(Icon, { name: 'music', size: 'sm' }),
+                    h('span', null, `${baseName(musicAsset.path)} · ${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %`)
+                  )
+                : h('span', { className: 've-lane-hint' }, 'Sin música · elige una pista en Audio')
+            ),
+            snapT !== null ? h('div', { className: 've-snapline', style: { '--ve-sn': `${pct(snapT)}%` }, 'aria-hidden': 'true' }) : null,
+            h('div', { className: 've-playhead', style: { '--ve-ph': `${pct(cursor)}%` }, 'aria-hidden': 'true' })
+            )
+          )
         )
       )
     )
   }
 
+  const side = () => {
+    if (!doc) return null
+    const drawer = layout !== 'wide'
+    if (drawer && !libOpen) return null
+    const scenesList = doc.scenes || []
+    const sceneList = () =>
+      scenesList.length
+        ? h(
+            'div',
+            { className: 've-scenes', role: 'group', 'aria-label': 'Lista de escenas' },
+            scenesList.map((scene, index) =>
+              h(
+                'div',
+                { key: scene.id, className: 've-scene-row' },
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 've-scene',
+                    'aria-current': scene.id === selId ? 'true' : undefined,
+                    'aria-label': `Escena ${index + 1}, ${scene.name || 'sin nombre'}, ${fmtTime(visibleDuration(scene))}`,
+                    onClick: () => {
+                      setSelId(scene.id)
+                      const row = rows[index]
+                      if (row) setCursor(row.start)
+                      if (drawer) setLibOpen(false)
+                    }
+                  },
+                  h('span', { className: 've-scene__n' }, String(index + 1).padStart(2, '0')),
+                  thumbFor(scene, index, false),
+                  h(
+                    'span',
+                    { className: 've-scene__m' },
+                    h('span', { className: 've-scene__name' }, scene.name || `Escena ${index + 1}`),
+                    h('span', { className: 've-scene__dur' }, `${fmtTime(visibleDuration(scene))}${captionOf(scene) ? ' · con texto' : ''}${scene.needsRelink ? ' · falta medio' : ''}`)
+                  )
+                ),
+                h(
+                  'div',
+                  { className: 've-scene-row__mv' },
+                  h('button', { type: 'button', className: 've-mv', 'aria-label': `Subir escena ${index + 1}`, title: 'Subir (Alt+↑)', disabled: index === 0, onClick: () => moveScene(index, -1) }, h(Icon, { name: 'up', size: 'sm' })),
+                  h('button', { type: 'button', className: 've-mv', 'aria-label': `Bajar escena ${index + 1}`, title: 'Bajar (Alt+↓)', disabled: index === scenesList.length - 1, onClick: () => moveScene(index, 1) }, h(Icon, { name: 'down', size: 'sm' }))
+                )
+              )
+            )
+          )
+        : h('p', { className: 've-lib__empty' }, 'Aún no hay escenas. Importa un clip, una imagen o una captura y aparecerá aquí.')
+    const mediaList = () =>
+      media.length
+        ? h(
+            'div',
+            { className: 've-lib__list' },
+            media.map((item) =>
+              h(
+                'div',
+                { key: item.id, className: 've-lib__row' },
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 've-lib__item',
+                    'aria-current': activeAsset === item.id ? 'true' : undefined,
+                    title: item.path,
+                    onClick: () => {
+                      const target = (doc.scenes || []).find((scene) => (scene.source && scene.source.assetId) === item.id)
+                      if (target) setSelId(target.id)
+                      if (drawer) setLibOpen(false)
+                      setNotice(`Medio seleccionado: ${baseName(item.path)}`)
+                    }
+                  },
+                  h(Thumb, { src: item.exists === false ? null : mediaUrl(ctx, doc.projectId, item.id), kind: item.kind, at: 0.1 }),
+                  h(
+                    'span',
+                    { className: 've-lib__m' },
+                    h('span', { className: 've-lib__n' }, baseName(item.path)),
+                    h('span', { className: 've-lib__s' }, `${item.kind || 'medio'}${item.exists === false ? ' · falta' : ''}${item.bytes ? ` · ${fmtBytes(item.bytes)}` : ''}`)
+                  )
+                ),
+                item.kind !== 'audio'
+                  ? h('button', { type: 'button', className: 've-mv', 'aria-label': `Añadir ${baseName(item.path)} como escena`, title: 'Añadir como escena', onClick: () => applyAdd(item) }, h(Icon, { name: 'plus', size: 'sm' }))
+                  : null
+              )
+            )
+          )
+        : h('p', { className: 've-lib__empty' }, 'Sin medios todavía. Pulsa «Importar medios» para traer archivos de la carpeta concedida.')
+    return h(
+      'aside',
+      { className: 've-side', 'aria-label': 'Medios y escenas' },
+      drawer
+        ? h('div', { className: 've-pt' }, h('span', { className: 've-pt__t' }, 'Medios y escenas'), h('span', { className: 've-spacer' }), h(Btn, { icon: 'close', variant: 'ghost', ariaLabel: 'Cerrar medios y escenas', onClick: () => setLibOpen(false) }))
+        : null,
+      h(
+        'div',
+        { className: 've-segtabs', role: 'group', 'aria-label': 'Ver' },
+        h('button', { type: 'button', id: 've-ltab-scenes', 'aria-pressed': leftTab === 'scenes', onClick: () => setLeftTab('scenes') }, h(Icon, { name: 'layers', size: 'sm' }), 'Escenas', h('em', { 'aria-hidden': 'true' }, String(scenesList.length))),
+        h('button', { type: 'button', id: 've-ltab-media', 'aria-pressed': leftTab === 'media', onClick: () => setLeftTab('media') }, h(Icon, { name: 'image', size: 'sm' }), 'Medios', h('em', { 'aria-hidden': 'true' }, String(media.length)))
+      ),
+      leftTab === 'media' ? mediaList() : sceneList(),
+      h('div', { className: 've-side__foot' }, h(Btn, { variant: 'outline', icon: 'upload', label: 'Importar medios', block: true, onClick: importFolder, disabled: !doc }))
+    )
+  }
+
+  const toastTone = (text) => (/no se pudo|error|fall[óo]|rechaz|inv[áa]lid|no responde|falta/i.test(text) ? 'bad' : /guardad|importad|a[ñn]adid|reemplazad|combinaron|actualizado|restablecid/i.test(text) ? 'ok' : 'info')
+
+  const toasts = () => {
+    const busy = job && ['queued', 'running', 'probing', 'rendering', 'validating', 'promoting'].includes(job.state) && !dialog
+    if (!notice && !busy) return null
+    const tone = notice ? toastTone(notice) : 'info'
+    return h(
+      'div',
+      { className: 've-toasts', role: 'status', 'aria-live': 'polite' },
+      notice
+        ? h(
+            'div',
+            { key: notice, className: `ve-toast ve-toast--${tone}` },
+            h(Icon, { name: tone === 'bad' ? 'alert' : tone === 'ok' ? 'checkcircle' : 'info' }),
+            h('span', { className: 've-toast__m' }, notice),
+            h(Btn, { icon: 'close', variant: 'ghost', size: 'sm', ariaLabel: 'Cerrar aviso', onClick: () => setNotice('') })
+          )
+        : null,
+      busy
+        ? h(
+            'div',
+            { key: 'job', className: 've-toast ve-toast--info' },
+            h(Spinner),
+            h(
+              'span',
+              { className: 've-toast__m' },
+              typeof job.progress === 'number' ? `Exportando… ${Math.round(job.progress)} %` : 'Exportando…',
+              h('span', { className: 've-toast__bar' }, h('i', { style: { width: `${clamp(Number(job.progress) || 4, 2, 100)}%` } }))
+            ),
+            h(Btn, { variant: 'text', size: 'sm', label: 'Ver', onClick: () => setDialog({ kind: 'export', phase: 'running', jobId: job.jobId, captions: incCaptions }) })
+          )
+        : null
+    )
+  }
+
   const railTabs = [
-    { id: 'scene', label: 'Escena' },
-    { id: 'fx', label: 'Efectos' },
-    { id: 'audio', label: 'Audio' },
-    { id: 'project', label: 'Proyecto' }
+    { id: 'scene', label: 'Escena', icon: 'film' },
+    { id: 'fx', label: 'Efectos', icon: 'sparkle' },
+    { id: 'audio', label: 'Audio', icon: 'volume' },
+    { id: 'project', label: 'Proyecto', icon: 'sliders' }
   ]
 
   const setSceneName = (value) => {
@@ -4033,83 +4290,14 @@ function VideoPane({ ctx, onClose }) {
     }
     return h(
       'aside',
-      { className: 've-rail', 'aria-label': 'Escenas y propiedades', style: compact && !railOpen ? { display: 'none' } : undefined },
-      compact
-        ? h(
-            'div',
-            { className: 've-rail__top' },
-            h('span', { className: 've-rail__t' }, 'Escenas y propiedades'),
-            h('span', { className: 've-spacer' }),
-            h(Btn, { icon: 'close', variant: 'ghost', ariaLabel: 'Cerrar propiedades', onClick: () => setRailOpen(false) })
-          )
-        : null,
+      { className: 've-rail', 'aria-label': 'Propiedades de la escena', style: compact && !railOpen ? { display: 'none' } : undefined },
       h(
         'div',
-        { className: 've-rail__sec ve-rail__sec--scenes' },
-        h(
-          'div',
-          { className: 've-rail__h' },
-          h('span', { className: 've-rail__t' }, 'Escenas'),
-          h(Badge, { outline: true }, String((doc.scenes || []).length)),
-          h('span', { className: 've-spacer' }),
-          h(Btn, { variant: 'outline', size: 'sm', icon: 'plus', label: 'Añadir', title: 'Añade escenas desde tu carpeta de medios', ariaLabel: 'Añadir escena', onClick: importFolder })
-        ),
-        h(
-          'div',
-          { className: 've-scenes', role: 'group', 'aria-label': 'Lista de escenas' },
-          (doc.scenes || []).map((scene, index) =>
-            h(
-              'div',
-              { key: scene.id, className: 've-scene-row' },
-              h(
-                'button',
-                {
-                  type: 'button',
-                  className: 've-scene',
-                  'aria-current': scene.id === selId ? 'true' : undefined,
-                  'aria-label': `Escena ${index + 1}, ${scene.name || 'sin nombre'}, ${fmtTime(visibleDuration(scene))}`,
-                  onClick: () => {
-                    setSelId(scene.id)
-                    const row = rows[index]
-                    if (row) setCursor(row.start)
-                  }
-                },
-                h('span', { className: 've-scene__n' }, String(index + 1).padStart(2, '0')),
-                thumbFor(scene, index, false),
-                h(
-                  'span',
-                  { className: 've-scene__m' },
-                  h('span', { className: 've-scene__name' }, scene.name || `Escena ${index + 1}`),
-                  h('span', { className: 've-scene__dur' }, `${fmtTime(visibleDuration(scene))}${captionOf(scene) ? ' · con texto' : ''}${scene.needsRelink ? ' · falta medio' : ''}`)
-                )
-              ),
-              h(
-                'button',
-                {
-                  type: 'button',
-                  className: 've-mv',
-                  'aria-label': `Subir escena ${index + 1}`,
-                  title: 'Subir (Alt+↑)',
-                  disabled: index === 0,
-                  onClick: () => moveScene(index, -1)
-                },
-                h(Icon, { name: 'up', size: 'sm' })
-              ),
-              h(
-                'button',
-                {
-                  type: 'button',
-                  className: 've-mv',
-                  'aria-label': `Bajar escena ${index + 1}`,
-                  title: 'Bajar (Alt+↓)',
-                  disabled: index === (doc.scenes || []).length - 1,
-                  onClick: () => moveScene(index, 1)
-                },
-                h(Icon, { name: 'down', size: 'sm' })
-              )
-            )
-          )
-        )
+        { className: 've-rail__top' },
+        h('span', { className: 've-rail__t' }, 'Propiedades'),
+        sel ? h('span', { className: 've-rail__who' }, `· ${sel.name || `Escena ${selIndex + 1}`}`) : null,
+        h('span', { className: 've-spacer' }),
+        compact ? h(Btn, { icon: 'close', variant: 'ghost', ariaLabel: 'Cerrar propiedades', onClick: () => setRailOpen(false) }) : null
       ),
       h(
         'div',
@@ -4128,7 +4316,8 @@ function VideoPane({ ctx, onClose }) {
               onClick: () => setRailTab(tab.id),
               onKeyDown: (event) => moveTab(event, index)
             },
-            tab.label
+            h(Icon, { name: tab.icon }),
+            h('span', null, tab.label)
           )
         )
       ),
@@ -4147,24 +4336,6 @@ function VideoPane({ ctx, onClose }) {
     })
     setNotice('Escena restablecida.')
   }
-
-  const footer = () =>
-    h(
-      'footer',
-      { className: 've-ftr' },
-      h(Btn, { variant: 'outline', icon: 'upload', label: 'Importar medios', onClick: importFolder, disabled: !doc }),
-      h('span', { className: 've-ftr__hint', 'aria-live': 'polite' }, notice || queueLabel()),
-      h('span', { className: 've-spacer' }),
-      !compact ? h(Btn, { variant: 'text', label: 'Ver chat', onClick: goChat }) : null,
-      h(Btn, {
-        variant: 'primary',
-        icon: 'download',
-        label: `Exportar ${doc ? `${doc.height}p · ${docFps}` : 'MP4'}`,
-        disabled: !canExport,
-        title: canExport ? 'Exportar MP4 (Ctrl+E)' : !(doc && (doc.scenes || []).length) ? 'Añade al menos una escena para exportar' : missing.length ? 'Falta un medio: vuelve a vincularlo' : 'Ya hay una exportación en curso',
-        onClick: () => setDialog({ kind: 'exportForm' })
-      })
-    )
 
   function queueLabel() {
     if (job && ['queued', 'running', 'probing', 'rendering', 'validating', 'promoting'].includes(job.state)) {
@@ -4677,7 +4848,7 @@ function VideoPane({ ctx, onClose }) {
     if (menu === 'projects') return dialogsProjectsMenu()
     return h(
       'div',
-      { className: 've-menu', style: { right: '10px', top: '42px' }, role: 'menu' },
+      { className: 've-menu', style: { right: '12px', top: '52px' }, role: 'menu' },
       h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); setDialog({ kind: 'service' }) } }, 'Estado del servicio'),
       h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); setGuides((prev) => { if (ctx?.storage?.set) ctx.storage.set('preview.guides', !prev); return !prev }) } },
         `${guides ? 'Ocultar' : 'Mostrar'} guías de zona segura`),
@@ -4691,7 +4862,7 @@ function VideoPane({ ctx, onClose }) {
   function dialogsProjectsMenu() {
     return h(
       'div',
-      { className: 've-menu', style: { left: '10px', top: '42px' }, role: 'menu' },
+      { className: 've-menu', style: { left: '56px', top: '52px' }, role: 'menu' },
       projects.length
         ? projects.map((item) =>
             h(
@@ -4724,6 +4895,8 @@ function VideoPane({ ctx, onClose }) {
       tabIndex: -1,
       'data-ve-pane': '1',
       'data-compact': compact ? '1' : '0',
+      'data-layout': layout,
+      'data-doc': doc ? '1' : '0',
       'data-tight': tight ? '1' : '0',
       'aria-busy': phase === 'loading' || (job && job.state === 'running') ? 'true' : 'false',
       onDragOver: (event) => {
@@ -4741,14 +4914,14 @@ function VideoPane({ ctx, onClose }) {
     h(
       'div',
       { className: 've-body' },
-      h('div', { className: 've-left' }, stage(), transport(), timelineBlock()),
-      libOpen || (compact && railOpen)
+      side(),
+      h('div', { className: 've-main' }, stage(), transport(), timelineBlock()),
+      (layout !== 'wide' && libOpen) || (compact && railOpen)
         ? h('div', { className: 've-ov', 'aria-hidden': 'true', onClick: () => { setLibOpen(false); setRailOpen(false) } })
         : null,
-      library(),
       rail()
     ),
-    footer(),
+    toasts(),
     menus(),
     dialogs(),
     modelTip ? h('div', { className: 've-tip', role: 'status' }, 'Cambia el modelo en el selector del chat.') : null,
