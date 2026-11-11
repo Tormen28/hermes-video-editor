@@ -242,6 +242,16 @@ def apply_op(doc: dict, op: dict) -> str:
             return f"escena {i + 1}: texto quitado"
         item = dict(items[index]) if index < len(items) and not op.get("add") else {}
         item["content"] = content[: project.MAX_TEXT_LENGTH]
+        # Reject an impossible caption window up front; clamping it silently would
+        # "apply" and then drop the caption later in _fit_text.
+        if op.get("from") is not None and op.get("to") is not None:
+            if parse_time(op["to"]) <= parse_time(op["from"]):
+                raise OpError("'to' debe ser posterior a 'from'")
+        if op.get("from") is not None:
+            f_abs = parse_time(op["from"])
+            if not (start - EPS <= f_abs <= end - 0.05):
+                raise OpError(f"'from' ({fmt(f_abs)}) está fuera de la escena {i + 1} "
+                              f"({fmt(start)}–{fmt(end)})")
         local_from = parse_time(op["from"]) - start if op.get("from") is not None else item.get("at", 0)
         local_to = parse_time(op["to"]) - start if op.get("to") is not None else item.get("until", end - start)
         item["at"] = round(max(0.0, float(local_from)), 3)

@@ -165,6 +165,16 @@ class Edits(unittest.TestCase):
         with self.assertRaises(ops.OpError):
             ops.apply_ops(doc3(), [{"op": "set_speed", "scene": 1, "speed": 9}])
 
+    def test_set_text_rejects_an_impossible_window(self):
+        with self.assertRaises(ops.OpError) as ctx:
+            ops.apply_ops(doc3(), [{"op": "set_text", "scene": 1, "content": "x", "from": 3, "to": 1}])
+        self.assertIn("posterior", str(ctx.exception))
+        with self.assertRaises(ops.OpError) as ctx:
+            ops.apply_ops(doc3(), [{"op": "set_text", "scene": 1, "content": "x", "from": 99}])
+        self.assertIn("fuera de la escena", str(ctx.exception))
+        new, _ = self.apply({"op": "set_text", "scene": 1, "content": "x", "from": 0.5, "to": 2})
+        self.assertEqual(len(new["scenes"][0]["text"]), 1)
+
     def test_errors_are_plain_and_name_the_operation(self):
         for bad in ({"op": "nope"}, {"op": "trim"}, {"op": "set_text", "time": 99, "content": "x"},
                     {"op": "delete_scene", "scene": 9}, "x"):

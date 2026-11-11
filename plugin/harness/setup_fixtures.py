@@ -48,10 +48,26 @@ def run(*args: str) -> None:
         raise SystemExit(f"falló: {' '.join(args[:3])}\n{result.stderr[-800:]}")
 
 
+TOKEN_PATH: Path | None = None
+
+
+def service_token() -> str:
+    """Token del servicio: el del banco (data/service.token) o el global con --reuse."""
+    if TOKEN_PATH is None:
+        return ""
+    try:
+        return TOKEN_PATH.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
 def call(base: str, method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
     data = None if body is None else json.dumps(body).encode()
     request = urllib.request.Request(base + path, data=data, method=method)
     request.add_header("Content-Type", "application/json")
+    token = service_token()
+    if token:
+        request.add_header("X-VE-Token", token)
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             raw = response.read().decode()
@@ -88,12 +104,20 @@ def main(argv: list[str] | None = None) -> int:
     data = base_dir / "data"
     media.mkdir(parents=True, exist_ok=True)
     data.mkdir(parents=True, exist_ok=True)
+    global TOKEN_PATH
+    token_file = data / "service.token"
+    TOKEN_PATH = (token_file if not args.reuse else
+                  Path(os.environ.get("LOCALAPPDATA", Path.home()))
+                  / "hermes" / "video-editor" / "service.token")
 
     clips = [
         ("intro.mp4", ["-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=30:duration=3",
                        "-f", "lavfi", "-i", "sine=frequency=440:duration=3"]),
         ("demo.mp4", ["-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=30:duration=2.5",
                       "-f", "lavfi", "-i", "sine=frequency=560:duration=2.5"]),
+        # pane_ui_e2e imports intro/demo/tutorial/cierre: keep them all here.
+        ("tutorial.mp4", ["-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=30:duration=2",
+                          "-f", "lavfi", "-i", "sine=frequency=700:duration=2"]),
     ]
     for name, inputs in clips:
         target = media / name
@@ -140,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
                     [sys.executable, str(CORE / "service" / "app.py"),
                      "--data-root", str(data), "--media-root", str(media),
                      "--tools-root", TOOLS, "--port", str(args.port),
+                     "--token-file", str(token_file),
                      "--allow-origin", args.harness_origin],
                     **spawn,
                 )
@@ -165,7 +190,7 @@ def main(argv: list[str] | None = None) -> int:
         if status != 201:
             raise SystemExit(f"crear proyecto devolvió {status}: {created}")
         project_id = created["projectId"]
-        for name in ("intro.mp4", "demo.mp4", "cierre.png"):
+        for name in ("intro.mp4", "demo.mp4", "tutorial.mp4", "cierre.png"):
             status, body = call(base, "POST", f"/projects/{project_id}/media", {"path": str(media / name).replace("\\", "/")})
             if status != 201:
                 raise SystemExit(f"importar {name} devolvió {status}: {body}")
@@ -191,6 +216,7 @@ def main(argv: list[str] | None = None) -> int:
         "projectUrl": f"{base}/projects/{project_id}",
         "media": str(media).replace("\\", "/"),
         "data": str(data).replace("\\", "/"),
+        "tokenFile": str(TOKEN_PATH).replace("\\", "/") if TOKEN_PATH else "",
         "startedNow": started,
         "servicePid": (base_dir / "service.pid").read_text(encoding="utf-8").strip()
         if (base_dir / "service.pid").exists() else None,

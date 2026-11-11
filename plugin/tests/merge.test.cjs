@@ -2,7 +2,7 @@
 const fs = require('fs')
 const path = require('path')
 const assert = require('assert')
-const src = fs.readFileSync(path.join(__dirname, '..', 'plugin.js'), 'utf8')
+const src = fs.readFileSync(path.join(__dirname, '..', 'plugin.js'), 'utf8').replace(/\r\n?/g, '\n')
 const m = src.match(/\/\/ ---- merge:start\n([\s\S]*?)\/\/ ---- merge:end/)
 assert.ok(m, 'marcadores merge:start/end no encontrados')
 const { mergeDocs } = new Function(m[1] + '\nreturn { mergeDocs }')()

@@ -101,14 +101,45 @@ Reloj `mm:ss.ms` y «ir a…» para saltar; arrastrar/recortar escenas; texto y 
 sección «Sonidos y voz» para colocar audios en el tiempo; música con fades; vista previa; exportar y ver el MP4 en el mismo diálogo.
 Tras editar a mano, pídele **Guardar** (o espera al autoguardado de 4 s) antes de que tú hagas una edición larga.
 
-## 5. Versión Plus (opcional · solo documentada)
+## 5. Proveedores de pago (opcionales · nunca requisito)
 
-Nada de esto es necesario ni bloquea la base.
-- **Voz profesional con ElevenLabs** (el usuario lo llama «LevelX»): hueco HTTP `VE_PROVIDER_VOICE_URL` / `VE_PROVIDER_VOICE_KEY` (pasarela local que llama a `…/v1/text-to-speech/<voice_id>` con `xi-api-key`).
-- **Imágenes con la API de imágenes de OpenAI:** `VE_PROVIDER_IMAGE_URL` / `VE_PROVIDER_IMAGE_KEY` (pasarela que llama a `/v1/images/generations` y devuelve `{"base64":…}`).
-- Otros proveedores: igual, mientras devuelvan bytes o `base64/url/path`.
-- Orquestación: solo si el usuario **ya configuró** las claves (`/health` con token muestra `voiceModes.http`). Si no, usa lo local y no lo menciones como carencia. El texto/prompt sale de la máquina: avísalo y pide su OK la primera vez.
-- Detalle y contrato de la pasarela: `docs/PLUS.md`.
+Ni la base ni ningún flujo dependen de esto. Sin claves, el editor funciona entero con
+`local` (sin red, sin coste). Con clave, mejora la calidad. **Nunca menciones esto como
+una carencia si el usuario no las configuró.**
+
+| Proveedor | Variable | Para qué | `--provider` |
+|---|---|---|---|
+| **Nano Banana** (Gemini 2.5 Flash Image) | `VE_GEMINI_KEY` | Imágenes de mucha más calidad que el generador local | `gemini` |
+| **ElevenLabs** | `VE_ELEVEN_KEY` | Voz profesional en vez de la de Windows | `eleven` |
+
+Opcionales del proveedor:
+
+- `VE_GEMINI_MODEL` (defecto `gemini-2.5-flash-image`)
+- `VE_ELEVEN_VOICE` (defecto una voz multilingüe neutra) y `VE_ELEVEN_MODEL`
+  (defecto `eleven_multilingual_v2`)
+
+Uso:
+
+```
+ve_generate.py --project <id> --kind image --prompt "bodega de noche" --provider gemini
+ve_generate.py --project <id> --kind voice --prompt "Bienvenido a mi negocio" --provider eleven --use voice --at 0
+```
+
+Reglas que el servicio ya cumple y no hay que rodear:
+
+- **Sin clave no se intenta nada.** La petición se rechaza antes de crear el trabajo, con
+  el mensaje «define VE_GEMINI_KEY (o usa provider 'local')». No hay fallback silencioso
+  a un servicio de pago.
+- **La clave no se imprime.** Los errores llevan el tipo y el código HTTP (401, 429), nunca
+  la clave ni la URL con el token dentro.
+- **`/health` dice la verdad.** `providerModes.image.gemini` y `providerModes.voice.eleven`
+  solo valen `true` si la clave existe; la app no ofrece botones que vayan a fallar.
+- **El prompt sale de la máquina.** Al usar `gemini`, `eleven`, `edge`, `web` o `http`, el
+  texto viaja a un tercero: avísalo y pide su OK la primera vez.
+
+Otros proveedores: con `VE_PROVIDER_IMAGE_URL` / `VE_PROVIDER_VOICE_URL` y sus
+`_KEY`, cualquier pasarela que devuelva binario, `{base64}`, `{url}` o `{path}`.
+Detalle en `docs/PLUS.md`.
 
 ## Errores típicos
 

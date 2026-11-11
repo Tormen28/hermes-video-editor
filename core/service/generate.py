@@ -44,12 +44,16 @@ import paths as path_rules
 from service import worker
 
 KINDS = ("image", "music", "voice")
-PROVIDERS = ("local", "http", "edge", "web")
+PROVIDERS = ("local", "http", "edge", "web", "gemini", "eleven")
 #: Which providers make sense for which kind.
+#:
+#: `gemini` (Nano Banana) and `eleven` (ElevenLabs) son OPCIONES, no requisitos:
+#: si no hay clave configurada el servicio lo dice y se sigue con `local`. Ninguno
+#: se usa nunca a espaldas del usuario.
 KIND_PROVIDERS = {
-    "image": ("local", "http", "web"),
+    "image": ("local", "http", "web", "gemini"),
     "music": ("local", "http"),
-    "voice": ("local", "http", "edge"),
+    "voice": ("local", "http", "edge", "eleven"),
 }
 
 PROMPT_MIN = 1
@@ -112,12 +116,30 @@ def voice_status() -> dict:
 
 
 def provider_status() -> dict:
-    """What ``/health`` advertises: local is always there, http only if set."""
+    """Lo que anuncia `/health`: `local` siempre está; el resto, solo si hay clave.
+
+    La app lee esto para mostrar qué opciones puede ofrecer. Ningún proveedor de
+    pago aparece como disponible si no lo está: nada de botones que fallen.
+    """
+    from service import proveedores_externos as ext
+
+    tiene_gemini = ext.gemini_disponible()
+    tiene_eleven = ext.eleven_disponible()
+
+    modos: dict[str, dict[str, bool]] = {}
+    for kind in KINDS:
+        disponible = {"local": True, "http": http_configured(kind)}
+        if kind == "image":
+            disponible["web"] = True
+            disponible["gemini"] = tiene_gemini
+        if kind == "voice":
+            disponible["edge"] = _edge_python() is not None
+            disponible["eleven"] = tiene_eleven
+        modos[kind] = disponible
+
     return {
         "providers": {kind: True for kind in KINDS},
-        "providerModes": {
-            kind: {"local": True, "http": http_configured(kind)} for kind in KINDS
-        },
+        "providerModes": modos,
     }
 
 
@@ -190,6 +212,23 @@ def normalize_request(body: Any) -> dict:
         raise RequestError(
             f"proveedor no configurado: define VE_PROVIDER_{kind.upper()}_URL para generar {kind} por HTTP"
         )
+
+    # Nano Banana y ElevenLabs son opcionales: se comprueba la clave aquí para dar
+    # un mensaje claro ANTES de crear el trabajo, en vez de fallar a medias.
+    if provider == "gemini":
+        from service import proveedores_externos as ext
+
+        if not ext.gemini_disponible():
+            raise RequestError(
+                "Nano Banana no está configurado: define VE_GEMINI_KEY (o usa provider 'local')"
+            )
+    if provider == "eleven":
+        from service import proveedores_externos as ext
+
+        if not ext.eleven_disponible():
+            raise RequestError(
+                "ElevenLabs no está configurado: define VE_ELEVEN_KEY (o usa 'edge' o 'local')"
+            )
 
     return {
         "kind": kind,
@@ -696,6 +735,27 @@ def run(
         note = generate_edge_voice(request["prompt"], path, tools=tools, job_dir=job_dir, options=options)
     elif provider == "web":
         note = generate_web_image(request["prompt"], path, tools=tools, job_dir=job_dir, options=options)
+    elif provider == "gemini":
+        # Nano Banana: opcional. Sin clave, el mensaje lo dice y no se gasta nada.
+        from service import proveedores_externos as ext
+
+        note = ext.generar_imagen_gemini(request["prompt"], path, options=options)
+    elif provider == "eleven":
+        # ElevenLabs: opcional. Se guarda el MP3 y se convierte a WAV (48 kHz mono),
+        # que es lo que come el resto del motor.
+        from service import proveedores_externos as ext
+
+        temporal = path.with_suffix(".mp3")
+        note = ext.generar_voz_eleven(request["prompt"], temporal, options=options)
+        worker.run_ffmpeg(
+            tools,
+            ["-v", "error", "-y", "-i", str(temporal), "-ar", "48000", "-ac", "1", str(path)],
+            cwd=job_dir,
+        )
+        try:
+            temporal.unlink()
+        except OSError:
+            pass
     else:
         note = generate_http(request, path, job_dir=job_dir)
     check()
