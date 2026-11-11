@@ -20,6 +20,7 @@ const PRESET = 'mp4-720p30'
 const MAX_CAPTION = 90
 const MIN_SCENE = 0.3
 const AUTOSAVE_MS = 4000
+const COALESCE_MS = 900
 const POLL_MS = 400
 
 const ORIENTATIONS = {
@@ -49,7 +50,7 @@ const TRANSITION_MAX_S = 2.0
 // esa lista se muestran deshabilitados en vez de mandarse y fallar.
 const EXPORT_PRESETS = [
   { id: 'mp4-720p30', label: 'MP4 720p · 30 fps' },
-  { id: 'mp4-1080p30', label: 'MP4 1080p · 30 fps · requiere medición' },
+  { id: 'mp4-1080p30', label: 'MP4 1080p · 30 fps' },
   { id: 'mp4-720p30-vertical', label: 'MP4 vertical 720p · 30 fps' },
   { id: 'mp4-720p30-square', label: 'MP4 cuadrado 720p · 30 fps' }
 ]
@@ -63,6 +64,11 @@ const TEXT_SIZE = { min: 12, max: 120, default: 42 }
 const TEXT_BORDER = { min: 0, max: 10, default: 0 }
 const TEXT_SHADOW = { min: 0, max: 10, default: 0 }
 const TEXT_COLOR_DEFAULT = '#FFFFFF'
+const TEXT_POSITIONS = [
+  { id: 'top', label: 'Arriba' },
+  { id: 'center', label: 'Centro' },
+  { id: 'bottom', label: 'Abajo' }
+]
 const TEXT_ANIMATIONS = [
   { id: 'none', label: 'Ninguna' },
   { id: 'fade', label: 'Fundido' },
@@ -339,13 +345,26 @@ function fitTransition(scenes, scene) {
 
 function totalOf(doc) {
   if (!doc) return 0
-  return (doc.scenes || []).reduce((sum, scene) => sum + sceneDuration(scene), 0)
+  return round3((doc.scenes || []).reduce((sum, scene) => sum + visibleDuration(scene), 0))
+}
+
+// Lo que dura el MP4 de verdad: cada transición solapa la escena con la anterior,
+// así que el vídeo final es más corto que la suma de las escenas.
+function finalDuration(doc) {
+  const scenes = (doc && doc.scenes) || []
+  let overlap = 0
+  scenes.forEach((scene, index) => {
+    if (index === 0) return
+    const parts = parseTransition(scene.transition)
+    if (parts.style !== 'none') overlap += parts.seconds
+  })
+  return Math.max(0, round3(totalOf(doc) - overlap))
 }
 
 function timeline(doc) {
   let at = 0
   return (doc && doc.scenes ? doc.scenes : []).map((scene) => {
-    const dur = sceneDuration(scene)
+    const dur = visibleDuration(scene)
     const item = { id: scene.id, start: at, duration: dur, scene }
     at += dur
     return item
@@ -845,6 +864,127 @@ select.ve-select{display:block;padding:0 6px;-webkit-appearance:auto;appearance:
 .ve-root[data-tight="1"] .ve-chat .ve-chip__name{display:none}
 .ve-root[data-tight="1"] .ve-chip{max-width:124px}
 .ve-tip{position:absolute;right:10px;top:46px;z-index:13;max-width:240px;padding:6px 9px;border:1px solid var(--ve-line);border-radius:4px;background:var(--ve-card);color:var(--ve-fg);font-size:10.5px;line-height:1.4;box-shadow:0 12px 30px -18px color-mix(in oklab,var(--ve-fg) 60%,transparent)}
+/* --- v0.4 · pulido de la interfaz ---------------------------------------------
+   Un solo bloque de ajustes sobre lo anterior: más legible (nada por debajo de
+   10,5 px), panel de propiedades con pestañas y scroll propio, línea de tiempo
+   alineada con el cursor y cajón de propiedades usable en paneles estrechos. ---- */
+.ve-root{--ve-ink2:color-mix(in oklab,var(--ve-fg) 86%,transparent);--ve-ink3:color-mix(in oklab,var(--ve-fg) 74%,transparent);font-size:12.5px}
+.ve-title{font-size:13px}
+.ve-chip{font-size:12px}
+.ve-btn{font-size:12px}
+.ve-btn--sm{height:28px;padding:0 9px}
+.ve-btn--text.ve-btn--sm{padding:0 4px}
+.ve-badge{font-size:10.5px;height:19px}
+.ve-auto{font-size:11.5px}
+.ve-stage__name{font-size:12.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ve-stage__count{font-size:11.5px}
+.ve-cap{background:none;border:0;backdrop-filter:none;padding:0 4px;color:#fff;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,.8),0 0 2px rgba(0,0,0,.7);pointer-events:none;left:6%;right:6%}
+.ve-cap--top{top:8%;bottom:auto}
+.ve-cap--center{top:50%;bottom:auto;transform:translateY(-50%)}
+.ve-tc{font-size:11.5px}
+.ve-goto{width:70px;height:26px;font-size:11.5px}
+.ve-transport{height:38px}
+/* línea de tiempo */
+.ve-tl{height:auto;max-height:200px;overflow:hidden}
+.ve-tl__ruler{height:24px;background-image:none;cursor:pointer;touch-action:none;user-select:none}
+.ve-tick{position:absolute;top:0;bottom:0;border-left:1px solid color-mix(in oklab,var(--ve-fg) 28%,transparent)}
+.ve-tick em{position:absolute;top:4px;left:4px;font-style:normal;font-size:10.5px;line-height:1;color:var(--ve-ink2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ve-tl__gutter{width:52px;font-size:10.5px;letter-spacing:0}
+.ve-tl__ruler{margin-left:52px}
+.ve-tl__gutter span{height:48px;padding-left:10px}
+.ve-tl__gutter span+span{height:28px}
+.ve-tl__gutter span:nth-child(3){height:24px}
+.ve-tl__tracks{padding-right:0;margin-right:10px}
+.ve-tl__row{height:48px;gap:0}
+.ve-clip{padding:6px 8px;justify-content:flex-start;gap:1px}
+.ve-clip__n{position:absolute;top:5px;right:8px;font-size:10px;color:var(--ve-ink3)}
+.ve-clip__t{font-size:11.5px;line-height:1.25;padding-right:18px}
+.ve-clip__d{font-size:10.5px}
+.ve-clip--sel{padding:5px 7px}
+.ve-trim{width:8px}
+.ve-tl__row--audio{height:26px;margin-top:2px;display:flex;position:relative}
+.ve-ab{position:relative;min-width:0;display:flex;align-items:flex-end;overflow:hidden;border:1px solid var(--ve-line);background:var(--ve-soft)}
+.ve-ab i{display:block;width:100%;background:color-mix(in oklab,var(--ve-accent) 36%,transparent)}
+.ve-ab small{position:absolute;left:5px;top:50%;transform:translateY(-50%);font-size:10.5px;color:var(--ve-fg);white-space:nowrap}
+.ve-ab--sel{border-color:var(--ve-accent)}
+.ve-ab--sel i{background:color-mix(in oklab,var(--ve-accent) 60%,transparent)}
+.ve-tl__row--music{height:22px;margin-top:2px;display:flex;align-items:center;gap:6px;padding:0 8px;border:1px solid var(--ve-line);border-radius:2px;font-size:10.5px;color:var(--ve-ink2);background:color-mix(in oklab,var(--ve-accent) 10%,transparent);overflow:hidden;white-space:nowrap}
+.ve-evs{pointer-events:none}
+/* panel derecho: escenas fijas, pestañas y cuerpo con scroll */
+.ve-body{grid-template-columns:minmax(0,1fr) 320px}
+.ve-rail{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;background:var(--ve-surface)}
+.ve-rail__top{display:flex;align-items:center;gap:6px;height:40px;flex:none;padding:0 6px 0 12px;border-bottom:1px solid var(--ve-line)}
+.ve-rail__sec--scenes{flex:none;border-bottom:1px solid var(--ve-line);padding:8px 10px 10px}
+.ve-rail__t{font-size:10.5px}
+.ve-rail__h{height:28px;margin-bottom:6px}
+.ve-scenes{max-height:184px;overflow:auto}
+.ve-scene-row{grid-template-columns:minmax(0,1fr) 28px 28px}
+.ve-scene{grid-template-columns:18px 46px minmax(0,1fr);height:42px;gap:7px;padding:0 6px}
+.ve-scene__n{font-size:10.5px}
+.ve-scene__name{font-size:12px}
+.ve-scene__dur{font-size:10.5px}
+.ve-mv{width:28px;height:30px}
+.ve-thumb{width:46px;height:26px;object-fit:cover;display:grid;place-items:center;color:var(--ve-ink3);background:var(--ve-soft);border-radius:3px;overflow:hidden;pointer-events:none}
+.ve-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;flex:none;padding:6px 8px;border-bottom:1px solid var(--ve-line)}
+.ve-tabs button{height:30px;border:0;border-radius:4px;background:transparent;color:var(--ve-ink2);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ve-tabs button:hover{background:var(--ve-soft);color:var(--ve-fg)}
+.ve-tabs button[aria-selected="true"]{background:color-mix(in oklab,var(--ve-accent) 12%,transparent);color:var(--ve-fg);box-shadow:inset 0 -2px 0 var(--ve-accent)}
+.ve-tabs button:focus-visible{outline:2px solid var(--ve-accent);outline-offset:-2px}
+.ve-rail__body{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;display:flex;flex-direction:column}
+.ve-rail__body>*{flex:none;padding:12px;border-bottom:1px solid var(--ve-line);min-width:0}
+.ve-rail__body>:last-child{border-bottom:0;padding-bottom:20px}
+.ve-rail__body>.ve-es{margin:28px auto;border:0;max-width:260px}
+.ve-rail__body>.ve-rail__sec{padding:12px}
+.ve-f{gap:5px}
+.ve-f__l{font-size:12px;font-weight:600;color:var(--ve-fg)}
+.ve-f__h{font-size:11px;color:var(--ve-ink3);line-height:1.4}
+.ve-f__err{font-size:11px}
+.ve-props{gap:10px}
+.ve-tex__k{font-size:10.5px;letter-spacing:.03em}
+.ve-tex{gap:8px}
+.ve-tex__in{height:32px;font-size:12px}
+.ve-input,.ve-textarea{font-size:12px;height:32px}
+.ve-textarea{height:72px;resize:vertical;min-height:56px;max-height:160px}
+.ve-counter{font-size:10.5px;margin-left:auto}
+.ve-f__l .ve-counter{margin-left:auto}
+.ve-f__l{width:100%}
+.ve-volval{font-size:11.5px;min-width:42px}
+.ve-select,select.ve-select{font-size:12px;height:32px;color:var(--ve-fg);background-color:var(--ve-surface)}
+.ve-select option,.ve-tex__in option{background:var(--ve-surface);color:var(--ve-fg)}
+.ve-tex select.ve-tex__in{background-color:var(--ve-surface)}
+.ve-chip{flex:0 1 auto;min-width:34px}
+.ve-chip--ghost{max-width:150px}
+.ve-root[data-compact="1"] .ve-chat .ve-chip__name{display:none}
+.ve-root[data-compact="1"] .ve-chat{padding:0 8px}
+.ve-seg{height:32px}
+.ve-seg button{font-size:11.5px}
+.ve-seg button[disabled]{opacity:.5;cursor:default}
+.ve-tcout{height:32px;font-size:12px}
+.ve-mus__chk{font-size:12px}
+.ve-actions{display:flex;flex-direction:row;flex-wrap:wrap;gap:6px}
+.ve-facts{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 14px;margin:0;font-size:12px}
+.ve-facts dt{color:var(--ve-ink2)}
+.ve-facts dd{margin:0;font-variant-numeric:tabular-nums}
+.ve-lib{width:240px}
+.ve-lib__t{font-size:10.5px}
+.ve-lib__n{font-size:12px}
+.ve-lib__s{font-size:10.5px}
+.ve-plist{display:flex;flex-direction:column;gap:2px;width:min(380px,92%);max-height:220px;overflow:auto;border:1px solid var(--ve-line);border-radius:6px;padding:4px;margin-top:6px}
+.ve-plist .ve-file{height:34px;font-size:12px}
+.ve-ftr{padding:0 12px}
+.ve-ftr__hint{font-size:11.5px}
+.ve-menu button{font-size:12px;height:30px}
+.ve-es__b{font-size:12px}
+.ve-dialog__b{font-size:12px}
+/* anchos: el panel de propiedades es un cajón lateral solo cuando no cabe al lado */
+.ve-root[data-compact="1"] .ve-rail{position:absolute;top:0;right:0;bottom:0;left:auto;height:auto;max-height:none;width:min(340px,100%);border-top:0;border-left:1px solid var(--ve-line);z-index:9;box-shadow:-18px 0 36px -26px color-mix(in oklab,var(--ve-fg) 70%,transparent)}
+.ve-root[data-compact="1"] .ve-tl,.ve-root[data-tight="1"] .ve-tl{height:auto}
+.ve-root[data-tight="1"] .ve-model{display:none}
+@media (max-width:520px){.ve-hdr .ve-title{display:none}}
+.ve-root[data-compact="1"] .ve-scenes{max-height:184px}
+.ve-root[data-compact="1"] .ve-rail__sec{padding:12px}
+.ve-root[data-compact="1"] .ve-rail__sec--scenes{padding:8px 10px 10px}
+
 @media (prefers-reduced-motion:reduce){
   .ve-root *{transition:none!important;animation:none!important}
 }
@@ -893,7 +1033,9 @@ const PATHS = {
   grip: 'M9 6h.01 M15 6h.01 M9 12h.01 M15 12h.01 M9 18h.01 M15 18h.01',
   volume: 'M5 9v6h3l4 4V5L8 9z M17 9a4 4 0 010 6',
   panel: 'M4 5h16v14H4z M15 5v14',
-  image: 'M4 5h16v14H4z M8 11l3 3 2-2 3 3'
+  image: 'M4 5h16v14H4z M8 11l3 3 2-2 3 3',
+  plus: 'M12 5v14 M5 12h14',
+  trash: 'M5 7h14 M9 7V4h6v3 M7 7l1 13h8l1-13 M10 11v6 M14 11v6'
 }
 
 function Icon({ name, size }) {
@@ -922,7 +1064,7 @@ function Btn({ variant = 'ghost', icon, label, onClick, disabled, title, ariaLab
     'button',
     {
       type: 'button',
-      className: `ve-btn ve-btn--${variant}${!label ? ' ve-btn--icon' : ''}${block ? ' ve-btn--block' : ''}`,
+      className: `ve-btn ve-btn--${variant}${!label ? ' ve-btn--icon' : ''}${block ? ' ve-btn--block' : ''}${size === 'sm' ? ' ve-btn--sm' : ''}`,
       onClick,
       disabled: !!disabled,
       title: title || label || ariaLabel,
@@ -977,6 +1119,80 @@ function Dialog({ title, body, children, footer, onClose, describedBy }) {
   )
 }
 
+// Campo numérico escribible: guarda lo que tecleas mientras tienes el foco (así
+// "2.", "2,5" o "6" camino de "60" no se pisan) y solo aplica valores válidos y
+// dentro de rango; al salir vuelve al valor real. Flechas: ±step (Mayús ×10).
+function NumField({ value, onCommit, min = -Infinity, max = Infinity, step = 1, decimals = 2, format, ariaLabel, className, disabled, title, onBlur }) {
+  const show = (v) => (format ? format(v) : decimals === 0 ? String(Math.round(Number(v) || 0)) : Number(v || 0).toFixed(decimals))
+  const [draft, setDraft] = useState(null)
+  const parse = (raw) => {
+    const text = String(raw == null ? '' : raw).trim().replace(',', '.')
+    if (!text) return null
+    const number = Number(text)
+    return Number.isFinite(number) ? number : null
+  }
+  return h('input', {
+    className,
+    inputMode: 'decimal',
+    autoComplete: 'off',
+    value: draft === null ? show(value) : draft,
+    disabled: !!disabled,
+    title,
+    'aria-label': ariaLabel,
+    onFocus: (event) => {
+      setDraft(show(value))
+      if (event.target && event.target.select) event.target.select()
+    },
+    onChange: (event) => {
+      const raw = event.target.value
+      if (!/^[-+]?\d*[.,]?\d*$/.test(raw)) return
+      setDraft(raw)
+      const number = parse(raw)
+      if (number !== null && number >= min && number <= max) onCommit(number)
+    },
+    onKeyDown: (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        event.target.blur()
+      } else if (event.key === 'Escape') {
+        setDraft(null)
+        event.target.blur()
+      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault()
+        const base = parse(draft === null ? show(value) : draft)
+        const next = clamp((base === null ? Number(value) || 0 : base) + (event.key === 'ArrowUp' ? 1 : -1) * step * (event.shiftKey ? 10 : 1), min, max)
+        const rounded = round3(next)
+        setDraft(show(rounded))
+        onCommit(rounded)
+      }
+    },
+    onBlur: () => {
+      const number = parse(draft === null ? '' : draft)
+      if (number !== null && draft !== null) onCommit(clamp(number, min, max))
+      setDraft(null)
+      if (onBlur) onBlur()
+    }
+  })
+}
+
+// Miniatura real de la escena (primer fotograma del tramo). Las imágenes usan la
+// propia imagen; el vídeo carga solo metadatos y un fotograma, nunca reproduce.
+function Thumb({ src, kind, at, large }) {
+  const cls = `ve-thumb${large ? ' ve-thumb--lg' : ''}`
+  if (!src) return h('span', { className: cls, 'aria-hidden': 'true' }, h(Icon, { name: 'film', size: 'sm' }))
+  if (kind === 'image') return h('img', { className: cls, src, alt: '', draggable: false, loading: 'lazy' })
+  if (kind === 'audio') return h('span', { className: cls, 'aria-hidden': 'true' }, h(Icon, { name: 'volume', size: 'sm' }))
+  return h('video', {
+    className: cls,
+    src: `${src}#t=${Math.max(0.05, Number(at) || 0.05).toFixed(2)}`,
+    muted: true,
+    playsInline: true,
+    preload: 'metadata',
+    tabIndex: -1,
+    'aria-hidden': 'true'
+  })
+}
+
 // --------------------------------------------------------------------------- #
 // pane
 // --------------------------------------------------------------------------- #
@@ -1008,6 +1224,7 @@ function VideoPane({ ctx, onClose }) {
   const [exportPreset, setExportPreset] = useState(PRESET)
   const [service, setService] = useState(null)
   const [railOpen, setRailOpen] = useState(false)
+  const [railTab, setRailTab] = useState('scene')
   const [libOpen, setLibOpen] = useState(false)
   const [picker, setPicker] = useState(null)
   const [modelTip, setModelTip] = useState(false)
@@ -1015,6 +1232,7 @@ function VideoPane({ ctx, onClose }) {
   const [undoDepth, setUndoDepth] = useState(0)
   const [redoDepth, setRedoDepth] = useState(0)
 
+  const [, setTick] = useState(0)
   const rootRef = useRef(null)
   const videoRef = useRef(null)
   const undoRef = useRef([])
@@ -1029,7 +1247,13 @@ function VideoPane({ ctx, onClose }) {
 
   const docRef = useRef(null)
   const baseRef = useRef(null)
+  const lastMutRef = useRef(null)
+  const dirtyRef = useRef(false)
+  const scrubRef = useRef(null)
+  const saveRef = useRef(null)
+  const pendingSaveRef = useRef(false)
   docRef.current = doc
+  dirtyRef.current = dirty
 
   const rows = useMemo(() => timeline(doc), [doc])
   const total = useMemo(() => totalOf(doc), [doc])
@@ -1234,13 +1458,29 @@ function VideoPane({ ctx, onClose }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // La etiqueta «Guardado hace…» se refresca sola; los avisos se apagan a los 6 s.
+  useEffect(() => {
+    const timer = setInterval(() => setTick((value) => (value + 1) % 1000), 15000)
+    return () => clearInterval(timer)
+  }, [])
+  useEffect(() => {
+    if (!notice) return undefined
+    const timer = setTimeout(() => setNotice(''), 6000)
+    return () => clearTimeout(timer)
+  }, [notice])
+
   // -------------------------------------------------------------- guardado
 
   const save = useCallback(
     async (options = {}) => {
       const current = docRef.current
-      if (!current || savingRef.current) return
-      if (!options.force && !dirty) return
+      if (!current) return false
+      if (savingRef.current) {
+        // Ya hay un guardado en vuelo: este se encadena justo después (antes se perdía).
+        pendingSaveRef.current = true
+        return true
+      }
+      if (!options.force && !dirtyRef.current) return true
       savingRef.current = true
       setStatus('saving')
       const sentJson = JSON.stringify(current)
@@ -1264,6 +1504,7 @@ function VideoPane({ ctx, onClose }) {
           setSavedAt(Date.now())
           setNotice('')
         }
+        return true
       } catch (error) {
         if (error.status === 409) {
           // Alguien (normalmente Hermes desde el chat) guardó antes: se combinan los dos
@@ -1286,12 +1527,23 @@ function VideoPane({ ctx, onClose }) {
           setStatus('failed')
           setNotice(error.message)
         }
+        return false
       } finally {
         savingRef.current = false
+        if (pendingSaveRef.current) {
+          pendingSaveRef.current = false
+          setTimeout(() => saveRef.current && saveRef.current(), 0)
+        }
       }
     },
-    [ctx, dirty]
+    [ctx]
   )
+  saveRef.current = save
+  // Al salir de un campo: el guardado espera a que React aplique el cambio que
+  // ese mismo evento acaba de hacer (si no, se guardaba el documento anterior).
+  const saveSoon = useCallback(() => {
+    setTimeout(() => saveRef.current && saveRef.current(), 0)
+  }, [])
 
   useEffect(() => {
     if (!dirty && doc) baseRef.current = doc
@@ -1308,12 +1560,20 @@ function VideoPane({ ctx, onClose }) {
 
   // -------------------------------------------------------------- mutaciones
 
-  const mutate = useCallback((fn) => {
+  // `key` agrupa ediciones seguidas del mismo control (teclear, arrastrar un
+  // slider): un solo paso de deshacer por gesto, no uno por pulsación.
+  const mutate = useCallback((fn, key) => {
     const current = docRef.current
     if (!current) return
-    undoRef.current = [...undoRef.current.slice(-49), JSON.stringify(current)]
+    const now = Date.now()
+    const last = lastMutRef.current
+    const merge = !!key && !!last && last.key === key && now - last.at < COALESCE_MS && undoRef.current.length > 0
+    lastMutRef.current = key ? { key, at: now } : null
+    if (!merge) {
+      undoRef.current = [...undoRef.current.slice(-49), JSON.stringify(current)]
+      setUndoDepth(undoRef.current.length)
+    }
     redoRef.current = []
-    setUndoDepth(undoRef.current.length)
     setRedoDepth(0)
     const next = fn(clone(current))
     setDoc(next)
@@ -1324,6 +1584,7 @@ function VideoPane({ ctx, onClose }) {
     const stack = undoRef.current
     if (!stack.length || !docRef.current) return
     const previous = stack[stack.length - 1]
+    lastMutRef.current = null
     undoRef.current = stack.slice(0, -1)
     redoRef.current = [...redoRef.current.slice(-49), JSON.stringify(docRef.current)]
     setUndoDepth(undoRef.current.length)
@@ -1336,6 +1597,7 @@ function VideoPane({ ctx, onClose }) {
     const stack = redoRef.current
     if (!stack.length || !docRef.current) return
     const next = stack[stack.length - 1]
+    lastMutRef.current = null
     redoRef.current = stack.slice(0, -1)
     undoRef.current = [...undoRef.current.slice(-49), JSON.stringify(docRef.current)]
     setUndoDepth(undoRef.current.length)
@@ -1369,7 +1631,7 @@ function VideoPane({ ctx, onClose }) {
         ]
       }
       return draft
-    })
+    }, `caption:${sel.id}`)
   }
 
   const setSceneVolume = (value) => {
@@ -1380,7 +1642,7 @@ function VideoPane({ ctx, onClose }) {
       if (!scene) return draft
       scene.audio = { ...(scene.audio || {}), volume }
       return draft
-    })
+    }, `vol:${sel.id}`)
   }
 
   const setIn = (value) => {
@@ -1393,7 +1655,7 @@ function VideoPane({ ctx, onClose }) {
       if (scene.text && scene.text[0]) scene.text[0].until = round3(visibleDuration(scene))
       fitTransition(draft.scenes, scene)
       return draft
-    })
+    }, `in:${sel.id}`)
   }
 
   const setOut = (value) => {
@@ -1405,19 +1667,21 @@ function VideoPane({ ctx, onClose }) {
       if (scene.text && scene.text[0]) scene.text[0].until = round3(visibleDuration(scene))
       fitTransition(draft.scenes, scene)
       return draft
-    })
+    }, `out:${sel.id}`)
   }
 
   const trimAtCursor = (edge) => {
     if (!sel || !at.row || at.row.id !== sel.id) return
-    if (edge === 'in') setIn(round3(Number(sel.in) + at.local))
-    else setOut(round3(Number(sel.in) + at.local))
+    const local = at.local * sceneSpeed(sel)
+    if (edge === 'in') setIn(round3(Number(sel.in) + local))
+    else setOut(round3(Number(sel.in) + local))
   }
 
   const splitHere = () => {
     if (!sel || !at.row || at.row.id !== sel.id) return
-    const offset = Number(sel.in) + at.local
-    if (at.local < MIN_SCENE || sceneDuration(sel) - at.local < MIN_SCENE) {
+    const localSrc = at.local * sceneSpeed(sel)
+    const offset = Number(sel.in) + localSrc
+    if (localSrc < MIN_SCENE || sceneDuration(sel) - localSrc < MIN_SCENE) {
       setNotice('Coloca el cursor a más de 0,3 s del borde para partir.')
       return
     }
@@ -1431,7 +1695,7 @@ function VideoPane({ ctx, onClose }) {
       // El corte no inserta un cruce: la cola entra seca.
       tail.transition = 'none'
       scene.out = round3(offset)
-      if (scene.text && scene.text[0]) scene.text[0].until = round3(sceneDuration(scene))
+      if (scene.text && scene.text[0]) scene.text[0].until = round3(visibleDuration(scene))
       draft.scenes.splice(index + 1, 0, tail)
       fitTransition(draft.scenes, scene)
       return draft
@@ -1493,7 +1757,7 @@ function VideoPane({ ctx, onClose }) {
       if (!scene) return draft
       scene.transition = next
       return draft
-    })
+    }, `trs:${sel.id}`)
   }
 
   // -------------------------------------------------------------- música
@@ -1503,7 +1767,7 @@ function VideoPane({ ctx, onClose }) {
       if (!draft.music) return draft
       draft.music = { ...draft.music, ...patch }
       return draft
-    })
+    }, `music:${Object.keys(patch).join(',')}`)
   }
 
   const setMusicFade = (key, raw) => {
@@ -1548,7 +1812,7 @@ function VideoPane({ ctx, onClose }) {
     mutate((draft) => {
       draft.audioEvents = (draft.audioEvents || []).map((item) => (item.id === id ? { ...item, ...patch } : item))
       return draft
-    })
+    }, `ev:${id}:${Object.keys(patch).join(',')}`)
   }
 
   const commitEventAt = (id, text) => {
@@ -1599,7 +1863,7 @@ function VideoPane({ ctx, onClose }) {
         else item[key] = patch[key]
       })
       return draft
-    })
+    }, `txt:${sel.id}:${Object.keys(patch).join(',')}`)
   }
 
   const setTextAnimation = (slot, value) => {
@@ -1632,7 +1896,7 @@ function VideoPane({ ctx, onClose }) {
       if (Object.keys(next).length) scene.filters = next
       else delete scene.filters
       return draft
-    })
+    }, `flt:${sel.id}:${key}`)
   }
 
   const setFilterFlag = (key, on) => {
@@ -1683,7 +1947,7 @@ function VideoPane({ ctx, onClose }) {
       const pan = patch.pan === undefined ? prev.pan || KEN_BURNS.pan : patch.pan
       scene.kenBurns = { zoom: round3(zoom), pan }
       return draft
-    })
+    }, `kb:${sel.id}:${Object.keys(patch).join(',')}`)
   }
 
   const setSpeed = (raw) => {
@@ -1699,7 +1963,7 @@ function VideoPane({ ctx, onClose }) {
       else scene.speed = value
       fitSceneWindows(draft.scenes, scene, index, before)
       return draft
-    })
+    }, `spd:${sel.id}`)
   }
 
   // -------------------------------------------------------------- logo
@@ -1725,7 +1989,7 @@ function VideoPane({ ctx, onClose }) {
         scale: round3(clamp(Number(merged.scale), LOGO_LIMITS.scale[0], LOGO_LIMITS.scale[1]))
       }
       return draft
-    })
+    }, `logo:${Object.keys(patch).join(',')}`)
   }
 
   const removeLogo = () => {
@@ -1753,7 +2017,7 @@ function VideoPane({ ctx, onClose }) {
     mutate((draft) => {
       draft.audio = { ...(draft.audio || {}), masterVolume: volume }
       return draft
-    })
+    }, 'master')
   }
 
   // -------------------------------------------------------------- reproducción
@@ -1761,7 +2025,13 @@ function VideoPane({ ctx, onClose }) {
   useEffect(() => {
     const video = videoRef.current
     if (!video || !at.row) return
-    const target = Number(at.row.scene.in) + at.local
+    const rate = sceneSpeed(at.row.scene)
+    const target = Number(at.row.scene.in) + at.local * rate
+    try {
+      video.playbackRate = rate
+    } catch (error) {
+      /* velocidad no admitida por este medio */
+    }
     if (Math.abs(video.currentTime - target) > 0.2) {
       try {
         video.currentTime = Math.max(0, target)
@@ -1833,6 +2103,7 @@ function VideoPane({ ctx, onClose }) {
     const video = videoRef.current
     if (!video || !at.row) return
     const scene = at.row.scene
+    const speed = sceneSpeed(scene)
     const local = video.currentTime - Number(scene.in)
     const limit = sceneDuration(scene)
     if (playing && local >= limit - 0.03) {
@@ -1847,7 +2118,7 @@ function VideoPane({ ctx, onClose }) {
       }
       return
     }
-    if (playing) setCursor(at.row.start + clamp(local, 0, limit))
+    if (playing) setCursor(at.row.start + clamp(local / speed, 0, at.row.duration))
   }
 
   // -------------------------------------------------------------- exportación
@@ -1857,7 +2128,13 @@ function VideoPane({ ctx, onClose }) {
     const chosen = preset || exportPreset || PRESET
     setDialog({ kind: 'export', phase: 'queued', captions, openWhenDone })
     try {
-      await save({ force: false })
+      // Un autoguardado en curso se espera; si hay cambios sin guardar se guardan
+      // ahora. Exportar nunca usa una revisión vieja del documento.
+      for (let waited = 0; savingRef.current && waited < 150; waited += 1) await new Promise((resolve) => setTimeout(resolve, 100))
+      if (dirtyRef.current) {
+        const saved = await save({ force: false })
+        if (saved === false) throw new Error('No se pudo guardar antes de exportar. Revisa el aviso del pie y vuelve a intentarlo.')
+      }
       const payload = await request(ctx, `/projects/${encodeURIComponent(doc.projectId)}/export`, {
         method: 'POST',
         body: { preset: chosen, captions }
@@ -2060,8 +2337,8 @@ function VideoPane({ ctx, onClose }) {
 
   // -------------------------------------------------------------- derivados de render
 
-  const compact = width < 1100
-  const tight = width < 760
+  const compact = width < 900
+  const tight = width < 600
   const modelName = (() => {
     const raw = typeof modelSlug === 'string' ? modelSlug.trim() : ''
     if (!raw) return ''
@@ -2073,7 +2350,7 @@ function VideoPane({ ctx, onClose }) {
   const missing = (doc ? doc.scenes || [] : []).filter(
     (scene) => scene.needsRelink || !assetFor(scene) || (media.find((item) => item.id === assetFor(scene)) || {}).exists === false
   )
-  const canExport = !!doc && (doc.scenes || []).length > 0 && dirty === false && missing.length === 0 && status !== 'saving'
+  const canExport = !!doc && (doc.scenes || []).length > 0 && missing.length === 0 && !(job && ['queued', 'running', 'probing', 'rendering', 'validating', 'promoting'].includes(job.state))
   const orient = ORIENTATIONS[(doc && doc.orientation) || 'h'] || ORIENTATIONS.h
   const docFps = doc && doc.fps ? Math.round((doc.fps.num || 30) / (doc.fps.den || 1)) : 30
   const frameStep = 1 / (docFps || 30)
@@ -2093,8 +2370,17 @@ function VideoPane({ ctx, onClose }) {
       'video'
     : 'video'
   const videoSrc = doc && activeAsset ? mediaUrl(ctx, doc.projectId, activeAsset) : null
-  const savedLabel = status === 'saving' ? 'Guardando…' : status === 'failed' ? 'No se pudo guardar' : savedAt ? `Guardado ${relativeTime(savedAt)}` : 'Sin guardar'
-  const autosaveTone = status === 'saving' ? 'warn' : status === 'failed' ? 'bad' : 'good'
+  const savedLabel =
+    status === 'saving'
+      ? 'Guardando…'
+      : status === 'failed'
+        ? 'No se pudo guardar'
+        : dirty
+          ? 'Cambios sin guardar'
+          : savedAt
+            ? `Guardado ${relativeTime(savedAt)}`
+            : 'Sin cambios'
+  const autosaveTone = status === 'saving' || (dirty && status !== 'failed') ? 'warn' : status === 'failed' ? 'bad' : 'good'
 
   // -------------------------------------------------------------- picker + biblioteca
 
@@ -2221,9 +2507,7 @@ function VideoPane({ ctx, onClose }) {
       'header',
       { className: 've-hdr' },
       h('span', { className: 've-plate' }, h(Icon, { name: 'film' })),
-      h('span', { className: 've-title' }, compact ? 'Editor' : 'Editor de vídeo'),
-      doc ? h(Badge, { outline: true }, `Rev ${doc.revision}`) : h(Badge, { outline: true }, 'Sin proyecto'),
-      dirty ? h(Badge, { tone: 'warn' }, 'Sin guardar') : null,
+      width >= 1000 ? h('span', { className: 've-title' }, 'Editor de vídeo') : null,
       h('span', { className: 've-sep' }),
       h(
         'button',
@@ -2231,10 +2515,11 @@ function VideoPane({ ctx, onClose }) {
           type: 'button',
           className: 've-chip',
           onClick: () => setMenu(menu === 'projects' ? null : 'projects'),
+          title: doc ? `Cambiar de proyecto · revisión ${doc.revision}` : 'Elegir un proyecto',
           'aria-haspopup': 'menu',
           'aria-expanded': menu === 'projects'
         },
-        h(Icon, { name: 'panel', size: 'sm' }),
+        h(Icon, { name: 'film', size: 'sm' }),
         h('span', { className: 've-chip__name' }, doc ? doc.title : 'Sin proyecto'),
         h(Icon, { name: 'down', size: 'sm' })
       ),
@@ -2273,7 +2558,7 @@ function VideoPane({ ctx, onClose }) {
                 setNotice('Cambia el modelo en el selector del chat.')
               }
             },
-            h(Icon, { name: 'panel', size: 'sm' }),
+            h(Icon, { name: 'message', size: 'sm' }),
             h('span', { className: 've-chip__name' }, modelName)
           )
         : null,
@@ -2295,24 +2580,24 @@ function VideoPane({ ctx, onClose }) {
         ariaLabel: 'Más acciones',
         onClick: () => setMenu(menu === 'more' ? null : 'more')
       }),
-      compact
-        ? h(Btn, {
-            icon: 'film',
-            variant: 'ghost',
-            ariaLabel: 'Medios',
-            title: 'Medios · biblioteca del proyecto',
-            onClick: () => {
-              setLibOpen((prev) => !prev)
-              setRailOpen(false)
-            }
-          })
-        : null,
+      h(Btn, {
+        icon: 'image',
+        variant: libOpen ? 'outline' : 'ghost',
+        ...(width >= 700 ? { label: 'Medios' } : { ariaLabel: 'Medios' }),
+        title: 'Medios · archivos del proyecto',
+        disabled: !doc,
+        onClick: () => {
+          setLibOpen((prev) => !prev)
+          setRailOpen(false)
+        }
+      }),
       compact
         ? h(Btn, {
             icon: 'panel',
-            variant: 'ghost',
-            ariaLabel: 'Propiedades',
+            variant: railOpen ? 'outline' : 'ghost',
+            ...(width >= 700 ? { label: 'Propiedades' } : { ariaLabel: 'Propiedades' }),
             title: 'Escenas y propiedades',
+            disabled: !doc,
             onClick: () => {
               setRailOpen((prev) => !prev)
               setLibOpen(false)
@@ -2324,7 +2609,7 @@ function VideoPane({ ctx, onClose }) {
         variant: 'ghost',
         ariaLabel: 'Cerrar editor de vídeo (Ctrl+Shift+E)',
         title: 'Cerrar (Ctrl+Shift+E)',
-        label: compact ? undefined : 'Cerrar editor',
+        label: width >= 700 ? 'Cerrar' : undefined,
         onClick: () => {
           if (typeof onClose === 'function') onClose()
         }
@@ -2354,13 +2639,28 @@ function VideoPane({ ctx, onClose }) {
         { className: 've-center' },
         h(
           EmptyState,
-          { title: 'Todavía no hay proyecto abierto', body: 'Elige un proyecto de esta sesión o crea uno nuevo para montar tu vídeo.' },
-          h(
-            'div',
-            { className: 've-es__actions' },
-            h(Btn, { variant: 'outline', label: 'Elegir proyecto', onClick: () => setMenu('projects') }),
-            h(Btn, { variant: 'primary', label: 'Crear proyecto', onClick: createProject })
-          )
+          {
+            title: projects.length ? 'Elige un proyecto' : 'Empieza tu primer vídeo',
+            body: projects.length
+              ? 'Abre uno de tus proyectos o crea uno nuevo para montar tu vídeo.'
+              : 'Crea un proyecto, importa tus clips e imágenes y exporta un MP4. También puedes pedírselo a Hermes en el chat.'
+          },
+          projects.length
+            ? h(
+                'div',
+                { className: 've-plist', role: 'list', 'aria-label': 'Tus proyectos' },
+                projects.slice(0, 8).map((item) =>
+                  h(
+                    'button',
+                    { key: item.projectId, type: 'button', role: 'listitem', className: 've-file', onClick: () => openProject(item.projectId) },
+                    h(Icon, { name: 'film', size: 'sm' }),
+                    h('span', { className: 've-file__n' }, item.title || item.projectId),
+                    h('span', { className: 've-file__s' }, item.updatedAt ? relativeTime(Date.parse(item.updatedAt)) : '')
+                  )
+                )
+              )
+            : null,
+          h('div', { className: 've-es__actions' }, h(Btn, { variant: 'primary', icon: 'plus', label: 'Crear proyecto', onClick: createProject }))
         )
       )
     }
@@ -2411,10 +2711,10 @@ function VideoPane({ ctx, onClose }) {
       h(
         'div',
         { className: 've-stage__bar' },
-        h(Badge, { outline: true }, 'Escena'),
+        h('span', { className: 've-stage__name' }, currentScene ? currentScene.name || `Escena ${at.index + 1}` : 'Vista previa'),
         h(Badge, { tone: 'accent' }, orient.short),
         h('span', { className: 've-stage__sp' }),
-        h('span', { className: 've-stage__count' }, `${at.index + 1} / ${doc.scenes.length}`)
+        h('span', { className: 've-stage__count' }, `Escena ${at.index + 1} de ${doc.scenes.length}`)
       ),
       h(
         'div',
@@ -2439,7 +2739,7 @@ function VideoPane({ ctx, onClose }) {
                 const video = videoRef.current
                 if (!video || !currentScene) return
                 try {
-                  video.currentTime = Number(currentScene.in) + at.local
+                  video.currentTime = Number(currentScene.in) + at.local * sceneSpeed(currentScene)
                 } catch (error) {
                   /* metadatos aún no listos */
                 }
@@ -2449,7 +2749,25 @@ function VideoPane({ ctx, onClose }) {
           : null,
           guides ? h('div', { className: 've-guides', 'aria-hidden': 'true' }) : null,
           currentScene && captionOf(currentScene)
-            ? h('div', { className: 've-cap' }, captionOf(currentScene))
+            ? (() => {
+                // La vista previa respeta posición, color y tamaño reales del texto.
+                const item = textItemOf(currentScene) || {}
+                const frameH = parseInt(fitStyle.height, 10) || canvasBox.h || 360
+                const px = clamp(((Number(item.size) || TEXT_SIZE.default) / orient.h) * frameH, 9, 90)
+                const shadow = Number(item.shadow) || 0
+                return h(
+                  'div',
+                  {
+                    className: `ve-cap ve-cap--${item.position === 'top' || item.position === 'center' ? item.position : 'bottom'}`,
+                    style: {
+                      fontSize: `${Math.round(px)}px`,
+                      color: hexOr(item.color, undefined),
+                      textShadow: shadow ? `0 0 ${shadow}px #000, 0 ${Math.ceil(shadow / 2)}px ${shadow}px #000` : undefined
+                    }
+                  },
+                  captionOf(currentScene)
+                )
+              })()
             : null
         )
       )
@@ -2497,10 +2815,10 @@ function VideoPane({ ctx, onClose }) {
       h(Btn, { icon: 'end', variant: 'ghost', ariaLabel: 'Ir al final', onClick: () => setCursor(total) }),
       h('span', { className: 've-tc', title: 'Tiempo exacto (mm:ss.ms). Escribe uno a la derecha para saltar.' }, h('b', null, fmtTimecode(cursor)), ` / ${fmtTimecode(total)}`),
       h('input', {
-        key: `goto-${Math.round(cursor * 1000)}`,
         className: 've-goto',
         defaultValue: '',
-        placeholder: 'ir a…',
+        placeholder: 'Ir a…',
+        title: 'Escribe un tiempo (ej. 1:23.5) y pulsa Enter para saltar',
         inputMode: 'decimal',
         'aria-label': 'Ir al tiempo (mm:ss.ms)',
         onKeyDown: (event) => {
@@ -2538,13 +2856,52 @@ function VideoPane({ ctx, onClose }) {
       })
     )
 
+  const fmtRuler = (t) => (total >= 90 ? `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, '0')}` : `${Math.round(t)}s`)
+
+  const scrubTo = (event, settle) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    if (!(rect.width > 0) || !total) return
+    const time = round3(clamp(((event.clientX - rect.left) / rect.width) * total, 0, total))
+    setCursor(time)
+    if (settle) {
+      const hit = sceneAt(docRef.current, time)
+      if (hit.row) setSelId(hit.row.id)
+    }
+  }
+
   const ruler = () => {
-    const step = total > 90 ? 20 : total > 40 ? 10 : 5
+    const step = total > 300 ? 60 : total > 90 ? 20 : total > 40 ? 10 : total > 12 ? 5 : total > 5 ? 2 : 1
     const marks = []
     for (let t = 0; t <= total + 0.01; t += step) {
-      marks.push(h('span', { key: `m${t}`, style: { left: `${total ? (t / total) * 100 : 0}%` } }, `${Math.round(t)}s`))
+      const pct = total ? (t / total) * 100 : 0
+      marks.push(h('span', { key: `m${t}`, className: 've-tick', style: { left: `${pct}%` } }, h('em', null, fmtRuler(t))))
     }
-    return h('div', { className: 've-tl__ruler' }, marks)
+    return h(
+      'div',
+      {
+        className: 've-tl__ruler',
+        role: 'presentation',
+        title: 'Haz clic o arrastra para mover el cursor',
+        onPointerDown: (event) => {
+          scrubRef.current = event.pointerId
+          try { event.currentTarget.setPointerCapture(event.pointerId) } catch (error) { /* no-op */ }
+          scrubTo(event, false)
+        },
+        onPointerMove: (event) => {
+          if (scrubRef.current === event.pointerId) scrubTo(event, false)
+        },
+        onPointerUp: (event) => {
+          if (scrubRef.current !== event.pointerId) return
+          scrubRef.current = null
+          try { event.currentTarget.releasePointerCapture(event.pointerId) } catch (error) { /* no-op */ }
+          scrubTo(event, true)
+        },
+        onPointerCancel: () => {
+          scrubRef.current = null
+        }
+      },
+      marks
+    )
   }
 
   // ---- Arrastrar en la línea de tiempo (mover escenas y recortar bordes) -----
@@ -2602,6 +2959,7 @@ function VideoPane({ ctx, onClose }) {
       edge,
       startX: event.clientX,
       pxPerSec: rect.width / Math.max(row.duration, 0.1),
+      speed: sceneSpeed(row.scene),
       startIn: Number(row.scene.in) || 0,
       startOut: Number(row.scene.out) || 0,
       limits: trimLimits(row.scene),
@@ -2637,14 +2995,14 @@ function VideoPane({ ctx, onClose }) {
       setDragUi({ id: d.id, mode: 'move', dx, target })
       return
     }
-    const delta = dx / d.pxPerSec
+    const delta = (dx / d.pxPerSec) * (d.speed || 1)
     let nextIn = d.startIn
     let nextOut = d.startOut
     if (d.edge === 'in') nextIn = round3(clamp(d.startIn + delta, 0, d.startOut - MIN_SCENE))
     else nextOut = round3(clamp(d.startOut + delta, d.startIn + MIN_SCENE, Math.max(d.limits.maxOut, d.startOut)))
     d.nextIn = nextIn
     d.nextOut = nextOut
-    setDragUi({ id: d.id, mode: 'trim', dur: nextOut - nextIn, edge: d.edge })
+    setDragUi({ id: d.id, mode: 'trim', dur: (nextOut - nextIn) / (d.speed || 1), edge: d.edge })
   }
 
   const clipPointerUp = (event) => {
@@ -2683,7 +3041,7 @@ function VideoPane({ ctx, onClose }) {
       h(
         'div',
         { className: 've-tl__lane' },
-        h('div', { className: 've-tl__gutter' }, h('span', null, 'V1'), h('span', null, 'A1')),
+        h('div', { className: 've-tl__gutter' }, h('span', { title: 'Vídeo' }, 'Vídeo'), h('span', { title: 'Audio de las escenas' }, 'Audio'), music && musicAsset ? h('span', { title: 'Música de fondo' }, 'Música') : null),
         h(
           'div',
           { className: 've-tl__tracks' },
@@ -2707,10 +3065,13 @@ function VideoPane({ ctx, onClose }) {
                   onPointerMove: clipPointerMove,
                   onPointerUp: clipPointerUp,
                   onPointerCancel: clipPointerCancel,
-                  onClick: () => {
+                  onClick: (event) => {
                     if (dragRef.current && dragRef.current.moved) return
                     setSelId(row.id)
-                    setCursor(row.start)
+                    // Clic de ratón: salta al punto exacto del clip; teclado: al inicio.
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    const frac = event.detail > 0 && rect.width > 0 ? clamp((event.clientX - rect.left) / rect.width, 0, 0.999) : 0
+                    setCursor(round3(row.start + frac * row.duration))
                   },
                   'aria-label': `Escena ${index + 1}, ${row.scene.name || 'sin nombre'}, ${row.duration.toFixed(1)} segundos`,
                   'aria-current': row.id === selId ? 'true' : undefined
@@ -2730,13 +3091,21 @@ function VideoPane({ ctx, onClose }) {
           ),
           h(
             'div',
-            { className: 've-tl__row ve-tl__row--audio' },
-            h(
-              'span',
-              { className: 've-wave', 'aria-hidden': 'true' },
-              h('i', { style: { width: `${clamp((sel && sel.audio && sel.audio.volume) || 0, 0, 100)}%` } })
-            ),
-            h('small', null, sel ? `Audio ${(sel.audio && sel.audio.volume) || 0}%` : 'Audio'),
+            { className: 've-tl__row ve-tl__row--audio', 'aria-label': 'Volumen de cada escena' },
+            rows.map((row) => {
+              const volume = clamp(Number(row.scene.audio && row.scene.audio.volume), 0, 100) || 0
+              return h(
+                'span',
+                {
+                  key: row.id,
+                  className: `ve-ab${row.id === selId ? ' ve-ab--sel' : ''}`,
+                  style: { flex: `${Math.max(row.duration, 0.1)} 1 0%` },
+                  title: `Escena ${rows.indexOf(row) + 1}: audio al ${volume} %`
+                },
+                h('i', { style: { height: `${Math.max(volume, volume ? 8 : 0)}%` } }),
+                h('small', null, volume === 0 ? 'mudo' : `${volume} %`)
+              )
+            }),
             sfxEvents.length
               ? h(
                   'div',
@@ -2759,27 +3128,931 @@ function VideoPane({ ctx, onClose }) {
                 )
               : null
           ),
+          music && musicAsset
+            ? h(
+                'div',
+                { className: 've-tl__row ve-tl__row--music', title: `Música de fondo: ${baseName(musicAsset.path)} · ${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %` },
+                h(Icon, { name: 'volume', size: 'sm' }),
+                h('span', null, `${baseName(musicAsset.path)} · ${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %`)
+              )
+            : null,
           h('div', { className: 've-playhead', style: { '--ve-ph': `${total ? (cursor / total) * 100 : 0}%` }, 'aria-hidden': 'true' })
         )
       )
     )
   }
 
+  const railTabs = [
+    { id: 'scene', label: 'Escena' },
+    { id: 'fx', label: 'Efectos' },
+    { id: 'audio', label: 'Audio' },
+    { id: 'project', label: 'Proyecto' }
+  ]
+
+  const setSceneName = (value) => {
+    if (!sel) return
+    mutate((draft) => {
+      const scene = draft.scenes.find((item) => item.id === sel.id)
+      if (scene) scene.name = String(value).slice(0, 120)
+      return draft
+    }, `name:${sel.id}`)
+  }
+
+  const thumbFor = (scene, index, large) => {
+    const assetId = assetFor(scene)
+    const asset = assetId ? (media || []).find((item) => item.id === assetId) : null
+    const src = doc && assetId && index < 40 ? mediaUrl(ctx, doc.projectId, assetId) : null
+    return h(Thumb, { src: asset && asset.exists === false ? null : src, kind: asset ? asset.kind : 'video', at: scene.in, large })
+  }
+
+  // ---- piezas de la pestaña «Escena» -----------------------------------------
+  const pName = () =>
+    h(
+      'label',
+      { className: 've-f' },
+      h('span', { className: 've-f__l' }, 'Nombre de la escena'),
+      h('input', {
+        className: 've-input',
+        value: sel.name || '',
+        maxLength: 120,
+        placeholder: `Escena ${selIndex + 1}`,
+        'aria-label': 'Nombre de la escena',
+        onChange: (event) => setSceneName(event.target.value),
+        onBlur: saveSoon
+      })
+    )
+
+  const pCaption = () => (
+              h(
+      'label',
+      { className: 've-f' },
+      h('span', { className: 've-f__l' }, 'Texto en pantalla', h('span', { className: 've-counter' }, `${captionOf(sel).length}/${MAX_CAPTION}`)),
+      h('textarea', {
+        className: 've-textarea',
+        value: captionOf(sel),
+        maxLength: MAX_CAPTION,
+        placeholder: 'Escribe lo que se verá en pantalla durante la escena',
+        onChange: (event) => writeCaption(event.target.value),
+        onBlur: saveSoon
+      })
+    )
+  )
+
+  const pTextStyle = () => {
+    const item = textItemOf(sel) || {}
+    const hasText = !!String(captionOf(sel)).trim()
+    const anim = item.animation && typeof item.animation === 'object' ? item.animation : {}
+    const position = item.position || 'bottom'
+    const num = (key, label, limits, aria) =>
+      styleField(
+        key,
+        label,
+        h(NumField, {
+          className: 've-tex__in',
+          value: Number.isFinite(Number(item[key])) ? Number(item[key]) : limits.default,
+          min: limits.min,
+          max: limits.max,
+          step: 1,
+          decimals: 0,
+          disabled: !hasText,
+          title: hasText ? undefined : 'Escribe un texto en la escena para darle estilo',
+          ariaLabel: aria,
+          onCommit: (value) => setTextStyle({ [key]: Math.round(value) }),
+          onBlur: saveSoon
+        })
+      )
+    const anims = (slot, label, aria) =>
+      h(
+        'label',
+        { className: 've-tex__f' },
+        h('span', { className: 've-tex__k' }, label),
+        h(
+          'select',
+          {
+            className: 've-tex__in',
+            value: anim[slot] || 'none',
+            disabled: !hasText,
+            'aria-label': aria,
+            onChange: (event) => setTextAnimation(slot, event.target.value)
+          },
+          TEXT_ANIMATIONS.map((opt) => h('option', { key: opt.id, value: opt.id }, opt.label))
+        )
+      )
+    return h(
+      'div',
+      { className: 've-f' },
+      h('span', { className: 've-f__l' }, 'Posición y estilo del texto'),
+      h(
+        'div',
+        { className: 've-seg', role: 'group', 'aria-label': 'Posición del texto' },
+        TEXT_POSITIONS.map((opt) =>
+          h(
+            'button',
+            {
+              key: opt.id,
+              type: 'button',
+              disabled: !hasText,
+              'aria-pressed': position === opt.id,
+              onClick: () => setTextStyle({ position: opt.id })
+            },
+            opt.label
+          )
+        )
+      ),
+      h(
+        'div',
+        { className: 've-tex' },
+        num('size', 'Tamaño', TEXT_SIZE, 'Tamaño del texto en puntos'),
+        styleField(
+          'color',
+          'Color',
+          h('input', {
+            className: 've-tex__in',
+            type: 'color',
+            value: hexOr(item.color, TEXT_COLOR_DEFAULT),
+            disabled: !hasText,
+            'aria-label': 'Color del texto',
+            onChange: (event) => setTextStyle({ color: hexOr(event.target.value, TEXT_COLOR_DEFAULT) }),
+            onBlur: saveSoon
+          })
+        ),
+        num('border', 'Borde', TEXT_BORDER, 'Grosor del borde del texto'),
+        num('shadow', 'Sombra', TEXT_SHADOW, 'Grosor de la sombra del texto')
+      ),
+      h('div', { className: 've-f__row' }, anims('in', 'Entrada', 'Animación de entrada del texto'), anims('out', 'Salida', 'Animación de salida del texto')),
+      h('span', { className: 've-f__h' }, hasText ? 'El texto aparece durante toda la escena.' : 'Escribe un texto para darle estilo.')
+    )
+  }
+
+  const pInOut = () =>
+    h(
+      'div',
+      { className: 've-f' },
+      h('span', { className: 've-f__l' }, 'Recorte del clip'),
+      h(
+        'div',
+        { className: 've-f__row' },
+        h(
+          'label',
+          { className: 've-tex__f' },
+          h('span', { className: 've-tex__k' }, 'Entrada'),
+          h(
+            'span',
+            { className: 've-tcout' },
+            h(NumField, {
+              value: Number(sel.in),
+              min: 0,
+              max: Math.max(0, Number(sel.out) - MIN_SCENE),
+              step: 0.1,
+              ariaLabel: 'Entrada de la escena en segundos',
+              onCommit: setIn,
+              onBlur: saveSoon
+            }),
+            h('small', null, 's')
+          )
+        ),
+        h(
+          'label',
+          { className: 've-tex__f' },
+          h('span', { className: 've-tex__k' }, 'Salida'),
+          h(
+            'span',
+            { className: 've-tcout' },
+            h(NumField, {
+              value: Number(sel.out),
+              min: Number(sel.in) + MIN_SCENE,
+              step: 0.1,
+              ariaLabel: 'Salida de la escena en segundos',
+              onCommit: setOut,
+              onBlur: saveSoon
+            }),
+            h('small', null, 's')
+          )
+        )
+      ),
+      sceneDuration(sel) < MIN_SCENE
+        ? h('span', { className: 've-f__err', role: 'alert' }, 'La salida debe ser al menos 0,3 s después de la entrada.')
+        : h('span', { className: 've-f__h' }, `Dura ${fmtTime(sceneDuration(sel))}${sceneSpeed(sel) !== 1 ? ` · ${fmtTime(visibleDuration(sel))} en pantalla a ×${fmtNum(sceneSpeed(sel))}` : ''}. También puedes arrastrar los bordes del clip en la línea de tiempo.`)
+    )
+
+  const pMissing = () => (
+              missing.length
+      ? h(
+          'div',
+          { className: 've-f' },
+          h(Badge, { tone: 'warn' }, `Falta ${missing.length} medio${missing.length > 1 ? 's' : ''}`),
+          h(Btn, { variant: 'text', label: 'Volver a vincular', onClick: importFolder })
+        )
+      : null
+  )
+
+  const pActions = () =>
+    h(
+      'div',
+      { className: 've-f ve-actions' },
+      h(Btn, {
+        variant: 'outline',
+        size: 'sm',
+        label: 'Reemplazar medio',
+        title: 'Cambia el archivo de la escena sin tocar la entrada y la salida',
+        onClick: () => {
+          setDialog({ kind: 'picker' })
+          openPicker('replace', sel.id)
+        }
+      }),
+      h(Btn, { variant: 'outline', size: 'sm', label: 'Restablecer escena', title: 'Quita texto, transición y ajustes de audio de esta escena', onClick: () => resetScene(sel) }),
+      h(Btn, {
+        variant: 'outline',
+        size: 'sm',
+        icon: 'trash',
+        label: 'Eliminar escena',
+        title: 'Elimina la escena (Supr). Ctrl+Z la recupera',
+        onClick: () => deleteScene(selIndex)
+      })
+    )
+
+  // ---- «Efectos» y «Audio» -----------------------------------------------------
+  const pVolume = () => (
+              h(
+      'div',
+      { className: 've-f' },
+      h('span', { className: 've-f__l' }, 'Volumen'),
+      h(
+        'div',
+        { className: 've-volrow' },
+        h('input', {
+          type: 'range',
+          min: 0,
+          max: 100,
+          step: 5,
+          value: (sel.audio && sel.audio.volume) || 0,
+          style: { '--ve-p': `${(sel.audio && sel.audio.volume) || 0}%` },
+          'aria-label': 'Volumen de la escena',
+          'aria-valuetext': `${(sel.audio && sel.audio.volume) || 0} %`,
+          onChange: (event) => setSceneVolume(event.target.value)
+        }),
+        h('span', { className: 've-volval' }, `${(sel.audio && sel.audio.volume) || 0} %`)
+      ),
+      h(Btn, {
+        variant: 'text',
+        size: 'sm',
+        label: ((sel.audio && sel.audio.volume) || 0) === 0 ? 'Activar el sonido de la escena' : 'Silenciar la escena',
+        ariaLabel: ((sel.audio && sel.audio.volume) || 0) === 0 ? 'Activar el sonido de la escena' : 'Silenciar la escena',
+        onClick: () => setSceneVolume(((sel.audio && sel.audio.volume) || 0) === 0 ? 100 : 0)
+      })
+    )
+  )
+  const pTransition = () => (
+              h(
+      'div',
+      { className: 've-f' },
+      h('span', { className: 've-f__l' }, 'Transición de entrada'),
+      h(
+        'select',
+        {
+          className: 've-select',
+          value: parseTransition(sel.transition).style,
+          disabled: selIndex === 0,
+          'aria-label': 'Estilo de la transición de entrada',
+          title: selIndex === 0 ? 'La primera escena no tiene transición de entrada' : undefined,
+          onChange: (event) => setTransitionStyle(event.target.value)
+        },
+        transitionList.map((item) => h('option', { key: item.id, value: item.id }, item.label))
+      ),
+      h(
+        'div',
+        { className: 've-volrow' },
+        h('input', {
+          type: 'range',
+          min: TRANSITION_MIN_S,
+          max: Math.max(TRANSITION_MIN_S, fadeLimit),
+          step: 0.1,
+          value: Math.min(parseTransition(sel.transition).seconds, Math.max(TRANSITION_MIN_S, fadeLimit)),
+          disabled: selIndex === 0 || parseTransition(sel.transition).style === 'none' || fadeLimit < TRANSITION_MIN_S,
+          'aria-label': 'Duración de la transición en segundos',
+          'aria-valuetext': `${fmtSec(parseTransition(sel.transition).seconds)} s`,
+          onChange: (event) => setTransitionSeconds(event.target.value)
+        }),
+        h('span', { className: 've-volval' }, `${fmtSec(parseTransition(sel.transition).seconds)} s`)
+      ),
+      h(
+        'span',
+        { className: 've-f__h' },
+        selIndex === 0
+          ? 'La escena 1 no lleva transición de entrada.'
+          : fadeLimit < TRANSITION_MIN_S
+            ? 'La escena es demasiado corta para cruzarse con la anterior.'
+            : parseTransition(sel.transition).style === 'none'
+              ? 'Corte seco: entra sin cruce.'
+              : `Se cruza con la escena anterior durante ${fmtSec(parseTransition(sel.transition).seconds)} s (máximo ${fmtSec(fadeLimit)} s aquí).`
+      )
+    )
+  )
+  const pFilters = () => (
+              (() => {
+      const filters = sel.filters && typeof sel.filters === 'object' ? sel.filters : {}
+      const active = Object.keys(cleanFilters(filters)).length
+      return h(
+        'div',
+        { className: 've-f' },
+        h('span', { className: 've-f__l' }, 'Filtros', active ? h(Badge, { outline: true }, String(active)) : null),
+        FILTER_SLIDERS.map((slider) => {
+          const raw = filters[slider.key]
+          const value = Number.isFinite(Number(raw)) ? Number(raw) : FILTER_DEFAULTS[slider.key]
+          const text = `${fmtNum(value)}${slider.suffix ? ` ${slider.suffix}` : ''}`
+          return h(
+            'div',
+            { key: slider.key, className: 've-f' },
+            h('span', { className: 've-f__l' }, slider.label),
+            h(
+              'div',
+              { className: 've-volrow' },
+              h('input', {
+                type: 'range',
+                min: slider.min,
+                max: slider.max,
+                step: slider.step,
+                value,
+                style: { '--ve-p': fillPercent(value, slider.min, slider.max) },
+                'aria-label': `${slider.label} de la escena`,
+                'aria-valuetext': text,
+                onChange: (event) => setFilter(slider.key, event.target.value),
+                onBlur: saveSoon
+              }),
+              h('span', { className: 've-volval' }, text)
+            )
+          )
+        }),
+        h(
+          'div',
+          { className: 've-mus__chks' },
+          FILTER_FLAGS.map((flag) =>
+            h(
+              'label',
+              { key: flag.key, className: 've-mus__chk' },
+              h('input', {
+                type: 'checkbox',
+                checked: !!filters[flag.key],
+                'aria-label': flag.label,
+                onChange: (event) => setFilterFlag(flag.key, event.target.checked)
+              }),
+              h('span', null, flag.label)
+            )
+          )
+        ),
+        h(Btn, {
+          variant: 'text',
+          size: 'sm',
+          label: 'Restablecer filtros',
+          disabled: !active,
+          onClick: resetFilters
+        })
+      )
+    })()
+  )
+  const pMotion = () => (
+              (() => {
+      const motion = sel.kenBurns && typeof sel.kenBurns === 'object' ? sel.kenBurns : null
+      const speed = sceneSpeed(sel)
+      const visible = visibleDuration(sel)
+      const zoom = motion && Number.isFinite(Number(motion.zoom)) ? Number(motion.zoom) : KEN_BURNS.zoom
+      return h(
+        'div',
+        { className: 've-f' },
+        h('span', { className: 've-f__l' }, 'Movimiento y velocidad'),
+        h(
+          'label',
+          {
+            className: `ve-mus__chk${selIsImage ? '' : ' ve-mus__chk--off'}`,
+            title: selIsImage ? 'Zoom lento sobre la imagen' : 'Solo imágenes'
+          },
+          h('input', {
+            type: 'checkbox',
+            checked: !!motion,
+            disabled: !selIsImage,
+            'aria-label': 'Ken Burns en la imagen',
+            onChange: (event) => toggleKenBurns(event.target.checked)
+          }),
+          h('span', null, 'Ken Burns')
+        ),
+        selIsImage
+          ? motion
+            ? h(
+                'div',
+                { className: 've-f' },
+                h('span', { className: 've-f__l' }, 'Zoom'),
+                h(
+                  'div',
+                  { className: 've-volrow' },
+                  h('input', {
+                    type: 'range',
+                    min: KEN_BURNS.minZoom,
+                    max: KEN_BURNS.maxZoom,
+                    step: 0.05,
+                    value: zoom,
+                    style: { '--ve-p': fillPercent(zoom, KEN_BURNS.minZoom, KEN_BURNS.maxZoom) },
+                    'aria-label': 'Zoom de Ken Burns',
+                    'aria-valuetext': `×${fmtNum(zoom)}`,
+                    onChange: (event) => setKenBurns({ zoom: event.target.value }),
+                    onBlur: saveSoon
+                  }),
+                  h('span', { className: 've-volval' }, `×${fmtNum(zoom)}`)
+                ),
+                h(
+                  'label',
+                  { className: 've-f' },
+                  h('span', { className: 've-f__l' }, 'Desplazamiento'),
+                  h(
+                    'select',
+                    {
+                      className: 've-select',
+                      value: motion.pan || KEN_BURNS.pan,
+                      'aria-label': 'Dirección del desplazamiento de Ken Burns',
+                      onChange: (event) => setKenBurns({ pan: event.target.value })
+                    },
+                    PAN_OPTIONS.map((opt) => h('option', { key: opt.id, value: opt.id }, opt.label))
+                  )
+                )
+              )
+            : h('span', { className: 've-f__h' }, 'Actívalo para un zoom lento sobre la imagen.')
+          : h('span', { className: 've-f__h' }, 'Solo imágenes'),
+        h(
+          'div',
+          { className: 've-f' },
+          h('span', { className: 've-f__l' }, 'Velocidad'),
+          h(
+            'div',
+            { className: 've-volrow' },
+            h('input', {
+              type: 'range',
+              min: SCENE_SPEED.min,
+              max: SCENE_SPEED.max,
+              step: 0.05,
+              value: speed,
+              style: { '--ve-p': fillPercent(speed, SCENE_SPEED.min, SCENE_SPEED.max) },
+              'aria-label': 'Velocidad de la escena',
+              'aria-valuetext': `×${fmtNum(speed)}`,
+              onChange: (event) => setSpeed(event.target.value),
+              onBlur: saveSoon
+            }),
+            h('span', { className: 've-volval' }, `×${fmtNum(speed)}`)
+          ),
+          h('span', { className: 've-f__h' }, `Duración visible ${fmtTime(visible)} a esta velocidad.`)
+        )
+      )
+    })()
+  )
+  const pOrientation = () => (
+              h(
+      'div',
+      { className: 've-f' },
+      h('span', { className: 've-f__l' }, 'Orientación'),
+      h(
+        'div',
+        { className: 've-seg', role: 'group', 'aria-label': 'Orientación del vídeo' },
+        ['h', 'v'].map((id) =>
+          h(
+            'button',
+            {
+              key: id,
+              type: 'button',
+              'aria-pressed': (doc.orientation || 'h') === id,
+              onClick: () => setOrientation(id)
+            },
+            ORIENTATIONS[id].label
+          )
+        )
+      ),
+      h('span', { className: 've-f__h' }, 'Vertical recorta los bordes laterales.')
+    )
+  )
+  const pProjectInfo = () =>
+    h(
+      'div',
+      { className: 've-f' },
+      h('span', { className: 've-f__l' }, 'Resumen del proyecto'),
+      h(
+        'dl',
+        { className: 've-facts' },
+        h('dt', null, 'Resolución'),
+        h('dd', null, `${doc.width}×${doc.height} · ${docFps} fps`),
+        h('dt', null, 'Escenas'),
+        h('dd', null, String((doc.scenes || []).length)),
+        h('dt', null, 'Suma de escenas'),
+        h('dd', null, fmtTime(total)),
+        h('dt', null, 'Vídeo final'),
+        h('dd', null, `${fmtTime(finalDuration(doc))}${finalDuration(doc) !== total ? ' (las transiciones se solapan)' : ''}`)
+      )
+    )
+
+  const sfxSection = () => (
+      h(
+      'div',
+      { className: 've-rail__sec ve-sfx', 'aria-label': 'Sonidos y voz' },
+      h(
+        'div',
+        { className: 've-rail__h' },
+        h('span', { className: 've-rail__t' }, 'Sonidos y voz'),
+        h(Badge, { outline: true }, String(sfxEvents.length))
+      ),
+      h(
+        'div',
+        { className: 've-props' },
+        !audioAssets.length
+          ? h('span', { className: 've-f__h' }, 'Importa o genera audios para colocarlos en la línea de tiempo.')
+          : h(Btn, {
+              variant: 'outline',
+              size: 'sm',
+              label: `Añadir sonido en ${fmtTimecode(cursor)}`,
+              ariaLabel: 'Añadir sonido en el cursor',
+              onClick: () => addEventAtCursor((audioAssets.find((item) => !music || item.id !== music.assetId) || audioAssets[0]).id)
+            }),
+        sfxEvents.map((ev, index) =>
+          h(
+            'div',
+            { key: ev.id, className: 've-props ve-sfx__row' },
+            h(
+              'label',
+              { className: 've-f' },
+              h('span', { className: 've-f__l' }, `Sonido ${index + 1}`),
+              h(
+                'select',
+                {
+                  className: 've-select',
+                  value: ev.assetId,
+                  'aria-label': `Archivo del sonido ${index + 1}`,
+                  onChange: (event) => setEvent(ev.id, { assetId: event.target.value })
+                },
+                audioAssets.map((item) => h('option', { key: item.id, value: item.id }, baseName(item.path) || item.id))
+              )
+            ),
+            h(
+              'div',
+              { className: 've-f' },
+              h('span', { className: 've-f__l' }, 'Empieza en (mm:ss.ms)'),
+              h('input', {
+                key: `${ev.id}:${ev.at}`,
+                className: 've-goto',
+                style: { width: '100%' },
+                defaultValue: fmtTimecode(ev.at),
+                inputMode: 'decimal',
+                'aria-label': `Inicio del sonido ${index + 1}`,
+                onBlur: (event) => commitEventAt(ev.id, event.target.value),
+                onKeyDown: (event) => {
+                  if (event.key === 'Enter') event.target.blur()
+                }
+              })
+            ),
+            h(
+              'div',
+              { className: 've-f' },
+              h('span', { className: 've-f__l' }, 'Volumen'),
+              h(
+                'div',
+                { className: 've-volrow' },
+                h('input', {
+                  type: 'range',
+                  min: 0,
+                  max: 100,
+                  step: 5,
+                  value: ev.volume == null ? 100 : ev.volume,
+                  'aria-label': `Volumen del sonido ${index + 1}`,
+                  onChange: (event) => setEvent(ev.id, { volume: clamp(Math.round(Number(event.target.value) / 5) * 5, 0, 100) })
+                }),
+                h('span', { className: 've-volval' }, `${ev.volume == null ? 100 : ev.volume} %`)
+              )
+            ),
+            h(Btn, { variant: 'text', size: 'sm', label: 'Quitar sonido', ariaLabel: `Quitar sonido ${index + 1}`, onClick: () => removeEvent(ev.id) })
+          )
+        )
+      )
+    )
+  )
+  const musicSection = () => (
+      h(
+      'div',
+      { className: 've-rail__sec ve-mus', 'aria-label': 'Música de fondo' },
+      h(
+        'div',
+        { className: 've-rail__h' },
+        h('span', { className: 've-rail__t' }, 'Música'),
+        h(Badge, { outline: true }, music ? 'Fondo' : '—')
+      ),
+      !audioAssets.length
+        ? h(
+            'div',
+            { className: 've-mus__empty' },
+            h('span', { className: 've-f__h' }, 'Importa un audio para usarlo como música.'),
+            h(Btn, { variant: 'outline', size: 'sm', label: 'Importar medios', onClick: importFolder, disabled: !doc })
+          )
+        : h(
+            'div',
+            { className: 've-props' },
+            h(
+              'label',
+              { className: 've-f' },
+              h('span', { className: 've-f__l' }, 'Pista'),
+              h(
+                'select',
+                {
+                  className: 've-select',
+                  value: music ? music.assetId : '',
+                  'aria-label': 'Música de fondo del proyecto',
+                  onChange: (event) => chooseMusic(event.target.value)
+                },
+                h('option', { value: '' }, 'Sin música'),
+                audioAssets.map((item) =>
+                  h('option', { key: item.id, value: item.id }, baseName(item.path) || item.id)
+                )
+              ),
+              music
+                ? h('span', { className: 've-f__h' }, `Suena de fondo durante ${fmtTime(total)}.`)
+                : h('span', { className: 've-f__h' }, 'Sin música: el vídeo lleva solo el audio de las escenas.')
+            ),
+            music
+              ? h(
+                  'div',
+                  { className: 've-f' },
+                  h('span', { className: 've-f__l' }, 'Volumen de la música'),
+                  h(
+                    'div',
+                    { className: 've-volrow' },
+                    h('input', {
+                      type: 'range',
+                      min: 0,
+                      max: 100,
+                      step: 5,
+                      value: typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume,
+                      'aria-label': 'Volumen de la música',
+                      'aria-valuetext': `${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %`,
+                      onChange: (event) => setMusic({ volume: clamp(Math.round(Number(event.target.value) / 5) * 5, 0, 100) })
+                    }),
+                    h('span', { className: 've-volval' }, `${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %`)
+                  )
+                )
+              : null,
+            music
+              ? h(
+                  'div',
+                  { className: 've-f' },
+                  h('span', { className: 've-f__l' }, 'Fundido de entrada / salida'),
+                  h(
+                    'div',
+                    { className: 've-f__row' },
+                    h(
+                      'span',
+                      { className: 've-tcout' },
+                      h(NumField, {
+                        value: typeof music.fadeIn === 'number' ? music.fadeIn : 0,
+                        min: 0,
+                        max: 10,
+                        step: 0.5,
+                        format: fmtSec,
+                        ariaLabel: 'Fundido de entrada de la música en segundos',
+                        onCommit: (value) => setMusicFade('fadeIn', value),
+                        onBlur: saveSoon
+                      }),
+                      h('small', null, 's')
+                    ),
+                    h(
+                      'span',
+                      { className: 've-tcout' },
+                      h(NumField, {
+                        value: typeof music.fadeOut === 'number' ? music.fadeOut : 0,
+                        min: 0,
+                        max: 10,
+                        step: 0.5,
+                        format: fmtSec,
+                        ariaLabel: 'Fundido de salida de la música en segundos',
+                        onCommit: (value) => setMusicFade('fadeOut', value),
+                        onBlur: saveSoon
+                      }),
+                      h('small', null, 's')
+                    )
+                  ),
+                  h('span', { className: 've-f__h' }, 'De 0 a 10 s; 0 la deja sin fundido.')
+                )
+              : null,
+            music
+              ? h(
+                  'div',
+                  { className: 've-mus__chks' },
+                  h(
+                    'label',
+                    { className: 've-mus__chk' },
+                    h('input', {
+                      type: 'checkbox',
+                      checked: !!music.loop,
+                      onChange: (event) => setMusic({ loop: event.target.checked })
+                    }),
+                    h('span', null, 'Repetir en bucle')
+                  ),
+                  h(
+                    'label',
+                    { className: 've-mus__chk' },
+                    h('input', {
+                      type: 'checkbox',
+                      checked: !!music.ducking,
+                      onChange: (event) => setMusic({ ducking: event.target.checked })
+                    }),
+                    h('span', null, 'Bajar bajo la voz (ducking)')
+                  )
+                )
+              : null,
+            h(
+              'label',
+              { className: 've-mus__chk' },
+              h('input', {
+                type: 'checkbox',
+                checked: !!(doc.audio && doc.audio.normalize),
+                onChange: (event) => setNormalize(event.target.checked)
+              }),
+              h('span', null, 'Normalizar audio del proyecto')
+            ),
+            h(Btn, {
+              variant: 'text',
+              label: 'Quitar música',
+              disabled: !music,
+              title: music ? 'Elimina la música del proyecto' : 'No hay música asignada',
+              onClick: removeMusic
+            })
+          )
+    )
+  )
+  const logoSection = () => (
+      h(
+      'div',
+      { className: 've-rail__sec', 'aria-label': 'Logo del proyecto' },
+      h(
+        'div',
+        { className: 've-rail__h' },
+        h('span', { className: 've-rail__t' }, 'Logo'),
+        h(Badge, { outline: true }, logo ? 'Marca' : '—')
+      ),
+      !imageAssets.length
+        ? h(
+            'div',
+            { className: 've-mus__empty' },
+            h('span', { className: 've-f__h' }, 'Importa una imagen para usarla como logo.'),
+            h(Btn, { variant: 'outline', size: 'sm', label: 'Importar medios', onClick: importFolder, disabled: !doc })
+          )
+        : h(
+            'div',
+            { className: 've-props' },
+            h(
+              'label',
+              { className: 've-f' },
+              h('span', { className: 've-f__l' }, 'Imagen'),
+              h(
+                'select',
+                {
+                  className: 've-select',
+                  value: logo ? logo.assetId : '',
+                  'aria-label': 'Imagen del logo del proyecto',
+                  onChange: (event) => {
+                    if (event.target.value) setLogo({ assetId: event.target.value })
+                    else removeLogo()
+                  }
+                },
+                h('option', { value: '' }, 'Sin logo'),
+                imageAssets.map((item) => h('option', { key: item.id, value: item.id }, baseName(item.path) || item.id))
+              ),
+              h('span', { className: 've-f__h' }, 'Marca de agua sobre todo el vídeo.')
+            ),
+            logo
+              ? h(
+                  'label',
+                  { className: 've-f' },
+                  h('span', { className: 've-f__l' }, 'Posición'),
+                  h(
+                    'select',
+                    {
+                      className: 've-select',
+                      value: logo.position || LOGO_DEFAULTS.position,
+                      'aria-label': 'Posición del logo',
+                      onChange: (event) => setLogo({ position: event.target.value })
+                    },
+                    LOGO_POSITIONS.map((opt) => h('option', { key: opt.id, value: opt.id }, opt.label))
+                  )
+                )
+              : null,
+            logo
+              ? h(
+                  'div',
+                  { className: 've-f' },
+                  h('span', { className: 've-f__l' }, 'Opacidad'),
+                  h(
+                    'div',
+                    { className: 've-volrow' },
+                    h('input', {
+                      type: 'range',
+                      min: LOGO_LIMITS.opacity[0],
+                      max: LOGO_LIMITS.opacity[1],
+                      step: 0.05,
+                      value: typeof logo.opacity === 'number' ? logo.opacity : LOGO_DEFAULTS.opacity,
+                      style: {
+                        '--ve-p': fillPercent(
+                          typeof logo.opacity === 'number' ? logo.opacity : LOGO_DEFAULTS.opacity,
+                          LOGO_LIMITS.opacity[0],
+                          LOGO_LIMITS.opacity[1]
+                        )
+                      },
+                      'aria-label': 'Opacidad del logo',
+                      'aria-valuetext': `${Math.round((typeof logo.opacity === 'number' ? logo.opacity : LOGO_DEFAULTS.opacity) * 100)} %`,
+                      onChange: (event) => setLogo({ opacity: event.target.value }),
+                      onBlur: saveSoon
+                    }),
+                    h(
+                      'span',
+                      { className: 've-volval' },
+                      `${Math.round((typeof logo.opacity === 'number' ? logo.opacity : LOGO_DEFAULTS.opacity) * 100)} %`
+                    )
+                  )
+                )
+              : null,
+            logo
+              ? h(
+                  'div',
+                  { className: 've-f' },
+                  h('span', { className: 've-f__l' }, 'Escala'),
+                  h(
+                    'div',
+                    { className: 've-volrow' },
+                    h('input', {
+                      type: 'range',
+                      min: LOGO_LIMITS.scale[0],
+                      max: LOGO_LIMITS.scale[1],
+                      step: 0.01,
+                      value: typeof logo.scale === 'number' ? logo.scale : LOGO_DEFAULTS.scale,
+                      style: {
+                        '--ve-p': fillPercent(
+                          typeof logo.scale === 'number' ? logo.scale : LOGO_DEFAULTS.scale,
+                          LOGO_LIMITS.scale[0],
+                          LOGO_LIMITS.scale[1]
+                        )
+                      },
+                      'aria-label': 'Escala del logo',
+                      'aria-valuetext': `${Math.round((typeof logo.scale === 'number' ? logo.scale : LOGO_DEFAULTS.scale) * 100)} %`,
+                      onChange: (event) => setLogo({ scale: event.target.value }),
+                      onBlur: saveSoon
+                    }),
+                    h(
+                      'span',
+                      { className: 've-volval' },
+                      `${Math.round((typeof logo.scale === 'number' ? logo.scale : LOGO_DEFAULTS.scale) * 100)} %`
+                    )
+                  )
+                )
+              : null,
+            h(Btn, { variant: 'text', label: 'Quitar logo', disabled: !logo, onClick: removeLogo })
+          )
+    )
+  )
+
   const rail = () => {
     if (!doc) return null
+    const needScene = (children) =>
+      sel
+        ? children
+        : h(EmptyState, {
+            title: 'Elige una escena',
+            body: 'Selecciona una escena de la lista o de la línea de tiempo para editarla.'
+          })
+    let body = null
+    if (railTab === 'scene') body = needScene([pMissing && sel ? pMissing() : null, sel ? pName() : null, sel ? pCaption() : null, sel ? pTextStyle() : null, sel ? pInOut() : null, sel ? pActions() : null])
+    else if (railTab === 'fx') body = needScene([sel ? pTransition() : null, sel ? pFilters() : null, sel ? pMotion() : null])
+    else if (railTab === 'audio') body = [sel ? pVolume() : null, sfxSection(), musicSection()]
+    else body = [pOrientation(), pProjectInfo(), logoSection()]
+    const moveTab = (event, index) => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
+      event.preventDefault()
+      const next = railTabs[(index + (event.key === 'ArrowRight' ? 1 : railTabs.length - 1)) % railTabs.length]
+      setRailTab(next.id)
+      const node = rootRef.current && rootRef.current.querySelector(`#ve-tab-${next.id}`)
+      if (node) node.focus()
+    }
     return h(
       'aside',
       { className: 've-rail', 'aria-label': 'Escenas y propiedades', style: compact && !railOpen ? { display: 'none' } : undefined },
+      compact
+        ? h(
+            'div',
+            { className: 've-rail__top' },
+            h('span', { className: 've-rail__t' }, 'Escenas y propiedades'),
+            h('span', { className: 've-spacer' }),
+            h(Btn, { icon: 'close', variant: 'ghost', ariaLabel: 'Cerrar propiedades', onClick: () => setRailOpen(false) })
+          )
+        : null,
       h(
         'div',
-        { className: 've-rail__sec' },
+        { className: 've-rail__sec ve-rail__sec--scenes' },
         h(
           'div',
           { className: 've-rail__h' },
           h('span', { className: 've-rail__t' }, 'Escenas'),
           h(Badge, { outline: true }, String((doc.scenes || []).length)),
           h('span', { className: 've-spacer' }),
-          h(Btn, { icon: 'upload', variant: 'ghost', ariaLabel: 'Importar medios', onClick: importFolder })
+          h(Btn, { variant: 'outline', size: 'sm', icon: 'plus', label: 'Añadir', title: 'Añade escenas desde tu carpeta de medios', ariaLabel: 'Añadir escena', onClick: importFolder })
         ),
         h(
           'div',
@@ -2794,21 +4067,20 @@ function VideoPane({ ctx, onClose }) {
                   type: 'button',
                   className: 've-scene',
                   'aria-current': scene.id === selId ? 'true' : undefined,
-                  'aria-label': `Escena ${index + 1}, ${scene.name || 'sin nombre'}, ${fmtTime(sceneDuration(scene))}`,
+                  'aria-label': `Escena ${index + 1}, ${scene.name || 'sin nombre'}, ${fmtTime(visibleDuration(scene))}`,
                   onClick: () => {
                     setSelId(scene.id)
                     const row = rows[index]
                     if (row) setCursor(row.start)
                   }
                 },
-                h('span', { className: 've-scene__grip', 'aria-hidden': 'true' }, h(Icon, { name: 'grip', size: 'sm' })),
                 h('span', { className: 've-scene__n' }, String(index + 1).padStart(2, '0')),
-                h('span', { className: 've-thumb', 'aria-hidden': 'true' }),
+                thumbFor(scene, index, false),
                 h(
                   'span',
                   { className: 've-scene__m' },
                   h('span', { className: 've-scene__name' }, scene.name || `Escena ${index + 1}`),
-                  h('span', { className: 've-scene__dur' }, `${fmtTime(sceneDuration(scene))}${captionOf(scene) ? ' · texto' : ''}${scene.needsRelink ? ' · falta medio' : ''}`)
+                  h('span', { className: 've-scene__dur' }, `${fmtTime(visibleDuration(scene))}${captionOf(scene) ? ' · con texto' : ''}${scene.needsRelink ? ' · falta medio' : ''}`)
                 )
               ),
               h(
@@ -2817,6 +4089,7 @@ function VideoPane({ ctx, onClose }) {
                   type: 'button',
                   className: 've-mv',
                   'aria-label': `Subir escena ${index + 1}`,
+                  title: 'Subir (Alt+↑)',
                   disabled: index === 0,
                   onClick: () => moveScene(index, -1)
                 },
@@ -2828,6 +4101,7 @@ function VideoPane({ ctx, onClose }) {
                   type: 'button',
                   className: 've-mv',
                   'aria-label': `Bajar escena ${index + 1}`,
+                  title: 'Bajar (Alt+↓)',
                   disabled: index === (doc.scenes || []).length - 1,
                   onClick: () => moveScene(index, 1)
                 },
@@ -2835,818 +4109,33 @@ function VideoPane({ ctx, onClose }) {
               )
             )
           )
-        ),
-        h(
-          'div',
-          { style: { display: 'flex', gap: '4px', marginTop: '6px' } },
-          h(Btn, { variant: 'outline', label: 'Añadir escena', onClick: importFolder, size: 'sm' })
         )
       ),
       h(
         'div',
-        { className: 've-rail__sec' },
-        h(
-          'div',
-          { className: 've-rail__h' },
-          h('span', { className: 've-rail__t' }, 'Propiedades'),
-          h(Badge, { outline: true }, sel ? `Escena ${selIndex + 1}` : '—')
-        ),
-        !sel
-          ? h(EmptyState, {
-              title: 'Elige una escena',
-              body: 'Selecciona una escena de la lista o de la línea de tiempo para editar su texto, volumen y encuadre.'
-            })
-          : h(
-              'div',
-              { className: 've-props' },
-              h(
-                'label',
-                { className: 've-f' },
-                h('span', { className: 've-f__l' }, 'Texto en pantalla', h('span', { className: 've-counter' }, `${captionOf(sel).length}/${MAX_CAPTION}`)),
-                h('textarea', {
-                  className: 've-textarea',
-                  value: captionOf(sel),
-                  maxLength: MAX_CAPTION,
-                  placeholder: 'Se muestra al inicio de la escena',
-                  onChange: (event) => writeCaption(event.target.value),
-                  onBlur: () => save()
-                })
-              ),
-              (() => {
-                const item = textItemOf(sel) || {}
-                const hasText = !!String(captionOf(sel)).trim()
-                const anim = item.animation && typeof item.animation === 'object' ? item.animation : {}
-                const fields = [
-                  {
-                    key: 'size',
-                    label: 'Tamaño',
-                    type: 'number',
-                    min: TEXT_SIZE.min,
-                    max: TEXT_SIZE.max,
-                    step: 1,
-                    value: Number.isFinite(Number(item.size)) ? Number(item.size) : TEXT_SIZE.default,
-                    aria: 'Tamaño del texto en puntos'
-                  },
-                  { key: 'color', label: 'Color', type: 'color', value: hexOr(item.color, TEXT_COLOR_DEFAULT), aria: 'Color del texto' },
-                  {
-                    key: 'border',
-                    label: 'Borde',
-                    type: 'number',
-                    min: TEXT_BORDER.min,
-                    max: TEXT_BORDER.max,
-                    step: 1,
-                    value: Number.isFinite(Number(item.border)) ? Number(item.border) : TEXT_BORDER.default,
-                    aria: 'Grosor del borde del texto'
-                  },
-                  {
-                    key: 'shadow',
-                    label: 'Sombra',
-                    type: 'number',
-                    min: TEXT_SHADOW.min,
-                    max: TEXT_SHADOW.max,
-                    step: 1,
-                    value: Number.isFinite(Number(item.shadow)) ? Number(item.shadow) : TEXT_SHADOW.default,
-                    aria: 'Grosor de la sombra del texto'
-                  }
-                ]
-                return h(
-                  'div',
-                  { className: 've-f' },
-                  h('span', { className: 've-f__l' }, 'Estilo del texto'),
-                  h(
-                    'div',
-                    { className: 've-tex' },
-                    fields.map((field) =>
-                      styleField(
-                        field.key,
-                        field.label,
-                        h('input', {
-                          className: 've-tex__in',
-                          type: field.type,
-                          min: field.type === 'color' ? undefined : field.min,
-                          max: field.type === 'color' ? undefined : field.max,
-                          step: field.type === 'color' ? undefined : field.step,
-                          value: field.value,
-                          disabled: !hasText,
-                          'aria-label': field.aria,
-                          title: hasText ? undefined : 'Escribe un texto en la escena para darle estilo',
-                          onChange: (event) => {
-                            const raw = event.target.value
-                            if (field.type === 'color') {
-                              setTextStyle({ color: hexOr(raw, TEXT_COLOR_DEFAULT) })
-                              return
-                            }
-                            const value = Number(raw)
-                            if (!Number.isFinite(value)) return
-                            setTextStyle({ [field.key]: Math.round(clamp(value, field.min, field.max)) })
-                          },
-                          onBlur: () => save()
-                        })
-                      )
-                    )
-                  ),
-                  h(
-                    'div',
-                    { className: 've-f__row' },
-                    h(
-                      'label',
-                      { className: 've-tex__f' },
-                      h('span', { className: 've-tex__k' }, 'Entrada'),
-                      h(
-                        'select',
-                        {
-                          className: 've-tex__in',
-                          value: anim.in || 'none',
-                          disabled: !hasText,
-                          'aria-label': 'Animación de entrada del texto',
-                          onChange: (event) => setTextAnimation('in', event.target.value)
-                        },
-                        TEXT_ANIMATIONS.map((opt) => h('option', { key: opt.id, value: opt.id }, opt.label))
-                      )
-                    ),
-                    h(
-                      'label',
-                      { className: 've-tex__f' },
-                      h('span', { className: 've-tex__k' }, 'Salida'),
-                      h(
-                        'select',
-                        {
-                          className: 've-tex__in',
-                          value: anim.out || 'none',
-                          disabled: !hasText,
-                          'aria-label': 'Animación de salida del texto',
-                          onChange: (event) => setTextAnimation('out', event.target.value)
-                        },
-                        TEXT_ANIMATIONS.map((opt) => h('option', { key: opt.id, value: opt.id }, opt.label))
-                      )
-                    )
-                  ),
-                  h(
-                    'span',
-                    { className: 've-f__h' },
-                    hasText ? 'Tamaño, color, borde, sombra y animación de este texto.' : 'Escribe un texto para darle estilo.'
-                  )
-                )
-              })(),
-              h(
-                'div',
-                { className: 've-f' },
-                h('span', { className: 've-f__l' }, 'Volumen'),
-                h(
-                  'div',
-                  { className: 've-volrow' },
-                  h('input', {
-                    type: 'range',
-                    min: 0,
-                    max: 100,
-                    step: 5,
-                    value: (sel.audio && sel.audio.volume) || 0,
-                    style: { '--ve-p': `${(sel.audio && sel.audio.volume) || 0}%` },
-                    'aria-label': 'Volumen de la escena',
-                    'aria-valuetext': `${(sel.audio && sel.audio.volume) || 0} %`,
-                    onChange: (event) => setSceneVolume(event.target.value)
-                  }),
-                  h('span', { className: 've-volval' }, `${(sel.audio && sel.audio.volume) || 0} %`)
-                ),
-                h(Btn, {
-                  variant: 'text',
-                  size: 'sm',
-                  label: ((sel.audio && sel.audio.volume) || 0) === 0 ? 'Activar el sonido de la escena' : 'Silenciar la escena',
-                  ariaLabel: ((sel.audio && sel.audio.volume) || 0) === 0 ? 'Activar el sonido de la escena' : 'Silenciar la escena',
-                  onClick: () => setSceneVolume(((sel.audio && sel.audio.volume) || 0) === 0 ? 100 : 0)
-                })
-              ),
-              h(
-                'div',
-                { className: 've-f' },
-                h('span', { className: 've-f__l' }, 'Orientación'),
-                h(
-                  'div',
-                  { className: 've-seg', role: 'group', 'aria-label': 'Orientación del vídeo' },
-                  ['h', 'v'].map((id) =>
-                    h(
-                      'button',
-                      {
-                        key: id,
-                        type: 'button',
-                        'aria-pressed': (doc.orientation || 'h') === id,
-                        onClick: () => setOrientation(id)
-                      },
-                      ORIENTATIONS[id].label
-                    )
-                  )
-                ),
-                h('span', { className: 've-f__h' }, 'Vertical recorta los bordes laterales.')
-              ),
-              h(
-                'div',
-                { className: 've-f' },
-                h('span', { className: 've-f__l' }, 'Transición de entrada'),
-                h(
-                  'select',
-                  {
-                    className: 've-select',
-                    value: parseTransition(sel.transition).style,
-                    disabled: selIndex === 0,
-                    'aria-label': 'Estilo de la transición de entrada',
-                    title: selIndex === 0 ? 'La primera escena no tiene transición de entrada' : undefined,
-                    onChange: (event) => setTransitionStyle(event.target.value)
-                  },
-                  transitionList.map((item) => h('option', { key: item.id, value: item.id }, item.label))
-                ),
-                h(
-                  'div',
-                  { className: 've-volrow' },
-                  h('input', {
-                    type: 'range',
-                    min: TRANSITION_MIN_S,
-                    max: Math.max(TRANSITION_MIN_S, fadeLimit),
-                    step: 0.1,
-                    value: Math.min(parseTransition(sel.transition).seconds, Math.max(TRANSITION_MIN_S, fadeLimit)),
-                    disabled: selIndex === 0 || parseTransition(sel.transition).style === 'none' || fadeLimit < TRANSITION_MIN_S,
-                    'aria-label': 'Duración de la transición en segundos',
-                    'aria-valuetext': `${fmtSec(parseTransition(sel.transition).seconds)} s`,
-                    onChange: (event) => setTransitionSeconds(event.target.value)
-                  }),
-                  h('span', { className: 've-volval' }, `${fmtSec(parseTransition(sel.transition).seconds)} s`)
-                ),
-                h(
-                  'span',
-                  { className: 've-f__h' },
-                  selIndex === 0
-                    ? 'La escena 1 no lleva transición de entrada.'
-                    : fadeLimit < TRANSITION_MIN_S
-                      ? 'La escena es demasiado corta para cruzarse con la anterior.'
-                      : parseTransition(sel.transition).style === 'none'
-                        ? 'Corte seco: entra sin cruce.'
-                        : `Se cruza con la escena anterior durante ${fmtSec(parseTransition(sel.transition).seconds)} s (máximo ${fmtSec(fadeLimit)} s aquí).`
-                )
-              ),
-              h(
-                'div',
-                { className: 've-f' },
-                h('span', { className: 've-f__l' }, 'Entrada / Salida'),
-                h(
-                  'div',
-                  { className: 've-f__row' },
-                  h(
-                    'span',
-                    { className: 've-tcout' },
-                    h('input', {
-                      value: Number(sel.in).toFixed(2),
-                      inputMode: 'decimal',
-                      'aria-label': 'Entrada de la escena en segundos',
-                      onChange: (event) => {
-                        const value = Number(String(event.target.value).replace(',', '.'))
-                        if (Number.isFinite(value) && value >= 0) setIn(value)
-                      },
-                      onBlur: () => save()
-                    }),
-                    h('small', null, 's')
-                  ),
-                  h(
-                    'span',
-                    { className: 've-tcout' },
-                    h('input', {
-                      value: Number(sel.out).toFixed(2),
-                      inputMode: 'decimal',
-                      'aria-label': 'Salida de la escena en segundos',
-                      onChange: (event) => {
-                        const value = Number(String(event.target.value).replace(',', '.'))
-                        if (Number.isFinite(value) && value > Number(sel.in)) setOut(value)
-                      },
-                      onBlur: () => save()
-                    }),
-                    h('small', null, 's')
-                  )
-                ),
-                sceneDuration(sel) < MIN_SCENE
-                  ? h('span', { className: 've-f__err', role: 'alert' }, 'La salida debe ser al menos 0,3 s después de la entrada.')
-                  : h('span', { className: 've-f__h' }, `Duración ${fmtTime(sceneDuration(sel))}`)
-              ),
-              (() => {
-                const filters = sel.filters && typeof sel.filters === 'object' ? sel.filters : {}
-                const active = Object.keys(cleanFilters(filters)).length
-                return h(
-                  'div',
-                  { className: 've-f' },
-                  h('span', { className: 've-f__l' }, 'Filtros', active ? h(Badge, { outline: true }, String(active)) : null),
-                  FILTER_SLIDERS.map((slider) => {
-                    const raw = filters[slider.key]
-                    const value = Number.isFinite(Number(raw)) ? Number(raw) : FILTER_DEFAULTS[slider.key]
-                    const text = `${fmtNum(value)}${slider.suffix ? ` ${slider.suffix}` : ''}`
-                    return h(
-                      'div',
-                      { key: slider.key, className: 've-f' },
-                      h('span', { className: 've-f__l' }, slider.label),
-                      h(
-                        'div',
-                        { className: 've-volrow' },
-                        h('input', {
-                          type: 'range',
-                          min: slider.min,
-                          max: slider.max,
-                          step: slider.step,
-                          value,
-                          style: { '--ve-p': fillPercent(value, slider.min, slider.max) },
-                          'aria-label': `${slider.label} de la escena`,
-                          'aria-valuetext': text,
-                          onChange: (event) => setFilter(slider.key, event.target.value),
-                          onBlur: () => save()
-                        }),
-                        h('span', { className: 've-volval' }, text)
-                      )
-                    )
-                  }),
-                  h(
-                    'div',
-                    { className: 've-mus__chks' },
-                    FILTER_FLAGS.map((flag) =>
-                      h(
-                        'label',
-                        { key: flag.key, className: 've-mus__chk' },
-                        h('input', {
-                          type: 'checkbox',
-                          checked: !!filters[flag.key],
-                          'aria-label': flag.label,
-                          onChange: (event) => setFilterFlag(flag.key, event.target.checked)
-                        }),
-                        h('span', null, flag.label)
-                      )
-                    )
-                  ),
-                  h(Btn, {
-                    variant: 'text',
-                    size: 'sm',
-                    label: 'Restablecer filtros',
-                    disabled: !active,
-                    onClick: resetFilters
-                  })
-                )
-              })(),
-              (() => {
-                const motion = sel.kenBurns && typeof sel.kenBurns === 'object' ? sel.kenBurns : null
-                const speed = sceneSpeed(sel)
-                const visible = visibleDuration(sel)
-                const zoom = motion && Number.isFinite(Number(motion.zoom)) ? Number(motion.zoom) : KEN_BURNS.zoom
-                return h(
-                  'div',
-                  { className: 've-f' },
-                  h('span', { className: 've-f__l' }, 'Movimiento'),
-                  h(
-                    'label',
-                    {
-                      className: `ve-mus__chk${selIsImage ? '' : ' ve-mus__chk--off'}`,
-                      title: selIsImage ? 'Zoom lento sobre la imagen' : 'Solo imágenes'
-                    },
-                    h('input', {
-                      type: 'checkbox',
-                      checked: !!motion,
-                      disabled: !selIsImage,
-                      'aria-label': 'Ken Burns en la imagen',
-                      onChange: (event) => toggleKenBurns(event.target.checked)
-                    }),
-                    h('span', null, 'Ken Burns')
-                  ),
-                  selIsImage
-                    ? motion
-                      ? h(
-                          'div',
-                          { className: 've-f' },
-                          h('span', { className: 've-f__l' }, 'Zoom'),
-                          h(
-                            'div',
-                            { className: 've-volrow' },
-                            h('input', {
-                              type: 'range',
-                              min: KEN_BURNS.minZoom,
-                              max: KEN_BURNS.maxZoom,
-                              step: 0.05,
-                              value: zoom,
-                              style: { '--ve-p': fillPercent(zoom, KEN_BURNS.minZoom, KEN_BURNS.maxZoom) },
-                              'aria-label': 'Zoom de Ken Burns',
-                              'aria-valuetext': `×${fmtNum(zoom)}`,
-                              onChange: (event) => setKenBurns({ zoom: event.target.value }),
-                              onBlur: () => save()
-                            }),
-                            h('span', { className: 've-volval' }, `×${fmtNum(zoom)}`)
-                          ),
-                          h(
-                            'label',
-                            { className: 've-f' },
-                            h('span', { className: 've-f__l' }, 'Desplazamiento'),
-                            h(
-                              'select',
-                              {
-                                className: 've-select',
-                                value: motion.pan || KEN_BURNS.pan,
-                                'aria-label': 'Dirección del desplazamiento de Ken Burns',
-                                onChange: (event) => setKenBurns({ pan: event.target.value })
-                              },
-                              PAN_OPTIONS.map((opt) => h('option', { key: opt.id, value: opt.id }, opt.label))
-                            )
-                          )
-                        )
-                      : h('span', { className: 've-f__h' }, 'Actívalo para un zoom lento sobre la imagen.')
-                    : h('span', { className: 've-f__h' }, 'Solo imágenes'),
-                  h(
-                    'div',
-                    { className: 've-f' },
-                    h('span', { className: 've-f__l' }, 'Velocidad'),
-                    h(
-                      'div',
-                      { className: 've-volrow' },
-                      h('input', {
-                        type: 'range',
-                        min: SCENE_SPEED.min,
-                        max: SCENE_SPEED.max,
-                        step: 0.05,
-                        value: speed,
-                        style: { '--ve-p': fillPercent(speed, SCENE_SPEED.min, SCENE_SPEED.max) },
-                        'aria-label': 'Velocidad de la escena',
-                        'aria-valuetext': `×${fmtNum(speed)}`,
-                        onChange: (event) => setSpeed(event.target.value),
-                        onBlur: () => save()
-                      }),
-                      h('span', { className: 've-volval' }, `×${fmtNum(speed)}`)
-                    ),
-                    h('span', { className: 've-f__h' }, `Duración visible ${fmtTime(visible)} a esta velocidad.`)
-                  )
-                )
-              })(),
-              missing.length
-                ? h(
-                    'div',
-                    { className: 've-f' },
-                    h(Badge, { tone: 'warn' }, `Falta ${missing.length} medio${missing.length > 1 ? 's' : ''}`),
-                    h(Btn, { variant: 'text', label: 'Volver a vincular', onClick: importFolder })
-                  )
-                : null,
-              h(Btn, {
-                variant: 'text',
-                label: 'Reemplazar medio',
-                title: 'Cambia el archivo de la escena sin tocar in/out',
-                onClick: () => {
-                  setDialog({ kind: 'picker' })
-                  openPicker('replace', sel.id)
-                }
-              }),
-              h(Btn, { variant: 'text', label: 'Restablecer escena', onClick: () => resetScene(sel) })
-            )
-      ),
-      h(
-        'div',
-        { className: 've-rail__sec ve-sfx', 'aria-label': 'Sonidos y voz' },
-        h(
-          'div',
-          { className: 've-rail__h' },
-          h('span', { className: 've-rail__t' }, 'Sonidos y voz'),
-          h(Badge, { outline: true }, String(sfxEvents.length))
-        ),
-        h(
-          'div',
-          { className: 've-props' },
-          !audioAssets.length
-            ? h('span', { className: 've-f__h' }, 'Importa o genera audios para colocarlos en la línea de tiempo.')
-            : h(Btn, {
-                variant: 'outline',
-                size: 'sm',
-                label: `Añadir sonido en ${fmtTimecode(cursor)}`,
-                ariaLabel: 'Añadir sonido en el cursor',
-                onClick: () => addEventAtCursor((audioAssets.find((item) => !music || item.id !== music.assetId) || audioAssets[0]).id)
-              }),
-          sfxEvents.map((ev, index) =>
-            h(
-              'div',
-              { key: ev.id, className: 've-props ve-sfx__row' },
-              h(
-                'label',
-                { className: 've-f' },
-                h('span', { className: 've-f__l' }, `Sonido ${index + 1}`),
-                h(
-                  'select',
-                  {
-                    className: 've-select',
-                    value: ev.assetId,
-                    'aria-label': `Archivo del sonido ${index + 1}`,
-                    onChange: (event) => setEvent(ev.id, { assetId: event.target.value })
-                  },
-                  audioAssets.map((item) => h('option', { key: item.id, value: item.id }, baseName(item.path) || item.id))
-                )
-              ),
-              h(
-                'div',
-                { className: 've-f' },
-                h('span', { className: 've-f__l' }, 'Empieza en (mm:ss.ms)'),
-                h('input', {
-                  key: `${ev.id}:${ev.at}`,
-                  className: 've-goto',
-                  style: { width: '100%' },
-                  defaultValue: fmtTimecode(ev.at),
-                  inputMode: 'decimal',
-                  'aria-label': `Inicio del sonido ${index + 1}`,
-                  onBlur: (event) => commitEventAt(ev.id, event.target.value),
-                  onKeyDown: (event) => {
-                    if (event.key === 'Enter') event.target.blur()
-                  }
-                })
-              ),
-              h(
-                'div',
-                { className: 've-f' },
-                h('span', { className: 've-f__l' }, 'Volumen'),
-                h(
-                  'div',
-                  { className: 've-volrow' },
-                  h('input', {
-                    type: 'range',
-                    min: 0,
-                    max: 100,
-                    step: 5,
-                    value: ev.volume == null ? 100 : ev.volume,
-                    'aria-label': `Volumen del sonido ${index + 1}`,
-                    onChange: (event) => setEvent(ev.id, { volume: clamp(Math.round(Number(event.target.value) / 5) * 5, 0, 100) })
-                  }),
-                  h('span', { className: 've-volval' }, `${ev.volume == null ? 100 : ev.volume} %`)
-                )
-              ),
-              h(Btn, { variant: 'text', size: 'sm', label: 'Quitar sonido', ariaLabel: `Quitar sonido ${index + 1}`, onClick: () => removeEvent(ev.id) })
-            )
+        { className: 've-tabs', role: 'tablist', 'aria-label': 'Propiedades' },
+        railTabs.map((tab, index) =>
+          h(
+            'button',
+            {
+              key: tab.id,
+              id: `ve-tab-${tab.id}`,
+              type: 'button',
+              role: 'tab',
+              'aria-selected': railTab === tab.id,
+              'aria-controls': 've-tabpanel',
+              tabIndex: railTab === tab.id ? 0 : -1,
+              onClick: () => setRailTab(tab.id),
+              onKeyDown: (event) => moveTab(event, index)
+            },
+            tab.label
           )
         )
       ),
-      h(
-        'div',
-        { className: 've-rail__sec ve-mus', 'aria-label': 'Música de fondo' },
-        h(
-          'div',
-          { className: 've-rail__h' },
-          h('span', { className: 've-rail__t' }, 'Música'),
-          h(Badge, { outline: true }, music ? 'Fondo' : '—')
-        ),
-        !audioAssets.length
-          ? h(
-              'div',
-              { className: 've-mus__empty' },
-              h('span', { className: 've-f__h' }, 'Importa un audio para usarlo como música.'),
-              h(Btn, { variant: 'outline', size: 'sm', label: 'Importar medios', onClick: importFolder, disabled: !doc })
-            )
-          : h(
-              'div',
-              { className: 've-props' },
-              h(
-                'label',
-                { className: 've-f' },
-                h('span', { className: 've-f__l' }, 'Pista'),
-                h(
-                  'select',
-                  {
-                    className: 've-select',
-                    value: music ? music.assetId : '',
-                    'aria-label': 'Música de fondo del proyecto',
-                    onChange: (event) => chooseMusic(event.target.value)
-                  },
-                  h('option', { value: '' }, 'Sin música'),
-                  audioAssets.map((item) =>
-                    h('option', { key: item.id, value: item.id }, baseName(item.path) || item.id)
-                  )
-                ),
-                music
-                  ? h('span', { className: 've-f__h' }, `Suena de fondo durante ${fmtTime(total)}.`)
-                  : h('span', { className: 've-f__h' }, 'Sin música: el vídeo lleva solo el audio de las escenas.')
-              ),
-              music
-                ? h(
-                    'div',
-                    { className: 've-f' },
-                    h('span', { className: 've-f__l' }, 'Volumen de la música'),
-                    h(
-                      'div',
-                      { className: 've-volrow' },
-                      h('input', {
-                        type: 'range',
-                        min: 0,
-                        max: 100,
-                        step: 5,
-                        value: typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume,
-                        'aria-label': 'Volumen de la música',
-                        'aria-valuetext': `${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %`,
-                        onChange: (event) => setMusic({ volume: clamp(Math.round(Number(event.target.value) / 5) * 5, 0, 100) })
-                      }),
-                      h('span', { className: 've-volval' }, `${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %`)
-                    )
-                  )
-                : null,
-              music
-                ? h(
-                    'div',
-                    { className: 've-f' },
-                    h('span', { className: 've-f__l' }, 'Fundido de entrada / salida'),
-                    h(
-                      'div',
-                      { className: 've-f__row' },
-                      h(
-                        'span',
-                        { className: 've-tcout' },
-                        h('input', {
-                          value: fmtSec(typeof music.fadeIn === 'number' ? music.fadeIn : 0),
-                          inputMode: 'decimal',
-                          'aria-label': 'Fundido de entrada de la música en segundos',
-                          onChange: (event) => setMusicFade('fadeIn', event.target.value),
-                          onBlur: () => save()
-                        }),
-                        h('small', null, 's')
-                      ),
-                      h(
-                        'span',
-                        { className: 've-tcout' },
-                        h('input', {
-                          value: fmtSec(typeof music.fadeOut === 'number' ? music.fadeOut : 0),
-                          inputMode: 'decimal',
-                          'aria-label': 'Fundido de salida de la música en segundos',
-                          onChange: (event) => setMusicFade('fadeOut', event.target.value),
-                          onBlur: () => save()
-                        }),
-                        h('small', null, 's')
-                      )
-                    ),
-                    h('span', { className: 've-f__h' }, 'De 0 a 10 s; 0 la deja sin fundido.')
-                  )
-                : null,
-              music
-                ? h(
-                    'div',
-                    { className: 've-mus__chks' },
-                    h(
-                      'label',
-                      { className: 've-mus__chk' },
-                      h('input', {
-                        type: 'checkbox',
-                        checked: !!music.loop,
-                        onChange: (event) => setMusic({ loop: event.target.checked })
-                      }),
-                      h('span', null, 'Repetir en bucle')
-                    ),
-                    h(
-                      'label',
-                      { className: 've-mus__chk' },
-                      h('input', {
-                        type: 'checkbox',
-                        checked: !!music.ducking,
-                        onChange: (event) => setMusic({ ducking: event.target.checked })
-                      }),
-                      h('span', null, 'Bajar bajo la voz (ducking)')
-                    )
-                  )
-                : null,
-              h(
-                'label',
-                { className: 've-mus__chk' },
-                h('input', {
-                  type: 'checkbox',
-                  checked: !!(doc.audio && doc.audio.normalize),
-                  onChange: (event) => setNormalize(event.target.checked)
-                }),
-                h('span', null, 'Normalizar audio del proyecto')
-              ),
-              h(Btn, {
-                variant: 'text',
-                label: 'Quitar música',
-                disabled: !music,
-                title: music ? 'Elimina la música del proyecto' : 'No hay música asignada',
-                onClick: removeMusic
-              })
-            )
-      ),
-      h(
-        'div',
-        { className: 've-rail__sec', 'aria-label': 'Logo del proyecto' },
-        h(
-          'div',
-          { className: 've-rail__h' },
-          h('span', { className: 've-rail__t' }, 'Logo'),
-          h(Badge, { outline: true }, logo ? 'Marca' : '—')
-        ),
-        !imageAssets.length
-          ? h(
-              'div',
-              { className: 've-mus__empty' },
-              h('span', { className: 've-f__h' }, 'Importa una imagen para usarla como logo.'),
-              h(Btn, { variant: 'outline', size: 'sm', label: 'Importar medios', onClick: importFolder, disabled: !doc })
-            )
-          : h(
-              'div',
-              { className: 've-props' },
-              h(
-                'label',
-                { className: 've-f' },
-                h('span', { className: 've-f__l' }, 'Imagen'),
-                h(
-                  'select',
-                  {
-                    className: 've-select',
-                    value: logo ? logo.assetId : '',
-                    'aria-label': 'Imagen del logo del proyecto',
-                    onChange: (event) => {
-                      if (event.target.value) setLogo({ assetId: event.target.value })
-                      else removeLogo()
-                    }
-                  },
-                  h('option', { value: '' }, 'Sin logo'),
-                  imageAssets.map((item) => h('option', { key: item.id, value: item.id }, baseName(item.path) || item.id))
-                ),
-                h('span', { className: 've-f__h' }, 'Marca de agua sobre todo el vídeo.')
-              ),
-              logo
-                ? h(
-                    'label',
-                    { className: 've-f' },
-                    h('span', { className: 've-f__l' }, 'Posición'),
-                    h(
-                      'select',
-                      {
-                        className: 've-select',
-                        value: logo.position || LOGO_DEFAULTS.position,
-                        'aria-label': 'Posición del logo',
-                        onChange: (event) => setLogo({ position: event.target.value })
-                      },
-                      LOGO_POSITIONS.map((opt) => h('option', { key: opt.id, value: opt.id }, opt.label))
-                    )
-                  )
-                : null,
-              logo
-                ? h(
-                    'div',
-                    { className: 've-f' },
-                    h('span', { className: 've-f__l' }, 'Opacidad'),
-                    h(
-                      'div',
-                      { className: 've-volrow' },
-                      h('input', {
-                        type: 'range',
-                        min: LOGO_LIMITS.opacity[0],
-                        max: LOGO_LIMITS.opacity[1],
-                        step: 0.05,
-                        value: typeof logo.opacity === 'number' ? logo.opacity : LOGO_DEFAULTS.opacity,
-                        style: {
-                          '--ve-p': fillPercent(
-                            typeof logo.opacity === 'number' ? logo.opacity : LOGO_DEFAULTS.opacity,
-                            LOGO_LIMITS.opacity[0],
-                            LOGO_LIMITS.opacity[1]
-                          )
-                        },
-                        'aria-label': 'Opacidad del logo',
-                        'aria-valuetext': `${Math.round((typeof logo.opacity === 'number' ? logo.opacity : LOGO_DEFAULTS.opacity) * 100)} %`,
-                        onChange: (event) => setLogo({ opacity: event.target.value }),
-                        onBlur: () => save()
-                      }),
-                      h(
-                        'span',
-                        { className: 've-volval' },
-                        `${Math.round((typeof logo.opacity === 'number' ? logo.opacity : LOGO_DEFAULTS.opacity) * 100)} %`
-                      )
-                    )
-                  )
-                : null,
-              logo
-                ? h(
-                    'div',
-                    { className: 've-f' },
-                    h('span', { className: 've-f__l' }, 'Escala'),
-                    h(
-                      'div',
-                      { className: 've-volrow' },
-                      h('input', {
-                        type: 'range',
-                        min: LOGO_LIMITS.scale[0],
-                        max: LOGO_LIMITS.scale[1],
-                        step: 0.01,
-                        value: typeof logo.scale === 'number' ? logo.scale : LOGO_DEFAULTS.scale,
-                        style: {
-                          '--ve-p': fillPercent(
-                            typeof logo.scale === 'number' ? logo.scale : LOGO_DEFAULTS.scale,
-                            LOGO_LIMITS.scale[0],
-                            LOGO_LIMITS.scale[1]
-                          )
-                        },
-                        'aria-label': 'Escala del logo',
-                        'aria-valuetext': `${Math.round((typeof logo.scale === 'number' ? logo.scale : LOGO_DEFAULTS.scale) * 100)} %`,
-                        onChange: (event) => setLogo({ scale: event.target.value }),
-                        onBlur: () => save()
-                      }),
-                      h(
-                        'span',
-                        { className: 've-volval' },
-                        `${Math.round((typeof logo.scale === 'number' ? logo.scale : LOGO_DEFAULTS.scale) * 100)} %`
-                      )
-                    )
-                  )
-                : null,
-              h(Btn, { variant: 'text', label: 'Quitar logo', disabled: !logo, onClick: removeLogo })
-            )
-      )
+      h('div', { className: 've-rail__body', id: 've-tabpanel', role: 'tabpanel', 'aria-labelledby': `ve-tab-${railTab}` }, body)
     )
   }
+
 
   const resetScene = (scene) => {
     mutate((draft) => {
@@ -3672,7 +4161,7 @@ function VideoPane({ ctx, onClose }) {
         icon: 'download',
         label: `Exportar ${doc ? `${doc.height}p · ${docFps}` : 'MP4'}`,
         disabled: !canExport,
-        title: canExport ? 'Exportar MP4' : missing.length ? 'Falta un medio' : 'Guarda o añade escenas primero',
+        title: canExport ? 'Exportar MP4 (Ctrl+E)' : !(doc && (doc.scenes || []).length) ? 'Añade al menos una escena para exportar' : missing.length ? 'Falta un medio: vuelve a vincularlo' : 'Ya hay una exportación en curso',
         onClick: () => setDialog({ kind: 'exportForm' })
       })
     )
@@ -3682,7 +4171,11 @@ function VideoPane({ ctx, onClose }) {
       return typeof job.progress === 'number' ? `Exportando ${Math.round(job.progress)} %` : 'Exportando…'
     }
     if (job && job.state === 'failed') return 'La exportación falló'
-    return 'Sin trabajos en cola'
+    if (!doc) return ''
+    const count = (doc.scenes || []).length
+    if (!count) return 'Sin escenas todavía'
+    const finalLen = finalDuration(doc)
+    return `${count} escena${count === 1 ? '' : 's'} · vídeo final ${fmtTime(finalLen)}`
   }
 
   useEffect(() => {
@@ -3857,7 +4350,7 @@ function VideoPane({ ctx, onClose }) {
         Dialog,
         {
           title: 'Exportar vídeo',
-          body: `${fmtTime(total)} · ${doc.width}×${doc.height} · ${docFps} fps · MP4 (H.264 + AAC)`,
+          body: `Dura ${fmtTime(finalDuration(doc))}${finalDuration(doc) !== total ? ' (las transiciones solapan escenas)' : ''} · ${doc.width}×${doc.height} · ${docFps} fps · MP4 (H.264 + AAC)`,
           onClose: () => setDialog(null),
           footer: [
             h(Btn, { key: 'c', variant: 'outline', label: 'Cancelar', onClick: () => setDialog(null) }),
@@ -3877,27 +4370,25 @@ function VideoPane({ ctx, onClose }) {
           h(
             'label',
             { className: 've-f' },
-            h('span', { className: 've-f__l' }, 'Preset de exportación'),
+            h('span', { className: 've-f__l' }, 'Formato de exportación'),
             h(
               'select',
               {
                 className: 've-select',
                 value: exportPreset,
-                'aria-label': 'Preset de exportación',
+                'aria-label': 'Formato de exportación',
                 onChange: (event) => setExportPreset(event.target.value)
               },
               presetOptions.map((item) =>
-                h('option', { key: item.id, value: item.id, disabled: !!item.disabled }, item.label)
+                h('option', { key: item.id, value: item.id, disabled: !!item.disabled }, item.disabled ? `${item.label} · no disponible` : item.label)
               )
             ),
             presetPicked && presetPicked.disabled
-              ? h('span', { className: 've-f__err', role: 'alert' }, 'El servicio todavía no ofrece este preset: elige otro o expórtalo cuando esté medido.')
+              ? h('span', { className: 've-f__err', role: 'alert' }, 'Este formato no está disponible en tu servicio. Elige otro.')
               : h(
                   'span',
                   { className: 've-f__h' },
-                  service && Array.isArray(service.presets) && service.presets.length
-                    ? 'Presets informados por el servicio.'
-                    : 'Catálogo local: el servicio valida el preset al exportar.'
+                  'El archivo se guarda en la carpeta del proyecto y podrás enviarlo al chat.'
                 )
           ),
           h(
@@ -4251,8 +4742,10 @@ function VideoPane({ ctx, onClose }) {
       'div',
       { className: 've-body' },
       h('div', { className: 've-left' }, stage(), transport(), timelineBlock()),
-      compact && libOpen ? h('div', { className: 've-ov', 'aria-hidden': 'true', onClick: () => setLibOpen(false) }) : null,
-      compact ? library() : null,
+      libOpen || (compact && railOpen)
+        ? h('div', { className: 've-ov', 'aria-hidden': 'true', onClick: () => { setLibOpen(false); setRailOpen(false) } })
+        : null,
+      library(),
       rail()
     ),
     footer(),
