@@ -15,7 +15,8 @@ with sync_playwright() as p:
     # text on scene 1
     pg.locator('.ve-clip').nth(0).click()
     ta=pg.locator('textarea').first; ta.fill('Hola Hermes Bots'); time.sleep(0.3)
-    # volume slider of scene
+    # volume slider of scene (pestaña Audio desde la v0.4)
+    pg.get_by_role('tab', name='Audio').click()
     sl=pg.locator('input[type=range]').first
     print('range count',pg.locator('input[type=range]').count(), [pg.locator('input[type=range]').nth(i).get_attribute('aria-label') for i in range(pg.locator('input[type=range]').count())])
     pg.get_by_label('Volumen de la escena').fill('40'); time.sleep(0.3)
