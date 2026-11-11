@@ -307,7 +307,14 @@ def apply_op(doc: dict, op: dict) -> str:
             raise OpError("move_scene necesita 'to_index' (1-based) o 'to_time'")
         scene = scenes.pop(i)
         scenes.insert(dest, scene)
-        return f"escena {i + 1} movida a la posición {dest + 1}"
+        # The first scene has nothing before it: an entry transition (fade-0.4)
+        # moved there makes the render fail in ffmpeg (libx264 -22). Normalize it.
+        note = ""
+        head = scenes[0]
+        if str(head.get("transition") or "none").strip().lower() not in ("", "none"):
+            head["transition"] = "none"
+            note = " (transición de entrada de la primera escena normalizada a none)"
+        return f"escena {i + 1} movida a la posición {dest + 1}{note}"
 
     if kind == "set_transition":
         i = _resolve(doc, op)

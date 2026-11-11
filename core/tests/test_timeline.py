@@ -117,6 +117,22 @@ class Edits(unittest.TestCase):
         new, _ = self.apply({"op": "move_scene", "scene": "sc_01", "to_time": 5.0})
         self.assertEqual(new["scenes"][-1]["id"], "sc_01")
 
+    def test_move_scene_to_first_clears_the_entry_transition(self):
+        # A fade moved to the first position has nothing to blend with and makes
+        # ffmpeg fail (libx264 -22) on export: the op must normalize it.
+        doc = doc3()
+        doc["scenes"][2]["transition"] = "fade-0.4"
+        new, summary = ops.apply_ops(doc, [{"op": "move_scene", "scene": 3, "to_index": 1}])
+        self.assertEqual(new["scenes"][0]["id"], "sc_03")
+        self.assertEqual(new["scenes"][0]["transition"], "none")
+        self.assertIn("normalizada", summary[0])
+        # Moving the current first away promotes a faded scene: also normalized.
+        doc = doc3()
+        doc["scenes"][1]["transition"] = "fade-0.4"
+        new, _ = ops.apply_ops(doc, [{"op": "move_scene", "scene": 1, "to_index": 3}])
+        self.assertEqual(new["scenes"][0]["id"], "sc_02")
+        self.assertEqual(new["scenes"][0]["transition"], "none")
+
     def test_volume_targets_and_mute(self):
         new, _ = self.apply({"op": "set_volume", "scene": 1, "volume": 30})
         self.assertEqual(new["scenes"][0]["audio"]["volume"], 30)
