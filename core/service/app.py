@@ -44,6 +44,7 @@ if __package__ in (None, ""):  # allow `python core/service/app.py`
 import paths as path_rules  # noqa: E402
 import project  # noqa: E402
 from service import auth  # noqa: E402
+from service import cinematic  # noqa: E402
 from service import generate as generation  # noqa: E402
 from service import journal as journal_module  # noqa: E402
 from service import timeline_ops  # noqa: E402
@@ -176,6 +177,9 @@ class Service:
         #: Derived media lives here (thumbnails, waveforms); safe to wipe at any time.
         self.cache_root = self.data_root / "cache"
         self.cache_root.mkdir(parents=True, exist_ok=True)
+        #: Cinematic projects: the vendored skill writes one folder per film.
+        self.cinematic_root = self.data_root / "cinematic"
+        self.cinematic_root.mkdir(parents=True, exist_ok=True)
         self.tools = worker.resolve_tools(config.tools_root) if config.tools_root else worker.resolve_tools(
             _default_tools_root()
         )
@@ -315,6 +319,52 @@ class Service:
         queued = sum(1 for job in jobs if job["state"] == "queued")
         running = sum(1 for job in jobs if job["state"] == "running")
         return {"queued": queued, "running": running, "current": self.current_job_id}
+
+    # -- cinematic (the vendored cinematic-film skill) -------------------- #
+
+    def cinematic_status(self) -> dict:
+        return cinematic.disponible()
+
+    def cinematic_list(self) -> dict:
+        items = []
+        for carpeta in sorted(self.cinematic_root.iterdir()):
+            if carpeta.is_dir() and cinematic.NOMBRE_VALIDO.match(carpeta.name):
+                items.append(cinematic.estado(carpeta))
+        return {"proyectos": items, "raiz": str(self.cinematic_root)}
+
+    def cinematic_create(self, body: dict) -> dict:
+        nombre = _text(body.get("name"), "name", required=True, limit=64)
+        titulo = _text(body.get("title"), "title", required=False,
+                       default=nombre.replace("-", " ").title(), limit=200)
+        return cinematic.crear_proyecto(self.cinematic_root, nombre, titulo)
+
+    def _cinematic_folder(self, nombre: str) -> Path:
+        if not cinematic.NOMBRE_VALIDO.match(nombre or ""):
+            raise _bad_request(f"nombre de proyecto no válido: {nombre!r}")
+        carpeta = (self.cinematic_root / nombre).resolve()
+        if self.cinematic_root.resolve() not in carpeta.parents:
+            raise _bad_request("la carpeta del proyecto se sale de la raíz")
+        return carpeta
+
+    def cinematic_get(self, nombre: str) -> dict:
+        return cinematic.estado(self._cinematic_folder(nombre))
+
+    def cinematic_script(self, nombre: str) -> dict:
+        return cinematic.guion(self._cinematic_folder(nombre))
+
+    def cinematic_render(self, nombre: str) -> dict:
+        carpeta = self._cinematic_folder(nombre)
+        try:
+            return cinematic.lanzar_render(carpeta)
+        except ValueError as exc:
+            raise _bad_request(str(exc)) from exc
+
+    def cinematic_output(self, nombre: str) -> Path:
+        carpeta = self._cinematic_folder(nombre)
+        estado = cinematic.estado(carpeta)
+        if not estado.get("salida"):
+            raise HttpError(409, "el proyecto todavía no tiene vídeo")
+        return Path(estado["salida"])
 
     # -- domain operations (used by the HTTP layer) ----------------------- #
 
@@ -1405,6 +1455,22 @@ class _Handler(BaseHTTPRequestHandler):
             last = svc.journal.last_event_seq()
             events = svc.journal.events_since(since) if timeout <= 0 else svc.journal.wait_events(since, timeout=timeout)
             return 200, {"events": events, "lastSeq": last}
+
+        if path == "/cinematic" and method == "GET":
+            return 200, {"status": svc.cinematic_status(), **svc.cinematic_list()}
+
+        if path == "/cinematic/projects" and method == "POST":
+            return 201, svc.cinematic_create(body or {})
+
+        if len(parts) >= 2 and parts[0] == "cinematic" and parts[1] == "projects":
+            if len(parts) == 3 and method == "GET":
+                return 200, svc.cinematic_get(parts[2])
+            if len(parts) == 4 and parts[3] == "script" and method == "GET":
+                return 200, svc.cinematic_script(parts[2])
+            if len(parts) == 4 and parts[3] == "render" and method == "POST":
+                return 202, svc.cinematic_render(parts[2])
+            if len(parts) == 4 and parts[3] == "output" and method == "GET":
+                return 200, (svc.cinematic_output(parts[2]), "video/mp4")
 
         if path == "/admin/stop" and method == "POST":
             if not svc.config.allow_admin:
