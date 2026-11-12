@@ -220,7 +220,11 @@ def lanzar_render(carpeta: Path) -> dict:
 
 
 def guion(carpeta: Path) -> dict:
-    """El script.json del proyecto, para que el pane muestre las lineas."""
+    """Las lineas del script.json, ya aplanadas: el pane las pinta tal cual.
+
+    El skill las guarda agrupadas por toma (``takes[].lines[]``), no en una lista
+    plana; aplanarlas aqui evita que la pantalla tenga que saber esa forma.
+    """
     ruta = carpeta / "script.json"
     if not ruta.is_file():
         return {"lineas": [], "existe": False}
@@ -228,4 +232,12 @@ def guion(carpeta: Path) -> dict:
         datos = json.loads(ruta.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         return {"lineas": [], "existe": True, "error": str(exc)}
-    return {"lineas": datos.get("lines") or datos.get("narration") or [], "existe": True}
+
+    lineas: list[dict] = []
+    for toma in datos.get("takes") or []:
+        for linea in toma.get("lines") or []:
+            lineas.append({**linea, "take": toma.get("take")})
+    if not lineas:
+        # Proyectos escritos a mano pueden traer la lista plana.
+        lineas = list(datos.get("lines") or datos.get("narration") or [])
+    return {"lineas": lineas, "existe": True, "takes": len(datos.get("takes") or [])}

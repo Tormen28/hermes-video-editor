@@ -10,6 +10,7 @@ Lo que se fija aqui:
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -93,6 +94,63 @@ class EstadoTests(unittest.TestCase):
             info = cinematic.estado(Path(tmp) / "no-existe")
             self.assertFalse(info["existe"])
             self.assertFalse(info["corriendo"])
+
+
+class GuionTests(unittest.TestCase):
+    """El pane pinta `lineas`; si el guion sale plano, la pantalla miente."""
+
+    def test_aplana_las_lineas_de_las_tomas(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            carpeta = Path(tmp) / "con-guion"
+            carpeta.mkdir()
+            (carpeta / "script.json").write_text(
+                json.dumps({
+                    "takes": [
+                        {"take": "T01", "lines": [{"id": 1, "text": "uno"}, {"id": 2, "text": "dos"}]},
+                        {"take": "T02", "lines": [{"id": 3, "text": "tres"}]},
+                    ]
+                }),
+                encoding="utf-8",
+            )
+            datos = cinematic.guion(carpeta)
+            self.assertEqual([l["text"] for l in datos["lineas"]], ["uno", "dos", "tres"])
+            self.assertEqual(datos["takes"], 2)
+            self.assertEqual(datos["lineas"][0]["take"], "T01")
+
+    def test_acepta_una_lista_plana_escrita_a_mano(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            carpeta = Path(tmp) / "plano"
+            carpeta.mkdir()
+            (carpeta / "script.json").write_text(
+                json.dumps({"lines": [{"text": "solo una"}]}), encoding="utf-8"
+            )
+            datos = cinematic.guion(carpeta)
+            self.assertEqual(datos["lineas"][0]["text"], "solo una")
+
+    def test_sin_script_no_explota(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            datos = cinematic.guion(Path(tmp))
+            self.assertEqual(datos["lineas"], [])
+            self.assertFalse(datos["existe"])
+
+
+class PipelineTests(unittest.TestCase):
+    """El orden importa: sin voz no hay pelicula, porque el film se cronometra contra ella."""
+
+    def test_la_voz_va_antes_que_la_narracion_y_el_render(self) -> None:
+        nombres = [etapa[0] for etapa in cinematic.ETAPAS]
+        self.assertLess(nombres.index("voz"), nombres.index("narracion"))
+        self.assertLess(nombres.index("narracion"), nombres.index("render"))
+        self.assertLess(nombres.index("assets"), nombres.index("render"))
+
+    def test_la_voz_no_pide_red_ni_clave(self) -> None:
+        self.assertIn("System.Speech", cinematic.VOZ_WINDOWS)
+        self.assertNotIn("edge", cinematic.VOZ_WINDOWS.lower())
+
+    def test_la_voz_no_lleva_llaves(self) -> None:
+        # tts_say.py pasa el comando por str.format(): una llave lo rompe.
+        self.assertNotIn("{", cinematic.VOZ_WINDOWS.replace("{out}", "").replace("{txt}", ""))
+        self.assertNotIn("}", cinematic.VOZ_WINDOWS.replace("{out}", "").replace("{txt}", ""))
 
 
 if __name__ == "__main__":

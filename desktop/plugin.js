@@ -992,6 +992,28 @@ select.ve-select,.ve-tex select.ve-tex__in{display:block;-webkit-appearance:auto
 .ve-tb:hover{background:var(--ui-surface-2,rgba(127,127,127,.14));color:var(--ui-text-primary,var(--foreground))}
 .ve-tb[aria-pressed="true"]{color:var(--ui-accent,var(--accent));border-color:color-mix(in oklab,var(--ui-accent,var(--accent)) 55%,transparent);background:color-mix(in oklab,var(--ui-accent,var(--accent)) 12%,transparent)}
 .ve-tb:focus-visible{outline:2px solid var(--ui-accent,var(--accent));outline-offset:1px}
+/* Cine — pantalla de la skill cinematic-film */
+.ve-dialog--wide{width:min(920px,94%);max-height:90%}
+.ve-cine__head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ve-cine{display:flex;flex-direction:column;gap:14px;min-height:0}
+.ve-cine__cols{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:20px;min-height:0}
+@media (max-width:720px){.ve-cine__cols{grid-template-columns:1fr}}
+.ve-cine__col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.ve-cine__col--main{overflow:auto}
+.ve-cine__h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ve-ink3);font-weight:600;margin:0}
+.ve-cine__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:210px;overflow:auto}
+.ve-cine__item{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;padding:8px 10px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--ve-ink);font:inherit;cursor:pointer}
+.ve-cine__item:hover{background:var(--ve-hover,rgba(127,127,127,.12))}
+.ve-cine__item.is-on{border-color:var(--ve-accent);background:color-mix(in oklab,var(--ve-accent) 14%,transparent)}
+.ve-cine__item-n{font-size:13px;font-weight:600}
+.ve-cine__item-s{font-size:11px;color:var(--ve-ink2)}
+.ve-cine__muted{font-size:12px;color:var(--ve-ink2);margin:0}
+.ve-cine__meta{font-size:12px;color:var(--ve-ink2);margin:0 0 10px}
+.ve-cine__warn{font-size:12px;padding:10px 12px;border-radius:9px;background:color-mix(in oklab,#e6a700 16%,transparent);color:var(--ve-ink)}
+.ve-cine__error{font-size:12px;padding:10px 12px;border-radius:9px;background:color-mix(in oklab,#e5484d 18%,transparent);color:var(--ve-ink)}
+.ve-cine__video{width:100%;max-height:300px;border-radius:11px;margin-top:12px;background:#000}
+.ve-cine__lines{margin:12px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ve-ink2);line-height:1.5}
+.ve-cine__note{font-size:11px;color:var(--ve-ink3);line-height:1.55;margin-top:14px}
 `
 
 function ensureStyles() {
@@ -1090,6 +1112,258 @@ const Badge = ({ tone, children, outline }) =>
 const Dot = ({ tone }) => h('span', { className: `ve-dot${tone ? ` ve-dot--${tone}` : ''}`, 'aria-hidden': 'true' })
 
 const Spinner = () => h('span', { className: 've-spin', 'aria-hidden': 'true' })
+
+// ---------------------------------------------------------------- cine
+// Pantalla de la skill cinematic-film: crear un film, lanzarlo y verlo, sin
+// salir del pane. Todo pasa por la API del servicio (/cinematic/...).
+
+function CinePanel({ ctx, onClose }) {
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState('')
+  const [proyectos, setProyectos] = useState([])
+  const [estadoSkill, setEstadoSkill] = useState(null)
+  const [sel, setSel] = useState('')
+  const [detalle, setDetalle] = useState(null)
+  const [nombre, setNombre] = useState('')
+  const [titulo, setTitulo] = useState('')
+  const [lineas, setLineas] = useState([])
+  const [creando, setCreando] = useState(false)
+  const [lanzando, setLanzando] = useState(false)
+  const vivoRef = useRef(true)
+
+  const cargar = async () => {
+    try {
+      const datos = await request(ctx, '/cinematic')
+      if (!vivoRef.current) return
+      setProyectos((datos && datos.proyectos) || [])
+      setEstadoSkill((datos && datos.status) || null)
+      setError('')
+    } catch (fallo) {
+      if (vivoRef.current) setError(fallo && fallo.message ? fallo.message : String(fallo))
+    } finally {
+      if (vivoRef.current) setCargando(false)
+    }
+  }
+
+  const verDetalle = async (nombreProyecto) => {
+    if (!nombreProyecto) {
+      setDetalle(null)
+      setLineas([])
+      return
+    }
+    try {
+      const [est, guion] = await Promise.all([
+        request(ctx, `/cinematic/projects/${encodeURIComponent(nombreProyecto)}`),
+        request(ctx, `/cinematic/projects/${encodeURIComponent(nombreProyecto)}/script`).catch(() => ({ lineas: [] }))
+      ])
+      if (!vivoRef.current) return
+      setDetalle(est)
+      setLineas((guion && guion.lineas) || [])
+    } catch (fallo) {
+      if (vivoRef.current) setError(fallo && fallo.message ? fallo.message : String(fallo))
+    }
+  }
+
+  useEffect(() => {
+    vivoRef.current = true
+    cargar()
+    return () => {
+      vivoRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    verDetalle(sel)
+  }, [sel])
+
+  // Mientras hay un render en marcha, se pregunta cada 3 s. Fuera de eso, nada.
+  useEffect(() => {
+    if (!detalle || !detalle.corriendo) return undefined
+    const t = setInterval(async () => {
+      await verDetalle(sel)
+      await cargar()
+    }, 3000)
+    return () => clearInterval(t)
+  }, [detalle, sel])
+
+  const crear = async () => {
+    const limpio = nombre.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '')
+    if (!limpio) {
+      setError('Ponle un nombre: minúsculas, números y guiones.')
+      return
+    }
+    setCreando(true)
+    setError('')
+    try {
+      await request(ctx, '/cinematic/projects', {
+        method: 'POST',
+        body: { name: limpio, title: titulo.trim() || limpio }
+      })
+      await cargar()
+      setSel(limpio)
+      setNombre('')
+      setTitulo('')
+    } catch (fallo) {
+      setError(fallo && fallo.message ? fallo.message : String(fallo))
+    } finally {
+      setCreando(false)
+    }
+  }
+
+  const renderizar = async () => {
+    if (!sel) return
+    setLanzando(true)
+    setError('')
+    try {
+      await request(ctx, `/cinematic/projects/${encodeURIComponent(sel)}/render`, { method: 'POST' })
+      await verDetalle(sel)
+      await cargar()
+    } catch (fallo) {
+      setError(fallo && fallo.message ? fallo.message : String(fallo))
+    } finally {
+      setLanzando(false)
+    }
+  }
+
+  const salidaUrl = detalle && detalle.salida ? `${serviceBase(ctx).replace(/\/+$/, '')}/cinematic/projects/${encodeURIComponent(sel)}/output` : ''
+
+  return h(
+    'div',
+    { className: 've-ov', role: 'presentation', onClick: onClose },
+    h(
+      'div',
+      { className: 've-dialog ve-dialog--wide', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Cine · cinematic-film', onClick: (e) => e.stopPropagation() },
+      h(
+        'div',
+        { className: 've-cine__head' },
+        h(Icon, { name: 'film' }),
+        h('h2', { className: 've-dialog__t' }, 'Cine'),
+        h('span', { className: 've-dialog__b' }, 'cinematic-film · voz, cámara y sonido'),
+        h(Btn, { variant: 'text', label: 'Cerrar', onClick: onClose })
+      ),
+      h(
+        'div',
+        { className: 've-cine' },
+        estadoSkill && !estadoSkill.disponible
+          ? h(
+              'p',
+              { className: 've-cine__warn' },
+              `La skill no está completa. Faltan: ${(estadoSkill.faltan || []).join(', ') || 'varios scripts'}.`
+            )
+          : null,
+        error ? h('p', { className: 've-cine__error', role: 'alert' }, error) : null,
+        cargando
+          ? h('p', { className: 've-cine__muted' }, 'Mirando qué hay…')
+          : h(
+              'div',
+              { className: 've-cine__cols' },
+              h(
+                'div',
+                { className: 've-cine__col' },
+                h('h3', { className: 've-cine__h' }, 'Películas'),
+                proyectos.length
+                  ? h(
+                      'ul',
+                      { className: 've-cine__list' },
+                      proyectos.map((p) =>
+                        h(
+                          'li',
+                          { key: p.proyecto },
+                          h(
+                            'button',
+                            {
+                              type: 'button',
+                              className: `ve-cine__item${sel === p.proyecto ? ' is-on' : ''}`,
+                              onClick: () => setSel(p.proyecto)
+                            },
+                            h('span', { className: 've-cine__item-n' }, p.proyecto),
+                            h(
+                              'span',
+                              { className: 've-cine__item-s' },
+                              p.terminado ? 'lista' : p.corriendo ? `${p.etapa || 'render'} · ${p.porcentaje || 0}%` : 'sin render'
+                            )
+                          )
+                        )
+                      )
+                    )
+                  : h('p', { className: 've-cine__muted' }, 'Todavía no hay ninguna.'),
+                h('h3', { className: 've-cine__h' }, 'Nueva'),
+                h('input', {
+                  className: 've-input',
+                  placeholder: 'nombre (ej. lanzamiento)',
+                  value: nombre,
+                  onInput: (e) => setNombre(e.target.value)
+                }),
+                h('input', {
+                  className: 've-input',
+                  placeholder: 'título visible',
+                  value: titulo,
+                  onInput: (e) => setTitulo(e.target.value)
+                }),
+                h(Btn, {
+                  variant: 'primary',
+                  block: true,
+                  label: creando ? 'Creando…' : 'Crear película',
+                  disabled: creando,
+                  onClick: crear
+                })
+              ),
+              h(
+                'div',
+                { className: 've-cine__col ve-cine__col--main' },
+                !sel
+                  ? h('p', { className: 've-cine__muted' }, 'Elige una película de la izquierda.')
+                  : h(
+                      'div',
+                      {},
+                      h('h3', { className: 've-cine__h' }, sel),
+                      detalle
+                        ? h(
+                            'p',
+                            { className: 've-cine__meta' },
+                            detalle.error
+                              ? `Error: ${detalle.error}`
+                              : detalle.terminado
+                                ? `Lista${detalle.segundos ? ` en ${Math.round(detalle.segundos)} s` : ''}`
+                                : detalle.corriendo
+                                  ? `${detalle.etapa || 'trabajando'} · ${detalle.porcentaje || 0}%`
+                                  : 'Sin render todavía. Lanza cuando quieras.'
+                          )
+                        : null,
+                      h(Btn, {
+                        variant: 'primary',
+                        label: lanzando ? 'Lanzando…' : detalle && detalle.corriendo ? 'Renderizando…' : 'Renderizar',
+                        disabled: lanzando || (detalle && detalle.corriendo),
+                        onClick: renderizar
+                      }),
+                      salidaUrl
+                        ? h('video', {
+                            className: 've-cine__video',
+                            src: salidaUrl,
+                            controls: true,
+                            preload: 'metadata'
+                          })
+                        : null,
+                      lineas.length
+                        ? h(
+                            'ol',
+                            { className: 've-cine__lines' },
+                            lineas.slice(0, 12).map((l, i) => h('li', { key: i }, l.text || l.vo || ''))
+                          )
+                        : null,
+                      h(
+                        'p',
+                        { className: 've-cine__note' },
+                        'La película se cronometra contra la voz: primero se graba la narración y la cámara se coloca sobre ella. Un film corto tarda decenas de minutos.'
+                      )
+                    )
+              )
+            )
+      )
+    )
+  )
+}
+
 
 function EmptyState({ title, body, children }) {
   return h(
@@ -1241,6 +1515,7 @@ function VideoPane({ ctx, onClose }) {
   const [width, setWidth] = useState(900)
   const [undoDepth, setUndoDepth] = useState(0)
   const [redoDepth, setRedoDepth] = useState(0)
+  const [cineOpen, setCineOpen] = useState(false)
 
   const [, setTick] = useState(0)
   const rootRef = useRef(null)
@@ -2492,6 +2767,15 @@ function VideoPane({ ctx, onClose }) {
         h('span', { className: 've-chip__name' }, doc ? doc.title : 'Sin proyecto'),
         h(Icon, { name: 'down', size: 'sm' })
       ),
+      h(Btn, {
+        variant: 'ghost',
+        size: 'sm',
+        icon: 'film',
+        label: narrow ? undefined : 'Cine',
+        title: 'Cine · la skill cinematic-film: voz, cámara y sonido',
+        ariaLabel: 'Abrir Cine',
+        onClick: () => setCineOpen(true)
+      }),
       h(
         'span',
         { className: `ve-auto ve-auto--${autosaveTone}`, 'aria-live': 'polite', title: savedLabel },
@@ -4924,6 +5208,7 @@ function VideoPane({ ctx, onClose }) {
     toasts(),
     menus(),
     dialogs(),
+    cineOpen ? jsx(CinePanel, { ctx, onClose: () => setCineOpen(false) }) : null,
     modelTip ? h('div', { className: 've-tip', role: 'status' }, 'Cambia el modelo en el selector del chat.') : null,
     h('div', { className: 've-sr', role: 'status', 'aria-live': 'polite' }, notice)
   )
