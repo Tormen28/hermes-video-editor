@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -51,7 +52,8 @@ VOZ_WINDOWS = (
 )
 
 # El orden lo manda el skill: no hay imagen sin voz, porque la pelicula se
-# cronometra contra la narracion (timing.json).
+# cronometra contra la narracion (timing.json). Ojo: mix_soundtrack.py devuelve
+# AUDIO, no video; el MP4 final se arma aparte, uniendo imagen y mezcla.
 ETAPAS = (
     ("voz", "tts_say.py", ("--cmd", VOZ_WINDOWS)),
     ("cortes", "split_takes.py", ()),
@@ -60,11 +62,14 @@ ETAPAS = (
     ("render", "render.py", ("--out", "out/film.mp4", "--audio", "audio/narration.m4a")),
     ("cues", "render.py", ("--cues",)),
     ("efectos", "build_sfx.py", ()),
-    ("mezcla", "mix_soundtrack.py", ("--out", "out/film-final.mp4")),
+    ("mezcla", "mix_soundtrack.py", ("--out", "audio/mix.m4a")),
 )
 
-#: Cual de las salidas existe al terminar, en orden de preferencia.
-SALIDAS = ("out/film-final.mp4", "out/film.mp4")
+#: La imagen que produce render.py y la mezcla que produce mix_soundtrack.py.
+IMAGEN = "out/film.mp4"
+MEZCLA = "audio/mix.m4a"
+#: El MP4 final: imagen + mezcla.
+SALIDAS = ("out/film-final.mp4",)
 
 _lock = threading.Lock()
 _en_curso: dict[str, dict] = {}
@@ -177,6 +182,46 @@ def _correr_etapa(carpeta: Path, script: str, extra: tuple[str, ...]) -> None:
         raise RuntimeError(f"{script}: {detalle[-600:]}")
 
 
+def _unir(carpeta: Path) -> None:
+    """Pega la imagen y la mezcla en el MP4 final.
+
+    `mix_soundtrack.py` devuelve audio, no video: darselo a `--out` como si
+    fuera un MP4 produce un archivo sin imagen. Aqui se juntan los dos.
+    """
+    imagen = carpeta / IMAGEN
+    mezcla = carpeta / MEZCLA
+    if not imagen.is_file():
+        raise RuntimeError(f"falta la imagen renderizada: {IMAGEN}")
+    if not mezcla.is_file():
+        raise RuntimeError(f"falta la mezcla de audio: {MEZCLA}")
+
+    destino = carpeta / SALIDAS[0]
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    resultado = subprocess.run(
+        [
+            _ffmpeg(), "-v", "error", "-y",
+            "-i", str(imagen), "-i", str(mezcla),
+            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+            "-map", "0:v:0", "-map", "1:a:0", "-shortest",
+            str(destino),
+        ],
+        capture_output=True, text=True, timeout=1800,
+    )
+    if resultado.returncode != 0:
+        raise RuntimeError(f"no se pudo unir imagen y audio: {(resultado.stderr or '')[-400:]}")
+
+
+def _ffmpeg() -> str:
+    """El ffmpeg que el servicio ya valida, o el del PATH."""
+    entorno = os.environ.get("VE_FFMPEG")
+    if entorno and Path(entorno).is_file():
+        return entorno
+    encontrado = shutil.which("ffmpeg")
+    if encontrado:
+        return encontrado
+    raise RuntimeError("no hay ffmpeg: el servicio lo necesita para unir imagen y audio")
+
+
 def _renderizar(carpeta: Path) -> None:
     """Corre el pipeline en un hilo. Nunca lanza: el error va al estado."""
     arranque = time.time()
@@ -188,6 +233,12 @@ def _renderizar(carpeta: Path) -> None:
             datos["porcentaje"] = round((i - 1) / len(ETAPAS) * 100)
             _escribir_estado(carpeta, {**datos, "corriendo": True})
             _correr_etapa(carpeta, script, extra)
+
+        # Ultima etapa, en Python: imagen + mezcla -> MP4.
+        datos["etapa"] = "union"
+        datos["porcentaje"] = 96
+        _escribir_estado(carpeta, {**datos, "corriendo": True})
+        _unir(carpeta)
 
         datos.update(
             etapa="listo",

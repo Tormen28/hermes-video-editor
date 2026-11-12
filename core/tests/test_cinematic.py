@@ -152,6 +152,20 @@ class PipelineTests(unittest.TestCase):
         self.assertNotIn("{", cinematic.VOZ_WINDOWS.replace("{out}", "").replace("{txt}", ""))
         self.assertNotIn("}", cinematic.VOZ_WINDOWS.replace("{out}", "").replace("{txt}", ""))
 
+    def test_la_mezcla_es_audio_y_el_final_es_video(self) -> None:
+        # mix_soundtrack.py devuelve AUDIO: pedirle un .mp4 da un archivo sin imagen.
+        etapas = {nombre: extra for nombre, _, extra in cinematic.ETAPAS}
+        salida_mezcla = etapas["mezcla"][etapas["mezcla"].index("--out") + 1]
+        self.assertTrue(salida_mezcla.endswith(".m4a"), salida_mezcla)
+        self.assertEqual(cinematic.MEZCLA, salida_mezcla)
+        self.assertTrue(cinematic.SALIDAS[0].endswith(".mp4"))
+
+    def test_unir_sin_imagen_falla_claro(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(RuntimeError) as ctx:
+                cinematic._unir(Path(tmp))
+            self.assertIn("imagen", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
