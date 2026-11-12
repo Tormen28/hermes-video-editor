@@ -1014,6 +1014,8 @@ select.ve-select,.ve-tex select.ve-tex__in{display:block;-webkit-appearance:auto
 .ve-cine__video{width:100%;max-height:300px;border-radius:11px;margin-top:12px;background:#000}
 .ve-cine__lines{margin:12px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--ve-ink2);line-height:1.5}
 .ve-cine__note{font-size:11px;color:var(--ve-ink3);line-height:1.55;margin-top:14px}
+.ve-cine__pick{display:flex;flex-direction:column;gap:5px}
+.ve-cine__hint{font-size:11px;color:var(--ve-ink3);line-height:1.45}
 `
 
 function ensureStyles() {
@@ -1126,6 +1128,8 @@ function CinePanel({ ctx, onClose }) {
   const [detalle, setDetalle] = useState(null)
   const [nombre, setNombre] = useState('')
   const [titulo, setTitulo] = useState('')
+  const [piel, setPiel] = useState('studio')
+  const [pieles, setPieles] = useState({})
   const [lineas, setLineas] = useState([])
   const [creando, setCreando] = useState(false)
   const [lanzando, setLanzando] = useState(false)
@@ -1137,6 +1141,7 @@ function CinePanel({ ctx, onClose }) {
       if (!vivoRef.current) return
       setProyectos((datos && datos.proyectos) || [])
       setEstadoSkill((datos && datos.status) || null)
+      setPieles(((datos && datos.status) || {}).pieles || {})
       setError('')
     } catch (fallo) {
       if (vivoRef.current) setError(fallo && fallo.message ? fallo.message : String(fallo))
@@ -1197,7 +1202,7 @@ function CinePanel({ ctx, onClose }) {
     try {
       await request(ctx, '/cinematic/projects', {
         method: 'POST',
-        body: { name: limpio, title: titulo.trim() || limpio }
+        body: { name: limpio, title: titulo.trim() || limpio, look: piel }
       })
       await cargar()
       setSel(limpio)
@@ -1300,6 +1305,25 @@ function CinePanel({ ctx, onClose }) {
                   value: titulo,
                   onInput: (e) => setTitulo(e.target.value)
                 }),
+                h(
+                  'label',
+                  { className: 've-cine__pick' },
+                  h('span', { className: 've-cine__h' }, 'Piel'),
+                  h(
+                    'select',
+                    {
+                      className: 've-input',
+                      value: piel,
+                      onChange: (e) => setPiel(e.target.value)
+                    },
+                    Object.keys(pieles).length
+                      ? Object.keys(pieles).map((k) => h('option', { key: k, value: k }, k))
+                      : ['studio', 'blueprint', 'night', 'slate', 'charcoal', 'wall', 'paper'].map((k) =>
+                          h('option', { key: k, value: k }, k)
+                        )
+                  ),
+                  pieles[piel] ? h('span', { className: 've-cine__hint' }, pieles[piel]) : null
+                ),
                 h(Btn, {
                   variant: 'primary',
                   block: true,

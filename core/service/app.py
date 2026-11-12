@@ -323,7 +323,7 @@ class Service:
     # -- cinematic (the vendored cinematic-film skill) -------------------- #
 
     def cinematic_status(self) -> dict:
-        return cinematic.disponible()
+        return {**cinematic.disponible(), "pieles": cinematic.PIELES}
 
     def cinematic_list(self) -> dict:
         items = []
@@ -336,7 +336,11 @@ class Service:
         nombre = _text(body.get("name"), "name", required=True, limit=64)
         titulo = _text(body.get("title"), "title", required=False,
                        default=nombre.replace("-", " ").title(), limit=200)
-        return cinematic.crear_proyecto(self.cinematic_root, nombre, titulo)
+        piel = _text(body.get("look"), "look", required=False, default="", limit=32) or None
+        try:
+            return cinematic.crear_proyecto(self.cinematic_root, nombre, titulo, piel)
+        except ValueError as exc:
+            raise _bad_request(str(exc)) from exc
 
     def _cinematic_folder(self, nombre: str) -> Path:
         if not cinematic.NOMBRE_VALIDO.match(nombre or ""):
