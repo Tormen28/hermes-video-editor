@@ -68,8 +68,19 @@ ETAPAS = (
 #: La imagen que produce render.py y la mezcla que produce mix_soundtrack.py.
 IMAGEN = "out/film.mp4"
 MEZCLA = "audio/mix.m4a"
-#: El MP4 final: imagen + mezcla.
+#: Cual de las salidas existe al terminar, en orden de preferencia.
 SALIDAS = ("out/film-final.mp4",)
+
+#: Las pieles del motor. Cambian tablero, color base, grano, brillo y viñeta.
+PIELES = {
+    "studio": "Estudio claro, sin costuras. Lanzamientos y explicadores con tarjetas.",
+    "blueprint": "Azul de plano técnico con rejilla. Ingeniería y cómo funcionan las cosas.",
+    "night": "Azul marino oscuro con mucho brillo. Tecnología y tráiler.",
+    "slate": "Gris azulado frío. Política, negocio, investigación.",
+    "charcoal": "Negro neutro: deja que las fotos lleven el color.",
+    "wall": "Corcho oscuro cálido. Historia, crimen, historias reales.",
+    "paper": "Papel claro. Educación, historias suaves.",
+}
 
 _lock = threading.Lock()
 _en_curso: dict[str, dict] = {}
@@ -107,8 +118,14 @@ def _carpeta(base: Path, nombre: str) -> Path:
     return destino
 
 
-def crear_proyecto(base: Path, nombre: str, titulo: str) -> dict:
-    """Andamia el proyecto con el script del skill. No renderiza nada."""
+def crear_proyecto(base: Path, nombre: str, titulo: str, piel: str | None = None) -> dict:
+    """Andamia el proyecto con el script del skill. No renderiza nada.
+
+    Si se pide una `piel`, se reescribe el `Film(look=...)` del `scene.py` recien
+    creado. Es la forma de cambiar el color sin que nadie edite Python a mano.
+    """
+    if piel is not None and piel not in PIELES:
+        raise ValueError(f"piel desconocida: {piel!r}")
     base.mkdir(parents=True, exist_ok=True)
     destino = _carpeta(base, nombre)
     if destino.exists():
@@ -124,10 +141,24 @@ def crear_proyecto(base: Path, nombre: str, titulo: str) -> dict:
         raise RuntimeError(
             f"new_project.py fallo: {(resultado.stderr or resultado.stdout).strip()[:400]}"
         )
+
+    piel_aplicada = None
+    if piel:
+        escena = destino / "scene.py"
+        if escena.is_file():
+            texto = escena.read_text(encoding="utf-8")
+            nuevo, cambios = re.subn(r'Film\(([^)]*?)look="[^"]*"', f'Film(\\1look="{piel}"', texto)
+            if not cambios:
+                nuevo, cambios = re.subn(r"Film\(([^)]*?)\)", f'Film(\\1, look="{piel}")', texto, count=1)
+            if cambios:
+                escena.write_text(nuevo, encoding="utf-8")
+                piel_aplicada = piel
+
     return {
         "proyecto": nombre,
         "carpeta": str(destino),
         "titulo": titulo,
+        "piel": piel_aplicada,
         "archivos": sorted(p.name for p in destino.iterdir()) if destino.is_dir() else [],
     }
 
