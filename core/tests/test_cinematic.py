@@ -78,6 +78,34 @@ class CrearProyectoTests(unittest.TestCase):
                 cinematic.crear_proyecto(base, "repetido", "Dos")
 
 
+class PielesTests(unittest.TestCase):
+    """La piel es la paleta y el tablero: lo que hace que dos piezas no se parezcan."""
+
+    def test_hay_siete_y_estan_documentadas(self) -> None:
+        self.assertEqual(len(cinematic.PIELES), 7)
+        for nombre, descripcion in cinematic.PIELES.items():
+            self.assertTrue(descripcion.strip(), nombre)
+        self.assertIn("blueprint", cinematic.PIELES)
+        self.assertIn("studio", cinematic.PIELES)
+
+    def test_la_piel_reescribe_el_scene(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp) / "cine"
+            info = cinematic.crear_proyecto(base, "con-piel", "Con Piel", "blueprint")
+            self.assertEqual(info["piel"], "blueprint")
+            escena = (Path(info["carpeta"]) / "scene.py").read_text(encoding="utf-8")
+            self.assertIn('look="blueprint"', escena)
+            self.assertNotIn('look="studio"', escena)
+
+    def test_una_piel_inventada_se_rechaza(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp) / "cine"
+            with self.assertRaises(ValueError):
+                cinematic.crear_proyecto(base, "mala", "Mala", "arcoiris")
+            # y no deja carpeta a medias
+            self.assertFalse((base / "mala").exists())
+
+
 class EstadoTests(unittest.TestCase):
     def test_sin_nada_renderizado_lo_dice(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
