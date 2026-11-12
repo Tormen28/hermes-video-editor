@@ -498,7 +498,7 @@ Cada tipo tiene casos concretos; los IDs T se referencian desde U.
 **Bloqueo:** aplicar la regla requiere permisos (D-10); sin ella el caso es BLOCKED, no PASS.
 
 ### A-04 · Inyección de argumentos/filtros FFmpeg `[S1]`
-**Ataque:** caption con `:`, `%`, `'`, `"`, `,`, `[`, `]`, `;`, salto de línea, `%{pts}`, `\`; nombre de archivo que empieza por `-` (`-i /etc/passwd`) y con `\n`; parámetros con tipo erróneo (`width: "1280:1280"`, `crf: "23 -f null"`, `preset: "veryfast -y"`, negativo, 1e9).
+**Ataque:** caption con `:`, `%`, `'`, `"`, `,`, `[`, `]`, `;`, salto de línea, `%{pts}`, `\`; nombre de archivo que empieza por `-` (para colarlo como si fuera una opción de ffmpeg) y con `\n`; parámetros con tipo erróneo (`width: "1280:1280"`, `crf: "23 -f null"`, `preset: "veryfast -y"`, negativo, 1e9).
 **Esperado:** o se rechaza con validación, o se renderiza el texto **literal**; jamás se añaden argumentos al argv ni se ejecuta un filtro inyectado; el argv registrado coincide con la lista blanca.
 **Evidencia:** `A04_casos.json` (entrada → resultado), `A04_cmd.txt` (argv real), `A04_render.txt`, frames.
 **PASS/FAIL:** PASS si el texto se trata como dato en todos los casos. FAIL si un `:` rompe el job, si el `%` aborta el render o si aparece una opción no prevista.
