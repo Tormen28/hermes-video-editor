@@ -1,3 +1,0 @@
-49f8cc254a0b344d45605b8dee8d761f3e5aa8aa82a82711aa7b4bde6fab71b3 */c/Users/EgtYP/AppData/Local/hermes/fleet-workspace/video-editor/spike/fixtures/clipA.mp4
-dbe259c24426a6380c2de0d41a21791f21b1522a55aa8872ab72935f07269d47 */c/Users/EgtYP/AppData/Local/hermes/fleet-workspace/video-editor/spike/fixtures/clipB.mp4
-a87222024647324c79554906525df558955c621d720abd9a78b648a346acae43 */c/Users/EgtYP/AppData/Local/hermes/fleet-workspace/video-editor/spike/fixtures/logo.png

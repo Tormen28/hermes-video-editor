@@ -21,3 +21,7 @@ paths.tmp
 
 # frames de render (se regeneran con build.py)
 demo/plugin-videos/*/frames/
+
+# 1.5 GB de material de demo/spike: fuera del paquete (ver review cc473c6)
+/demo/
+/spike/

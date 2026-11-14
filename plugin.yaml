@@ -1,10 +1,13 @@
 name: hermes-cinema
 label: Video Editor
 kind: standalone
-version: 0.3.4
+version: 0.3.5
 author: "Tormen28"
 license: MIT
 requires_hermes: ">=0.23.0"
+manifest_version: 2
+provides_tools: [cinema_status, cinema_start]
+provides_hooks: []
 homepage: "https://github.com/Tormen28/hermes-video-editor"
 description: >
   A Hermes Desktop pane that edits and exports real video on your own machine:
