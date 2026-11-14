@@ -6,12 +6,25 @@ from playwright.sync_api import sync_playwright
 import os
 HARNESS=os.environ.get('VE_HARNESS','http://127.0.0.1:8795')
 pid=os.environ['VE_PID']; SVC=os.environ.get('VE_SVC','http://127.0.0.1:8780')
-def get(p): return json.loads(u.urlopen(SVC+p).read())
+CHROME=os.environ.get('VE_CHROME','/usr/bin/google-chrome')
+def TOKEN():
+    if os.environ.get('VE_TOKEN'): return os.environ['VE_TOKEN'].strip()
+    from pathlib import Path
+    p=Path(os.environ.get('VE_TOKEN_FILE') or str(Path(os.environ.get('LOCALAPPDATA',Path.home()))/'hermes'/'video-editor'/'service.token'))
+    try: return p.read_text(encoding='utf-8').strip()
+    except OSError: return ''
+def get(p):
+    req=u.Request(SVC+p)
+    tok=TOKEN()
+    if tok: req.add_header('X-VE-Token',tok)
+    return json.loads(u.urlopen(req).read())
 with sync_playwright() as p:
-    b=p.chromium.launch(executable_path='/usr/bin/google-chrome',args=['--no-sandbox'])
-    pg=b.new_page(viewport={'width':1280,'height':800})
+    b=p.chromium.launch(executable_path=CHROME,args=['--no-sandbox'])
+    ctx=b.new_context(viewport={'width':1280,'height':800})
+    ctx.add_init_script(f"window.__VE_TOKEN__='{TOKEN()}'")
+    pg=ctx.new_page()
     errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
-    pg.goto(f"{HARNESS}/harness/index.html?svc={SVC}&open={pid}"); pg.wait_for_selector('.ve-clip')
+    pg.goto(f"{HARNESS}/harness/index.html?svc={SVC}&open={pid}&lang=es"); pg.wait_for_selector('.ve-clip')
     # text on scene 1
     pg.locator('.ve-clip').nth(0).click()
     ta=pg.locator('textarea').first; ta.fill('Hola Hermes Bots'); time.sleep(0.3)

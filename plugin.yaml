@@ -8,7 +8,7 @@ requires_hermes: ">=0.23.0"
 manifest_version: 2
 provides_tools: [cinema_status, cinema_start]
 provides_hooks: []
-homepage: "https://github.com/Tormen28/hermes-video-editor"
+homepage: "https://github.com/Tormen28/hermes-cinema"
 description: >
   A Hermes Desktop pane that edits and exports real video on your own machine:
   timeline, text, colour, speed and transitions, rendered to MP4 by the local

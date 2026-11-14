@@ -23,9 +23,908 @@ const AUTOSAVE_MS = 4000
 const COALESCE_MS = 900
 const POLL_MS = 400
 
+// --------------------------------------------------------------------------- #
+// i18n · inglés por defecto, español opcional (`ui.language` en ctx.storage)
+// --------------------------------------------------------------------------- #
+// Una sola tabla: la clave es estable y el texto vive por idioma. Ninguna
+// cadena visible se escribe en el código: se resuelve con t(clave[, vars]).
+const SUPPORTED_LANGS = ['en', 'es']
+const DEFAULT_LANG = 'en'
+
+const STRINGS = {
+  en: {
+    'orientation.horizontal': 'Horizontal',
+    'orientation.vertical': 'Vertical',
+    'transition.fade': 'Fade',
+    'transition.slide_left': 'Slide left',
+    'transition.slide_right': 'Slide right',
+    'transition.wipe_left': 'Wipe left',
+    'transition.wipe_right': 'Wipe right',
+    'transition.circle': 'Circle',
+    'transition.zoom': 'Zoom',
+    'transition.none': 'No transition',
+    'preset.square': 'MP4 square 720p · 30 fps',
+    'text.pos_top': 'Top',
+    'text.pos_center': 'Center',
+    'text.pos_bottom': 'Bottom',
+    'text.anim_none': 'None',
+    'text.anim_up': 'Slide up',
+    'text.anim_down': 'Slide down',
+    'filter.brightness': 'Brightness',
+    'filter.contrast': 'Contrast',
+    'filter.saturation': 'Saturation',
+    'filter.blur': 'Blur',
+    'filter.grayscale': 'Black and white',
+    'filter.vignette': 'Vignette',
+    'pan.none': 'No pan',
+    'pan.left': 'Pan left',
+    'pan.right': 'Pan right',
+    'pan.up': 'Pan up',
+    'pan.down': 'Pan down',
+    'logo.top_left': 'Top left',
+    'logo.top_center': 'Top center',
+    'logo.top_right': 'Top right',
+    'logo.center_left': 'Center left',
+    'logo.center_right': 'Center right',
+    'logo.bottom_left': 'Bottom left',
+    'logo.bottom_center': 'Bottom center',
+    'logo.bottom_right': 'Bottom right',
+    'stage.prepare': 'Preparing',
+    'stage.render': 'Rendering',
+    'stage.mux': 'Writing MP4',
+    'stage.done': 'Done',
+    'titlebar.open': 'Open video editor',
+    'titlebar.close': 'Close video editor',
+    'titlebar.label': 'Video',
+    'error.offline': 'offline',
+    'error.token_rejected': 'The service does not accept this editor token. Run activar-editor.cmd to pair them again.',
+    'error.token_missing': 'This editor has no service token. Run activar-editor.cmd (or instalar.py) and reload the plugin.',
+    'cine.name_invalid': 'Name it with lowercase letters, digits and hyphens.',
+    'cine.aria': 'Cine · cinematic-film',
+    'cine.title': 'Cine',
+    'cine.subtitle': 'cinematic-film · voice, camera and sound',
+    'cine.scanning': 'Looking around…',
+    'cine.movies': 'Movies',
+    'cine.none_yet': 'None yet.',
+    'cine.new': 'New',
+    'cine.name_placeholder': 'name (e.g. launch)',
+    'cine.title_placeholder': 'visible title',
+    'cine.skin': 'Skin',
+    'cine.creating': 'Creating…',
+    'cine.create': 'Create movie',
+    'cine.pick': 'Pick a movie on the left.',
+    'cine.no_render_yet': 'No render yet. Launch whenever you like.',
+    'cine.launching': 'Launching…',
+    'cine.rendering': 'Rendering…',
+    'cine.render': 'Render',
+    'cine.working': 'working',
+    'cine.skill_missing': 'several scripts',
+    'cine.timing_note': 'The movie is timed against the voice: the narration is recorded first and the camera is placed on top of it. A short film takes tens of minutes.',
+    'pane.title': 'Video editor',
+    'header.pick_project': 'Pick a project',
+    'header.no_project': 'No project',
+    'header.cine_title': 'Cine · the cinematic-film skill: voice, camera and sound',
+    'header.open_cine': 'Open Cine',
+    'header.no_chat': 'No chat linked: open a chat and the editor links itself',
+    'header.no_folder': 'no folder',
+    'header.go_chat': 'Go to chat',
+    'header.working_now': ', working now',
+    'header.chat_none': 'No chat',
+    'header.chat_linked': 'Linked to the Hermes chat · {folder}',
+    'header.chat_name': 'Chat {id}',
+    'preview.image_of': 'Image of {name}',
+    'preview.this_scene': 'this scene',
+    'header.model_readonly': 'Active chat model · read-only',
+    'header.model_tip': 'Change the model in the chat selector.',
+    'header.undo': 'Undo',
+    'header.undo_title': 'Undo · Ctrl+Z',
+    'header.redo': 'Redo',
+    'header.redo_title': 'Redo · Ctrl+Shift+Z',
+    'header.properties': 'Properties',
+    'header.properties_title': 'Scenes and properties',
+    'header.more': 'More actions',
+    'save.saving': 'Saving…',
+    'save.dirty': 'Unsaved changes',
+    'save.clean': 'No changes',
+    'save.failed': 'Couldn\'t save',
+    'save.label': 'Save',
+    'save.title': 'Save · Ctrl+S',
+    'save.saved': 'Saved',
+    'export.label': 'Export',
+    'export.title': 'Export MP4 (Ctrl+E)',
+    'export.need_scene': 'Add at least one scene to export',
+    'export.missing_media_hint': 'Missing media: relink it',
+    'export.busy': 'An export is already running',
+    'toolbar.close_editor': 'Close video editor (Ctrl+Shift+E)',
+    'toolbar.close_editor_title': 'Close (Ctrl+Shift+E)',
+    'stage.connecting': 'Connecting to the service…',
+    'stage.loading_project': 'Loading project…',
+    'empty.pick_project': 'Pick a project',
+    'empty.start_first': 'Start your first video',
+    'empty.pick_body': 'Open one of your projects or create a new one to cut your video.',
+    'empty.start_body': 'Create a project, import your clips and images and export an MP4. You can also ask Hermes in the chat.',
+    'empty.your_projects': 'Your projects',
+    'create_project': 'Create project',
+    'error.load_project': 'Couldn\'t load the project',
+    'error.unknown': 'Unknown service error.',
+    'common.retry': 'Retry',
+    'common.back_to_chat': 'Back to chat',
+    'common.close': 'Close',
+    'common.cancel': 'Cancel',
+    'drop.release': 'Drop to import',
+    'drop.hint': 'Drag clips, audio or captures here',
+    'drop.formats': 'PNG, JPG, MP4, MOV, MP3 and WAV · imported into the project\'s granted folder.',
+    'import_media': 'Import media',
+    'preview.label': 'Preview',
+    'transport.position': 'Playback position',
+    'transport.timecode_title': 'Exact time (mm:ss.ms). Type one on the right to jump.',
+    'transport.to_start': 'Go to start',
+    'transport.to_start_title': 'Go to start · Home',
+    'transport.prev_scene': 'Previous scene',
+    'transport.pause': 'Pause',
+    'transport.play': 'Play',
+    'transport.pause_title': 'Pause · Space',
+    'transport.play_title': 'Play · Space',
+    'transport.next_scene': 'Next scene',
+    'transport.to_end': 'Go to end',
+    'transport.to_end_title': 'Go to end · End',
+    'transport.goto': 'Go to…',
+    'transport.goto_title': 'Type a time (e.g. 1:23.5) and press Enter to jump',
+    'transport.goto_aria': 'Go to time (mm:ss.ms)',
+    'transport.unmute': 'Unmute',
+    'transport.mute': 'Mute',
+    'timeline.ruler_title': 'Click or drag to move the cursor (Alt: no snapping)',
+    'timeline.split': 'Split',
+    'timeline.split_aria': 'Split at cursor',
+    'timeline.split_title': 'Split at cursor · S',
+    'timeline.zoom': 'Timeline zoom',
+    'timeline.zoom_out': 'Zoom out',
+    'timeline.zoom_out_title': 'Zoom out · Ctrl+wheel',
+    'timeline.zoom_in': 'Zoom in',
+    'timeline.zoom_in_title': 'Zoom in · Ctrl+wheel',
+    'timeline.zoom_fit': 'Fit to window',
+    'lane.video': 'Video and scenes',
+    'lane.text': 'On-screen text',
+    'lane.text_short': 'Text',
+    'lane.audio': 'Scene audio and voice',
+    'lane.audio_short': 'Audio',
+    'lane.music': 'Background music',
+    'lane.music_short': 'Music',
+    'lane.empty_scenes': 'Your scenes will show up here · import media to start',
+    'clip.trim_start': 'Drag to trim the start',
+    'clip.trim_end': 'Drag to trim the end',
+    'lane.texts_aria': 'On-screen texts',
+    'lane.no_texts': 'No text',
+    'lane.no_texts_hint': 'No text · write it in Scene › On-screen text',
+    'lane.audio_aria': 'Volume of each scene',
+    'lane.no_music': 'No music · pick a track in Audio',
+    'scenes.list': 'Scene list',
+    'scenes.empty': 'No scenes yet. Import a clip, an image or a capture and it shows up here.',
+    'scene.has_text': ' · with text',
+    'scene.missing_media': ' · missing media',
+    'scene.move_up': 'Move up (Alt+↑)',
+    'scene.move_down': 'Move down (Alt+↓)',
+    'media.missing': ' · missing',
+    'media.add_as_scene': 'Add as scene',
+    'media.empty': 'No media yet. Hit “Import media” to bring files from the granted folder.',
+    'media.close': 'Close media and scenes',
+    'media.title': 'Media and scenes',
+    'scene.hint': 'Lasts {dur}. You can also drag the clip edges on the timeline.',
+    'scene.hint_speed': 'Lasts {dur} · {vis} on screen at ×{speed}. You can also drag the clip edges on the timeline.',
+    'music.hint': 'Import an audio file to use it as music.',
+    'music.lane_aria': 'Project background music',
+    'queue.no_scenes': 'No scenes yet',
+    'status.ready': 'Done · {artifact}{bytes}',
+    'error.offline': 'The editor service is not answering at {host}. Your media was not modified.',
+    'notice.media_imported_many': '{count} media imported.',
+    'notice.media_replaced': 'Media replaced: {name} · in/out kept',
+    'notice.media_selected': 'Selected media: {name}',
+    'scene.move_up_aria': 'Move scene {n} up',
+    'scene.move_down_aria': 'Move scene {n} down',
+    'media.kind_default': 'media',
+    'missing.count_one': 'Missing 1 media file',
+    'missing.count_many': 'Missing {count} media files',
+    'field.for_scene': '{label} for the scene',
+    'media.view': 'View',
+    'media.tab_scenes': 'Scenes',
+    'media.tab_media': 'Media',
+    'toast.close': 'Close notice',
+    'tab.scene': 'Scene',
+    'tab.effects': 'Effects',
+    'tab.project': 'Project',
+    'field.scene_name': 'Scene name',
+    'field.caption_placeholder': 'Type what shows on screen during the scene',
+    'field.caption_disabled': 'Write some text in the scene to style it',
+    'field.text_style': 'Text position and style',
+    'field.text_position': 'Text position',
+    'field.size': 'Size',
+    'field.size_title': 'Text size in points',
+    'field.color': 'Color',
+    'field.color_aria': 'Text color',
+    'field.border': 'Border',
+    'field.border_title': 'Text border thickness',
+    'field.shadow': 'Shadow',
+    'field.shadow_title': 'Text shadow thickness',
+    'field.in': 'In',
+    'field.in_title': 'Text in-animation',
+    'field.out': 'Out',
+    'field.out_title': 'Text out-animation',
+    'field.text_whole_scene': 'The text shows for the whole scene.',
+    'field.text_style_hint': 'Write some text to style it.',
+    'field.trim': 'Clip trim',
+    'field.in_seconds': 'Scene in-point in seconds',
+    'field.out_seconds': 'Scene out-point in seconds',
+    'field.out_error': 'The out-point must be at least 0.3 s after the in-point.',
+    'field.relink': 'Relink',
+    'field.replace_media': 'Replace media',
+    'field.replace_media_title': 'Change the scene\'s file without touching its in and out points',
+    'field.reset_scene': 'Reset scene',
+    'field.reset_scene_title': 'Clears text, transition and audio tweaks from this scene',
+    'field.delete_scene': 'Delete scene',
+    'field.delete_scene_title': 'Deletes the scene (Del). Ctrl+Z brings it back',
+    'field.volume': 'Volume',
+    'field.volume_aria': 'Scene volume',
+    'field.scene_unmute': 'Unmute the scene',
+    'field.scene_mute': 'Mute the scene',
+    'field.transition': 'In-transition',
+    'field.transition_style': 'In-transition style',
+    'field.transition_first': 'The first scene has no in-transition',
+    'field.transition_seconds': 'Transition duration in seconds',
+    'field.transition_first_hint': 'Scene 1 has no in-transition.',
+    'field.transition_too_short': 'The scene is too short to cross-fade with the previous one.',
+    'field.transition_cut': 'Hard cut: it comes in without a cross-fade.',
+    'field.filters': 'Filters',
+    'field.reset_filters': 'Reset filters',
+    'field.kenburns_title': 'Slow zoom over the image',
+    'field.only_images': 'Images only',
+    'field.kenburns_aria': 'Ken Burns on the image',
+    'field.kenburns': 'Ken Burns',
+    'field.kenburns_zoom': 'Ken Burns zoom',
+    'field.pan': 'Pan',
+    'field.pan_aria': 'Ken Burns pan direction',
+    'field.kenburns_hint': 'Turn it on for a slow zoom over the image.',
+    'field.speed': 'Speed',
+    'field.speed_aria': 'Scene speed',
+    'field.motion': 'Motion and speed',
+    'field.orientation': 'Orientation',
+    'field.orientation_aria': 'Video orientation',
+    'field.orientation_hint': 'Vertical crops the sides.',
+    'field.summary': 'Project summary',
+    'field.resolution': 'Resolution',
+    'field.scenes_sum': 'Sum of scenes',
+    'field.final_video': 'Final video',
+    'field.sfx': 'Sounds and voice',
+    'field.sfx_hint': 'Import or generate audio to place it on the timeline.',
+    'field.add_sound': 'Add sound at the cursor',
+    'field.starts_at': 'Starts at (mm:ss.ms)',
+    'field.remove_sound': 'Remove sound',
+    'field.track': 'Track',
+    'field.no_music': 'No music',
+    'field.no_music_hint': 'No music: the video carries only the scene audio.',
+    'field.music_volume': 'Music volume',
+    'field.music_fades': 'Fade in / out',
+    'field.music_fade_in': 'Music fade-in in seconds',
+    'field.music_fade_out': 'Music fade-out in seconds',
+    'field.music_fades_hint': 'From 0 to 10 s; 0 leaves it unfaded.',
+    'field.loop': 'Loop',
+    'field.ducking': 'Duck under voice (ducking)',
+    'field.normalize': 'Normalize project audio',
+    'field.remove_music': 'Remove music',
+    'field.remove_music_title': 'Removes the music from the project',
+    'field.no_music_set': 'No music assigned',
+    'field.logo_section': 'Project logo',
+    'field.logo': 'Logo',
+    'field.logo_hint': 'Import an image to use as a logo.',
+    'field.logo_watermark_hint': 'Watermark over the whole video.',
+    'field.image': 'Image',
+    'field.logo_image_aria': 'Project logo image',
+    'field.no_logo': 'No logo',
+    'field.position': 'Position',
+    'field.logo_position_aria': 'Logo position',
+    'field.opacity': 'Opacity',
+    'field.logo_opacity_aria': 'Logo opacity',
+    'field.scale': 'Scale',
+    'field.logo_scale_aria': 'Logo scale',
+    'field.remove_logo': 'Remove logo',
+    'badge.background': 'Set',
+    'badge.brand': 'Set',
+    'rail.pick_scene': 'Pick a scene',
+    'rail.pick_scene_body': 'Select a scene from the list or the timeline to edit it.',
+    'rail.props_aria': 'Scene properties',
+    'rail.close': 'Close properties',
+    'notice.project_updated': 'Project updated from the chat.',
+    'notice.merged': 'Your changes were merged with the chat\'s.',
+    'notice.split_edge': 'Move the cursor more than 0.3 s from the edge to split.',
+    'notice.split_done': 'Scene split at the cursor.',
+    'notice.scene_deleted': 'Scene deleted. Ctrl+Z brings it back.',
+    'notice.fade_too_short': 'Scene too short for a fade (0.1 s minimum on both).',
+    'notice.sound_removed': 'Sound removed.',
+    'notice.filters_reset': 'Filters reset.',
+    'notice.logo_removed': 'Logo removed from the project.',
+    'notice.vertical': 'Vertical format: the export crops the sides.',
+    'notice.horizontal': 'Horizontal format.',
+    'notice.save_before_export': 'Couldn\'t save before exporting. Check the notice and try again.',
+    'notice.no_files': 'This build doesn\'t expose ctx.files: import from the service\'s granted folder.',
+    'notice.scene_reset': 'Scene reset.',
+    'notice.chat_focused': 'Chat focused. The editor stays open.',
+    'notice.chat_hint': 'Type in the chat above; the editor stays open.',
+    'notice.media_imported': 'Media imported.',
+    'notice.music_set': 'Background music assigned.',
+    'notice.music_removed': 'Music removed from the project.',
+    'notice.use_import': 'This build doesn\'t expose the file path: use “Import media”.',
+    'chat.summary_title': 'Video exported with the Hermes editor',
+    'chat.untitled_video': 'Untitled video',
+    'chat.no_composer': 'This Hermes version doesn\'t expose the chat composer; copy the path and paste it.',
+    'chat.no_target': 'There is no open chat to insert into. Open a chat and try again.',
+    'chat.inserted': 'Added to the Hermes chat. Review it and hit send.',
+    'chat.nothing_to_copy': 'There is no path to copy yet.',
+    'chat.copied': 'Path copied to the clipboard.',
+    'chat.copy_denied': 'The system didn\'t allow copying the path.',
+    'chat.copy_manual': 'This version can\'t copy from the panel; select the path.',
+    'dialog.no_projects': 'No projects yet.',
+    'dialog.export_title': 'Export video',
+    'dialog.preset_unavailable': 'That preset isn\'t available on this service',
+    'dialog.export_mp4': 'Export MP4',
+    'dialog.export_format': 'Export format',
+    'dialog.export_format_error': 'This format isn\'t available on your service. Pick another.',
+    'dialog.export_saved_hint': 'The file is saved in the project folder and you can send it to the chat.',
+    'dialog.include_captions': 'Include subtitles',
+    'dialog.not_available': ' · unavailable',
+    'dialog.missing_media': 'missing media',
+    'dialog.linked_media': 'linked media',
+    'dialog.transitions_overlap': ' (transitions overlap scenes)',
+    'export.done_title': 'Export finished',
+    'export.failed': 'The export failed',
+    'export.running_title': 'Exporting video',
+    'export.cancelling': 'Cancelling…',
+    'export.cancel': 'Cancel export',
+    'export.no_mp4': 'No MP4 was produced',
+    'export.service_error': 'The service returned an error.',
+    'export.player_aria': 'Exported video: play here',
+    'export.add_to_chat': 'Add to chat',
+    'export.add_to_chat_title': 'Insert the result into the active chat so Hermes can use it',
+    'export.copy_path': 'Copy path',
+    'export.no_jobs': 'No export jobs in this session.',
+    'export.exporting': 'Exporting…',
+    'conflict.title': 'There are newer changes',
+    'conflict.reload': 'Reload and lose my changes',
+    'conflict.note': 'Nothing is overwritten silently: reloading brings the newest revision.',
+    'import.opening_folder': 'Opening the granted folder…',
+    'import.failed': 'Couldn\'t import',
+    'import.folder_unavailable': 'The folder isn\'t available',
+    'import.import_selected': 'Import selected',
+    'import.running': 'Importing media',
+    'import.done': 'Import finished',
+    'import.replace_scene_media': 'Replace the scene\'s media',
+    'import.add_media': 'Add media',
+    'import.replace_note': 'The scene\'s in and out points are kept; only the file changes.',
+    'import.pick_media': 'Pick a media file from the project library.',
+    'import.other_folder': 'Another folder…',
+    'import.reading': 'Reading the library…',
+    'import.read_failed': 'Couldn\'t read the library',
+    'import.linking': 'Linking the media…',
+    'import.empty_library': 'The library is empty. Use “Another folder…” to bring files from the granted folder.',
+    'dialog.service_status': 'Service status',
+    'menu.guides_hide': 'Hide',
+    'menu.guides_show': 'Show',
+    'menu.save_now': 'Save now (Ctrl+S)',
+    'menu.add_result': 'Add the result to the chat',
+    'menu.copy_mp4': 'Copy the MP4 path',
+    'menu.view_projects': 'View projects…',
+    'menu.create_project': 'Create project…',
+    'palette.toggle': 'Open/Close video editor',
+    'status.no_state': 'no state',
+    'status.no_query': 'no query',
+    'project.rev': 'Rev {revision}',
+    'cine.skill_incomplete': 'The skill is incomplete. Missing: {list}.',
+    'notice.scene_moved': 'Scene {index} moved to position {target}',
+    'notice.sound_added': 'Sound added at {time}.',
+    'notice.media_added': 'Media added: {name}',
+    'notice.format_unsupported': 'Unsupported format: {list}',
+    'save.saved_ago': 'Saved {time}',
+    'header.switch_project': 'Switch project · revision {revision}',
+    'header.export_spec': 'Export {spec}',
+    'scene.label': 'Scene {index}',
+    'scene.of': 'Scene {index} of {total}',
+    'scene.untitled': 'untitled',
+    'scene.row_aria': 'Scene {index}, {name}, {seconds} seconds',
+    'scene.text_aria': 'Scene {index} text: {text}',
+    'scene.text_aria_empty': 'Scene {index} text',
+    'scene.audio_aria': 'Scene {index}: audio at {volume} %',
+    'scene.list_aria': 'Scene {index}, {name}, {duration}',
+    'scene.name_placeholder': 'Scene {index}',
+    'media.add_as_scene_aria': 'Add {name} as a scene',
+    'timeline.aria': 'Timeline, {seconds} seconds',
+    'music.aria': 'Background music: {name} · {volume} %',
+    'field.transition_cross': 'Cross-fades with the previous scene for {seconds} s (max {limit} s here).',
+    'field.duration_visible': 'Visible duration {time} at this speed.',
+    'field.add_sound_at': 'Add sound at {time}',
+    'field.sound_volume': 'Sound {index} volume',
+    'field.remove_sound_n': 'Remove sound {index}',
+    'queue.count_one': '1 scene · final video {time}',
+    'queue.count_many': '{count} scenes · final video {time}',
+    'chat.size': 'Size: {size}',
+    'chat.file': 'File: {path}',
+    'chat.project': 'Project: {id} · revision {revision}',
+    'chat.insert_failed': 'Couldn\'t insert into the chat: {error}',
+    'export.duration': 'Lasts {time}',
+    'export.scenes': '{count} scenes',
+    'conflict.body': 'Revision {theirs} was saved elsewhere. Your copy is {mine}.',
+    'status.job': 'Job {id}: {state}',
+    'status.stage': 'Stage: {stage}',
+    'status.progress': 'Progress: {percent} %',
+    'status.error': 'Error: {error}',
+    'status.output': 'Output: {path}{size}',
+    'status.last_error': 'Last load error: {error}',
+    'menu.guides_toggle': '{action} safe-zone guides',
+    'export.progress': 'Exporting… {percent} %',
+    'export.progress_bare': 'Exporting {percent} %',
+  },
+  es: {
+    'orientation.horizontal': 'Horizontal',
+    'orientation.vertical': 'Vertical',
+    'transition.fade': 'Fundido',
+    'transition.slide_left': 'Deslizar izq.',
+    'transition.slide_right': 'Deslizar der.',
+    'transition.wipe_left': 'Barrido izq.',
+    'transition.wipe_right': 'Barrido der.',
+    'transition.circle': 'Círculo',
+    'transition.zoom': 'Zoom',
+    'transition.none': 'Sin transición',
+    'preset.square': 'MP4 cuadrado 720p · 30 fps',
+    'text.pos_top': 'Arriba',
+    'text.pos_center': 'Centro',
+    'text.pos_bottom': 'Abajo',
+    'text.anim_none': 'Ninguna',
+    'text.anim_up': 'Sube',
+    'text.anim_down': 'Baja',
+    'filter.brightness': 'Brillo',
+    'filter.contrast': 'Contraste',
+    'filter.saturation': 'Saturación',
+    'filter.blur': 'Desenfoque',
+    'filter.grayscale': 'Blanco y negro',
+    'filter.vignette': 'Viñeta',
+    'pan.none': 'Sin desplazamiento',
+    'pan.left': 'Hacia la izquierda',
+    'pan.right': 'Hacia la derecha',
+    'pan.up': 'Hacia arriba',
+    'pan.down': 'Hacia abajo',
+    'logo.top_left': 'Arriba izquierda',
+    'logo.top_center': 'Arriba centro',
+    'logo.top_right': 'Arriba derecha',
+    'logo.center_left': 'Centro izquierda',
+    'logo.center_right': 'Centro derecha',
+    'logo.bottom_left': 'Abajo izquierda',
+    'logo.bottom_center': 'Abajo centro',
+    'logo.bottom_right': 'Abajo derecha',
+    'stage.prepare': 'Preparando',
+    'stage.render': 'Renderizando',
+    'stage.mux': 'Escribiendo MP4',
+    'stage.done': 'Listo',
+    'titlebar.open': 'Abrir editor de vídeo',
+    'titlebar.close': 'Cerrar editor de vídeo',
+    'titlebar.label': 'Vídeo',
+    'error.offline': 'sin conexión',
+    'error.token_rejected': 'El servicio no acepta el token de este editor. Ejecuta activar-editor.cmd para volver a emparejarlos.',
+    'error.token_missing': 'Este editor no tiene el token del servicio. Ejecuta activar-editor.cmd (o instalar.py) y recarga el plugin.',
+    'cine.name_invalid': 'Ponle un nombre: minúsculas, números y guiones.',
+    'cine.aria': 'Cine · cinematic-film',
+    'cine.title': 'Cine',
+    'cine.subtitle': 'cinematic-film · voz, cámara y sonido',
+    'cine.scanning': 'Mirando qué hay…',
+    'cine.movies': 'Películas',
+    'cine.none_yet': 'Todavía no hay ninguna.',
+    'cine.new': 'Nueva',
+    'cine.name_placeholder': 'nombre (ej. lanzamiento)',
+    'cine.title_placeholder': 'título visible',
+    'cine.skin': 'Piel',
+    'cine.creating': 'Creando…',
+    'cine.create': 'Crear película',
+    'cine.pick': 'Elige una película de la izquierda.',
+    'cine.no_render_yet': 'Sin render todavía. Lanza cuando quieras.',
+    'cine.launching': 'Lanzando…',
+    'cine.rendering': 'Renderizando…',
+    'cine.render': 'Renderizar',
+    'cine.working': 'trabajando',
+    'cine.skill_missing': 'varios scripts',
+    'cine.timing_note': 'La película se cronometra contra la voz: primero se graba la narración y la cámara se coloca sobre ella. Un film corto tarda decenas de minutos.',
+    'pane.title': 'Editor de vídeo',
+    'header.pick_project': 'Elegir un proyecto',
+    'header.no_project': 'Sin proyecto',
+    'header.cine_title': 'Cine · la skill cinematic-film: voz, cámara y sonido',
+    'header.open_cine': 'Abrir Cine',
+    'header.no_chat': 'Sin chat vinculado: abre un chat y el editor se enlaza solo',
+    'header.no_folder': 'sin carpeta',
+    'header.go_chat': 'Ir al chat',
+    'header.working_now': ', trabajando ahora',
+    'header.chat_none': 'Sin chat',
+    'header.chat_linked': 'Vinculado al chat de Hermes · {folder}',
+    'header.chat_name': 'Chat {id}',
+    'preview.image_of': 'Imagen de {name}',
+    'preview.this_scene': 'la escena',
+    'header.model_readonly': 'Modelo activo del chat · solo lectura',
+    'header.model_tip': 'Cambia el modelo en el selector del chat.',
+    'header.undo': 'Deshacer',
+    'header.undo_title': 'Deshacer · Ctrl+Z',
+    'header.redo': 'Rehacer',
+    'header.redo_title': 'Rehacer · Ctrl+Shift+Z',
+    'header.properties': 'Propiedades',
+    'header.properties_title': 'Escenas y propiedades',
+    'header.more': 'Más acciones',
+    'save.saving': 'Guardando…',
+    'save.dirty': 'Cambios sin guardar',
+    'save.clean': 'Sin cambios',
+    'save.failed': 'No se pudo guardar',
+    'save.label': 'Guardar',
+    'save.title': 'Guardar · Ctrl+S',
+    'save.saved': 'Guardado',
+    'export.label': 'Exportar',
+    'export.title': 'Exportar MP4 (Ctrl+E)',
+    'export.need_scene': 'Añade al menos una escena para exportar',
+    'export.missing_media_hint': 'Falta un medio: vuelve a vincularlo',
+    'export.busy': 'Ya hay una exportación en curso',
+    'toolbar.close_editor': 'Cerrar editor de vídeo (Ctrl+Shift+E)',
+    'toolbar.close_editor_title': 'Cerrar (Ctrl+Shift+E)',
+    'stage.connecting': 'Conectando con el servicio…',
+    'stage.loading_project': 'Cargando proyecto…',
+    'empty.pick_project': 'Elige un proyecto',
+    'empty.start_first': 'Empieza tu primer vídeo',
+    'empty.pick_body': 'Abre uno de tus proyectos o crea uno nuevo para montar tu vídeo.',
+    'empty.start_body': 'Crea un proyecto, importa tus clips e imágenes y exporta un MP4. También puedes pedírselo a Hermes en el chat.',
+    'empty.your_projects': 'Tus proyectos',
+    'create_project': 'Crear proyecto',
+    'error.load_project': 'No se pudo cargar el proyecto',
+    'error.unknown': 'Error desconocido del servicio.',
+    'common.retry': 'Reintentar',
+    'common.back_to_chat': 'Volver al chat',
+    'common.close': 'Cerrar',
+    'common.cancel': 'Cancelar',
+    'drop.release': 'Suelta para importar',
+    'drop.hint': 'Arrastra clips, audio o capturas aquí',
+    'drop.formats': 'PNG, JPG, MP4, MOV, MP3 y WAV · se importa a la carpeta concedida del proyecto.',
+    'import_media': 'Importar medios',
+    'preview.label': 'Vista previa',
+    'transport.position': 'Posición de reproducción',
+    'transport.timecode_title': 'Tiempo exacto (mm:ss.ms). Escribe uno a la derecha para saltar.',
+    'transport.to_start': 'Ir al inicio',
+    'transport.to_start_title': 'Ir al inicio · Inicio',
+    'transport.prev_scene': 'Escena anterior',
+    'transport.pause': 'Pausar',
+    'transport.play': 'Reproducir',
+    'transport.pause_title': 'Pausar · Espacio',
+    'transport.play_title': 'Reproducir · Espacio',
+    'transport.next_scene': 'Escena siguiente',
+    'transport.to_end': 'Ir al final',
+    'transport.to_end_title': 'Ir al final · Fin',
+    'transport.goto': 'Ir a…',
+    'transport.goto_title': 'Escribe un tiempo (ej. 1:23.5) y pulsa Enter para saltar',
+    'transport.goto_aria': 'Ir al tiempo (mm:ss.ms)',
+    'transport.unmute': 'Activar sonido',
+    'transport.mute': 'Silenciar',
+    'timeline.ruler_title': 'Haz clic o arrastra para mover el cursor (Alt: sin imán)',
+    'timeline.split': 'Dividir',
+    'timeline.split_aria': 'Partir en el cursor',
+    'timeline.split_title': 'Partir en el cursor · S',
+    'timeline.zoom': 'Zoom de la línea de tiempo',
+    'timeline.zoom_out': 'Alejar',
+    'timeline.zoom_out_title': 'Alejar · Ctrl+rueda',
+    'timeline.zoom_in': 'Acercar',
+    'timeline.zoom_in_title': 'Acercar · Ctrl+rueda',
+    'timeline.zoom_fit': 'Ajustar a la ventana',
+    'lane.video': 'Vídeo y escenas',
+    'lane.text': 'Texto en pantalla',
+    'lane.text_short': 'Texto',
+    'lane.audio': 'Audio de las escenas y voz',
+    'lane.audio_short': 'Audio',
+    'lane.music': 'Música de fondo',
+    'lane.music_short': 'Música',
+    'lane.empty_scenes': 'Aquí aparecerán tus escenas · importa medios para empezar',
+    'clip.trim_start': 'Arrastra para recortar el inicio',
+    'clip.trim_end': 'Arrastra para recortar el final',
+    'lane.texts_aria': 'Textos en pantalla',
+    'lane.no_texts': 'Sin textos',
+    'lane.no_texts_hint': 'Sin textos · escríbelos en Escena › Texto en pantalla',
+    'lane.audio_aria': 'Volumen de cada escena',
+    'lane.no_music': 'Sin música · elige una pista en Audio',
+    'scenes.list': 'Lista de escenas',
+    'scenes.empty': 'Aún no hay escenas. Importa un clip, una imagen o una captura y aparecerá aquí.',
+    'scene.has_text': ' · con texto',
+    'scene.missing_media': ' · falta medio',
+    'scene.move_up': 'Subir (Alt+↑)',
+    'scene.move_down': 'Bajar (Alt+↓)',
+    'media.missing': ' · falta',
+    'media.add_as_scene': 'Añadir como escena',
+    'media.empty': 'Sin medios todavía. Pulsa «Importar medios» para traer archivos de la carpeta concedida.',
+    'media.close': 'Cerrar medios y escenas',
+    'media.title': 'Medios y escenas',
+    'scene.hint': 'Dura {dur}. También puedes arrastrar los bordes del clip en la línea de tiempo.',
+    'scene.hint_speed': 'Dura {dur} · {vis} en pantalla a ×{speed}. También puedes arrastrar los bordes del clip en la línea de tiempo.',
+    'music.hint': 'Importa un audio para usarlo como música.',
+    'music.lane_aria': 'Música de fondo del proyecto',
+    'queue.no_scenes': 'Sin escenas todavía',
+    'status.ready': 'Listo · {artifact}{bytes}',
+    'error.offline': 'El servicio del editor no responde en {host}. Tus medios no se han modificado.',
+    'notice.media_imported_many': '{count} medios importados.',
+    'notice.media_replaced': 'Medio reemplazado: {name} · in/out conservados',
+    'notice.media_selected': 'Medio seleccionado: {name}',
+    'scene.move_up_aria': 'Subir escena {n}',
+    'scene.move_down_aria': 'Bajar escena {n}',
+    'media.kind_default': 'medio',
+    'missing.count_one': 'Falta 1 medio',
+    'missing.count_many': 'Faltan {count} medios',
+    'field.for_scene': '{label} de la escena',
+    'media.view': 'Ver',
+    'media.tab_scenes': 'Escenas',
+    'media.tab_media': 'Medios',
+    'toast.close': 'Cerrar aviso',
+    'tab.scene': 'Escena',
+    'tab.effects': 'Efectos',
+    'tab.project': 'Proyecto',
+    'field.scene_name': 'Nombre de la escena',
+    'field.caption_placeholder': 'Escribe lo que se verá en pantalla durante la escena',
+    'field.caption_disabled': 'Escribe un texto en la escena para darle estilo',
+    'field.text_style': 'Posición y estilo del texto',
+    'field.text_position': 'Posición del texto',
+    'field.size': 'Tamaño',
+    'field.size_title': 'Tamaño del texto en puntos',
+    'field.color': 'Color',
+    'field.color_aria': 'Color del texto',
+    'field.border': 'Borde',
+    'field.border_title': 'Grosor del borde del texto',
+    'field.shadow': 'Sombra',
+    'field.shadow_title': 'Grosor de la sombra del texto',
+    'field.in': 'Entrada',
+    'field.in_title': 'Animación de entrada del texto',
+    'field.out': 'Salida',
+    'field.out_title': 'Animación de salida del texto',
+    'field.text_whole_scene': 'El texto aparece durante toda la escena.',
+    'field.text_style_hint': 'Escribe un texto para darle estilo.',
+    'field.trim': 'Recorte del clip',
+    'field.in_seconds': 'Entrada de la escena en segundos',
+    'field.out_seconds': 'Salida de la escena en segundos',
+    'field.out_error': 'La salida debe ser al menos 0,3 s después de la entrada.',
+    'field.relink': 'Volver a vincular',
+    'field.replace_media': 'Reemplazar medio',
+    'field.replace_media_title': 'Cambia el archivo de la escena sin tocar la entrada y la salida',
+    'field.reset_scene': 'Restablecer escena',
+    'field.reset_scene_title': 'Quita texto, transición y ajustes de audio de esta escena',
+    'field.delete_scene': 'Eliminar escena',
+    'field.delete_scene_title': 'Elimina la escena (Supr). Ctrl+Z la recupera',
+    'field.volume': 'Volumen',
+    'field.volume_aria': 'Volumen de la escena',
+    'field.scene_unmute': 'Activar el sonido de la escena',
+    'field.scene_mute': 'Silenciar la escena',
+    'field.transition': 'Transición de entrada',
+    'field.transition_style': 'Estilo de la transición de entrada',
+    'field.transition_first': 'La primera escena no tiene transición de entrada',
+    'field.transition_seconds': 'Duración de la transición en segundos',
+    'field.transition_first_hint': 'La escena 1 no lleva transición de entrada.',
+    'field.transition_too_short': 'La escena es demasiado corta para cruzarse con la anterior.',
+    'field.transition_cut': 'Corte seco: entra sin cruce.',
+    'field.filters': 'Filtros',
+    'field.reset_filters': 'Restablecer filtros',
+    'field.kenburns_title': 'Zoom lento sobre la imagen',
+    'field.only_images': 'Solo imágenes',
+    'field.kenburns_aria': 'Ken Burns en la imagen',
+    'field.kenburns': 'Ken Burns',
+    'field.kenburns_zoom': 'Zoom de Ken Burns',
+    'field.pan': 'Desplazamiento',
+    'field.pan_aria': 'Dirección del desplazamiento de Ken Burns',
+    'field.kenburns_hint': 'Actívalo para un zoom lento sobre la imagen.',
+    'field.speed': 'Velocidad',
+    'field.speed_aria': 'Velocidad de la escena',
+    'field.motion': 'Movimiento y velocidad',
+    'field.orientation': 'Orientación',
+    'field.orientation_aria': 'Orientación del vídeo',
+    'field.orientation_hint': 'Vertical recorta los bordes laterales.',
+    'field.summary': 'Resumen del proyecto',
+    'field.resolution': 'Resolución',
+    'field.scenes_sum': 'Suma de escenas',
+    'field.final_video': 'Vídeo final',
+    'field.sfx': 'Sonidos y voz',
+    'field.sfx_hint': 'Importa o genera audios para colocarlos en la línea de tiempo.',
+    'field.add_sound': 'Añadir sonido en el cursor',
+    'field.starts_at': 'Empieza en (mm:ss.ms)',
+    'field.remove_sound': 'Quitar sonido',
+    'field.track': 'Pista',
+    'field.no_music': 'Sin música',
+    'field.no_music_hint': 'Sin música: el vídeo lleva solo el audio de las escenas.',
+    'field.music_volume': 'Volumen de la música',
+    'field.music_fades': 'Fundido de entrada / salida',
+    'field.music_fade_in': 'Fundido de entrada de la música en segundos',
+    'field.music_fade_out': 'Fundido de salida de la música en segundos',
+    'field.music_fades_hint': 'De 0 a 10 s; 0 la deja sin fundido.',
+    'field.loop': 'Repetir en bucle',
+    'field.ducking': 'Bajar bajo la voz (ducking)',
+    'field.normalize': 'Normalizar audio del proyecto',
+    'field.remove_music': 'Quitar música',
+    'field.remove_music_title': 'Elimina la música del proyecto',
+    'field.no_music_set': 'No hay música asignada',
+    'field.logo_section': 'Logo del proyecto',
+    'field.logo': 'Logo',
+    'field.logo_hint': 'Importa una imagen para usarla como logo.',
+    'field.logo_watermark_hint': 'Marca de agua sobre todo el vídeo.',
+    'field.image': 'Imagen',
+    'field.logo_image_aria': 'Imagen del logo del proyecto',
+    'field.no_logo': 'Sin logo',
+    'field.position': 'Posición',
+    'field.logo_position_aria': 'Posición del logo',
+    'field.opacity': 'Opacidad',
+    'field.logo_opacity_aria': 'Opacidad del logo',
+    'field.scale': 'Escala',
+    'field.logo_scale_aria': 'Escala del logo',
+    'field.remove_logo': 'Quitar logo',
+    'badge.background': 'Fondo',
+    'badge.brand': 'Marca',
+    'rail.pick_scene': 'Elige una escena',
+    'rail.pick_scene_body': 'Selecciona una escena de la lista o de la línea de tiempo para editarla.',
+    'rail.props_aria': 'Propiedades de la escena',
+    'rail.close': 'Cerrar propiedades',
+    'notice.project_updated': 'Proyecto actualizado desde el chat.',
+    'notice.merged': 'Se combinaron tus cambios con los del chat.',
+    'notice.split_edge': 'Coloca el cursor a más de 0,3 s del borde para partir.',
+    'notice.split_done': 'Escena partida en el cursor.',
+    'notice.scene_deleted': 'Escena eliminada. Ctrl+Z la recupera.',
+    'notice.fade_too_short': 'La escena es demasiado corta para un fundido (mínimo 0,1 s en ambas).',
+    'notice.sound_removed': 'Sonido quitado.',
+    'notice.filters_reset': 'Filtros restablecidos.',
+    'notice.logo_removed': 'Logo quitado del proyecto.',
+    'notice.vertical': 'Formato vertical: el export recorta los bordes laterales.',
+    'notice.horizontal': 'Formato horizontal.',
+    'notice.save_before_export': 'No se pudo guardar antes de exportar. Revisa el aviso y vuelve a intentarlo.',
+    'notice.no_files': 'Este build no expone ctx.files: importa desde la carpeta concedida del servicio.',
+    'notice.scene_reset': 'Escena restablecida.',
+    'notice.chat_focused': 'Chat enfocado. El editor sigue abierto.',
+    'notice.chat_hint': 'Escribe en el chat de arriba; el editor sigue abierto.',
+    'notice.media_imported': 'Medio importado.',
+    'notice.music_set': 'Música de fondo asignada.',
+    'notice.music_removed': 'Música quitada del proyecto.',
+    'notice.use_import': 'Este build no expone la ruta del archivo: usa «Importar medios».',
+    'chat.summary_title': 'Vídeo exportado con el editor de Hermes',
+    'chat.untitled_video': 'Vídeo sin título',
+    'chat.no_composer': 'Esta versión de Hermes no expone el compositor del chat; copia la ruta y pégala.',
+    'chat.no_target': 'No hay un chat abierto donde insertar. Abre un chat y reintenta.',
+    'chat.inserted': 'Añadido al chat de Hermes. Revísalo y pulsa enviar.',
+    'chat.nothing_to_copy': 'Todavía no hay una ruta que copiar.',
+    'chat.copied': 'Ruta copiada al portapapeles.',
+    'chat.copy_denied': 'El sistema no permitió copiar la ruta.',
+    'chat.copy_manual': 'Esta versión no permite copiar desde el panel; selecciona la ruta.',
+    'dialog.no_projects': 'No hay proyectos todavía.',
+    'dialog.export_title': 'Exportar vídeo',
+    'dialog.preset_unavailable': 'Ese preset no está disponible en este servicio',
+    'dialog.export_mp4': 'Exportar MP4',
+    'dialog.export_format': 'Formato de exportación',
+    'dialog.export_format_error': 'Este formato no está disponible en tu servicio. Elige otro.',
+    'dialog.export_saved_hint': 'El archivo se guarda en la carpeta del proyecto y podrás enviarlo al chat.',
+    'dialog.include_captions': 'Incluir subtítulos',
+    'dialog.not_available': ' · no disponible',
+    'dialog.missing_media': 'faltan medios',
+    'dialog.linked_media': 'medios vinculados',
+    'dialog.transitions_overlap': ' (las transiciones solapan escenas)',
+    'export.done_title': 'Exportación terminada',
+    'export.failed': 'La exportación falló',
+    'export.running_title': 'Exportando vídeo',
+    'export.cancelling': 'Cancelando…',
+    'export.cancel': 'Cancelar exportación',
+    'export.no_mp4': 'No se generó el MP4',
+    'export.service_error': 'El servicio devolvió un error.',
+    'export.player_aria': 'Vídeo exportado: reproducir aquí',
+    'export.add_to_chat': 'Agregar al chat',
+    'export.add_to_chat_title': 'Inserta el resultado en el chat activo para que Hermes lo use',
+    'export.copy_path': 'Copiar ruta',
+    'export.no_jobs': 'Sin trabajos de exportación en esta sesión.',
+    'export.exporting': 'Exportando…',
+    'conflict.title': 'Hay cambios más nuevos',
+    'conflict.reload': 'Recargar y perder mis cambios',
+    'conflict.note': 'Nada se sobrescribe en silencio: recargar trae la revisión más nueva.',
+    'import.opening_folder': 'Abriendo la carpeta concedida…',
+    'import.failed': 'No se pudo importar',
+    'import.folder_unavailable': 'La carpeta no está disponible',
+    'import.import_selected': 'Importar seleccionados',
+    'import.running': 'Importando medios',
+    'import.done': 'Importación terminada',
+    'import.replace_scene_media': 'Reemplazar el medio de la escena',
+    'import.add_media': 'Añadir medio',
+    'import.replace_note': 'Se conservan la entrada y la salida de la escena; solo cambia el archivo.',
+    'import.pick_media': 'Elige un medio de la biblioteca del proyecto.',
+    'import.other_folder': 'Otra carpeta…',
+    'import.reading': 'Leyendo la biblioteca…',
+    'import.read_failed': 'No se pudo leer la biblioteca',
+    'import.linking': 'Vinculando el medio…',
+    'import.empty_library': 'La biblioteca está vacía. Usa «Otra carpeta…» para traer archivos de la carpeta concedida.',
+    'dialog.service_status': 'Estado del servicio',
+    'menu.guides_hide': 'Ocultar',
+    'menu.guides_show': 'Mostrar',
+    'menu.save_now': 'Guardar ahora (Ctrl+S)',
+    'menu.add_result': 'Agregar el resultado al chat',
+    'menu.copy_mp4': 'Copiar ruta del MP4',
+    'menu.view_projects': 'Ver proyectos…',
+    'menu.create_project': 'Crear proyecto…',
+    'palette.toggle': 'Abrir/Cerrar editor de vídeo',
+    'status.no_state': 'sin estado',
+    'status.no_query': 'sin consulta',
+    'project.rev': 'Rev {revision}',
+    'cine.skill_incomplete': 'La skill no está completa. Faltan: {list}.',
+    'notice.scene_moved': 'Escena {index} movida a la posición {target}',
+    'notice.sound_added': 'Sonido añadido en {time}.',
+    'notice.media_added': 'Medio añadido: {name}',
+    'notice.format_unsupported': 'Formato no admitido: {list}',
+    'save.saved_ago': 'Guardado {time}',
+    'header.switch_project': 'Cambiar de proyecto · revisión {revision}',
+    'header.export_spec': 'Exportar {spec}',
+    'scene.label': 'Escena {index}',
+    'scene.of': 'Escena {index} de {total}',
+    'scene.untitled': 'sin nombre',
+    'scene.row_aria': 'Escena {index}, {name}, {seconds} segundos',
+    'scene.text_aria': 'Texto de la escena {index}: {text}',
+    'scene.text_aria_empty': 'Texto de la escena {index}',
+    'scene.audio_aria': 'Escena {index}: audio al {volume} %',
+    'scene.list_aria': 'Escena {index}, {name}, {duration}',
+    'scene.name_placeholder': 'Escena {index}',
+    'media.add_as_scene_aria': 'Añadir {name} como escena',
+    'timeline.aria': 'Línea de tiempo, {seconds} segundos',
+    'music.aria': 'Música de fondo: {name} · {volume} %',
+    'field.transition_cross': 'Se cruza con la escena anterior durante {seconds} s (máximo {limit} s aquí).',
+    'field.duration_visible': 'Duración visible {time} a esta velocidad.',
+    'field.add_sound_at': 'Añadir sonido en {time}',
+    'field.sound_volume': 'Volumen del sonido {index}',
+    'field.remove_sound_n': 'Quitar sonido {index}',
+    'queue.count_one': '1 escena · vídeo final {time}',
+    'queue.count_many': '{count} escenas · vídeo final {time}',
+    'chat.size': 'Tamaño: {size}',
+    'chat.file': 'Archivo: {path}',
+    'chat.project': 'Proyecto: {id} · revisión {revision}',
+    'chat.insert_failed': 'No se pudo insertar en el chat: {error}',
+    'export.duration': 'Dura {time}',
+    'export.scenes': '{count} escenas',
+    'conflict.body': 'La revisión {theirs} se guardó en otro lugar. Tu copia es la {mine}.',
+    'status.job': 'Trabajo {id}: {state}',
+    'status.stage': 'Etapa: {stage}',
+    'status.progress': 'Progreso: {percent} %',
+    'status.error': 'Error: {error}',
+    'status.output': 'Salida: {path}{size}',
+    'status.last_error': 'Último error de carga: {error}',
+    'menu.guides_toggle': '{action} guías de zona segura',
+    'export.progress': 'Exportando… {percent} %',
+    'export.progress_bare': 'Exportando {percent} %',
+  }
+}
+
+// Idioma del pane. register(ctx) lo fija antes de montar nada; los catálogos
+// usan getters, así que cada etiqueta se resuelve al pintar, no al importar.
+let LANG = DEFAULT_LANG
+
+function normalizeLang(value) {
+  const code = String(value == null ? '' : value).trim().toLowerCase().slice(0, 2)
+  return SUPPORTED_LANGS.includes(code) ? code : DEFAULT_LANG
+}
+
+// Idioma pedido por la persona: `ui.language` de ctx.storage (lo siembra la app,
+// el emparejamiento con el agente o el harness con ?lang=es).
+function languageFrom(ctx) {
+  try {
+    const stored = ctx && ctx.storage && typeof ctx.storage.get === 'function' ? ctx.storage.get('ui.language') : ''
+    return normalizeLang(stored)
+  } catch (error) {
+    return DEFAULT_LANG
+  }
+}
+
+function t(key, vars) {
+  const table = STRINGS[LANG] || STRINGS[DEFAULT_LANG]
+  let out = table[key]
+  if (out == null) out = STRINGS[DEFAULT_LANG][key]
+  if (out == null) return key
+  if (vars) {
+    out = String(out).replace(/\{(\w+)\}/g, (match, name) => (vars[name] == null ? match : String(vars[name])))
+  }
+  return out
+}
+
+
 const ORIENTATIONS = {
-  h: { label: 'Horizontal', short: '16:9', w: 1280, h: 720, ratio: '16 / 9' },
-  v: { label: 'Vertical', short: '9:16', w: 720, h: 1280, ratio: '9 / 16' }
+  h: { get label() { return t('orientation.horizontal') }, short: '16:9', w: 1280, h: 720, ratio: '16 / 9' },
+  v: { get label() { return t('orientation.vertical') }, short: '9:16', w: 720, h: 1280, ratio: '9 / 16' }
 }
 
 // Catálogo local de estilos `xfade` (1:1 con core/project.TRANSITION_STYLES).
@@ -33,15 +932,15 @@ const ORIENTATIONS = {
 // `slideleft-0.5`), que es lo que valida el servicio. `/health` publica
 // `transitions`: si está, manda esa lista; si no, se usa esta.
 const TRANSITION_STYLES = [
-  { id: 'fade', label: 'Fundido' },
-  { id: 'slideleft', label: 'Deslizar izq.' },
-  { id: 'slideright', label: 'Deslizar der.' },
-  { id: 'wipeleft', label: 'Barrido izq.' },
-  { id: 'wiperight', label: 'Barrido der.' },
-  { id: 'circleopen', label: 'Círculo' },
-  { id: 'zoomin', label: 'Zoom' }
+  { id: 'fade', get label() { return t('transition.fade') } },
+  { id: 'slideleft', get label() { return t('transition.slide_left') } },
+  { id: 'slideright', get label() { return t('transition.slide_right') } },
+  { id: 'wipeleft', get label() { return t('transition.wipe_left') } },
+  { id: 'wiperight', get label() { return t('transition.wipe_right') } },
+  { id: 'circleopen', get label() { return t('transition.circle') } },
+  { id: 'zoomin', get label() { return t('transition.zoom') } }
 ]
-const TRANSITIONS = [{ id: 'none', label: 'Sin transición' }, ...TRANSITION_STYLES]
+const TRANSITIONS = [{ id: 'none', get label() { return t('transition.none') } }, ...TRANSITION_STYLES]
 const TRANSITION_DEFAULT_S = 0.5
 const TRANSITION_MIN_S = 0.1
 const TRANSITION_MAX_S = 2.0
@@ -52,7 +951,7 @@ const EXPORT_PRESETS = [
   { id: 'mp4-720p30', label: 'MP4 720p · 30 fps' },
   { id: 'mp4-1080p30', label: 'MP4 1080p · 30 fps' },
   { id: 'mp4-720p30-vertical', label: 'MP4 vertical 720p · 30 fps' },
-  { id: 'mp4-720p30-square', label: 'MP4 cuadrado 720p · 30 fps' }
+  { id: 'mp4-720p30-square', get label() { return t('preset.square') } }
 ]
 
 // Valores con los que nace `doc.music`; el usuario los cambia y se guardan tal cual.
@@ -65,15 +964,15 @@ const TEXT_BORDER = { min: 0, max: 10, default: 0 }
 const TEXT_SHADOW = { min: 0, max: 10, default: 0 }
 const TEXT_COLOR_DEFAULT = '#FFFFFF'
 const TEXT_POSITIONS = [
-  { id: 'top', label: 'Arriba' },
-  { id: 'center', label: 'Centro' },
-  { id: 'bottom', label: 'Abajo' }
+  { id: 'top', get label() { return t('text.pos_top') } },
+  { id: 'center', get label() { return t('text.pos_center') } },
+  { id: 'bottom', get label() { return t('text.pos_bottom') } }
 ]
 const TEXT_ANIMATIONS = [
-  { id: 'none', label: 'Ninguna' },
-  { id: 'fade', label: 'Fundido' },
-  { id: 'slide-up', label: 'Sube' },
-  { id: 'slide-down', label: 'Baja' }
+  { id: 'none', get label() { return t('text.anim_none') } },
+  { id: 'fade', get label() { return t('transition.fade') } },
+  { id: 'slide-up', get label() { return t('text.anim_up') } },
+  { id: 'slide-down', get label() { return t('text.anim_down') } }
 ]
 const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/
 
@@ -81,47 +980,47 @@ const HEX_COLOR = /^#[0-9A-Fa-f]{6}$/
 // se escribe: un filtro sin tocar no ensucia el documento.
 const FILTER_DEFAULTS = { brightness: 0, contrast: 1, saturation: 1, grayscale: false, vignette: false, blur: 0 }
 const FILTER_SLIDERS = [
-  { key: 'brightness', label: 'Brillo', min: -1, max: 1, step: 0.05 },
-  { key: 'contrast', label: 'Contraste', min: 0, max: 2, step: 0.05 },
-  { key: 'saturation', label: 'Saturación', min: 0, max: 3, step: 0.05 },
-  { key: 'blur', label: 'Desenfoque', min: 0, max: 20, step: 0.5, suffix: 'px' }
+  { key: 'brightness', get label() { return t('filter.brightness') }, min: -1, max: 1, step: 0.05 },
+  { key: 'contrast', get label() { return t('filter.contrast') }, min: 0, max: 2, step: 0.05 },
+  { key: 'saturation', get label() { return t('filter.saturation') }, min: 0, max: 3, step: 0.05 },
+  { key: 'blur', get label() { return t('filter.blur') }, min: 0, max: 20, step: 0.5, suffix: 'px' }
 ]
 const FILTER_FLAGS = [
-  { key: 'grayscale', label: 'Blanco y negro' },
-  { key: 'vignette', label: 'Viñeta' }
+  { key: 'grayscale', get label() { return t('filter.grayscale') } },
+  { key: 'vignette', get label() { return t('filter.vignette') } }
 ]
 
 // Ken Burns (solo imágenes) y velocidad de escena (cualquiera).
 const KEN_BURNS = { minZoom: 1, maxZoom: 1.5, zoom: 1.2, pan: 'none' }
 const PAN_OPTIONS = [
-  { id: 'none', label: 'Sin desplazamiento' },
-  { id: 'left', label: 'Hacia la izquierda' },
-  { id: 'right', label: 'Hacia la derecha' },
-  { id: 'up', label: 'Hacia arriba' },
-  { id: 'down', label: 'Hacia abajo' }
+  { id: 'none', get label() { return t('pan.none') } },
+  { id: 'left', get label() { return t('pan.left') } },
+  { id: 'right', get label() { return t('pan.right') } },
+  { id: 'up', get label() { return t('pan.up') } },
+  { id: 'down', get label() { return t('pan.down') } }
 ]
 const SCENE_SPEED = { min: 0.5, max: 2, default: 1 }
 
 // Logo del proyecto (core/project.LOGO_*): marca de agua sobre todo el vídeo.
 const LOGO_POSITIONS = [
-  { id: 'top-left', label: 'Arriba izquierda' },
-  { id: 'top-center', label: 'Arriba centro' },
-  { id: 'top-right', label: 'Arriba derecha' },
-  { id: 'center-left', label: 'Centro izquierda' },
-  { id: 'center', label: 'Centro' },
-  { id: 'center-right', label: 'Centro derecha' },
-  { id: 'bottom-left', label: 'Abajo izquierda' },
-  { id: 'bottom-center', label: 'Abajo centro' },
-  { id: 'bottom-right', label: 'Abajo derecha' }
+  { id: 'top-left', get label() { return t('logo.top_left') } },
+  { id: 'top-center', get label() { return t('logo.top_center') } },
+  { id: 'top-right', get label() { return t('logo.top_right') } },
+  { id: 'center-left', get label() { return t('logo.center_left') } },
+  { id: 'center', get label() { return t('text.pos_center') } },
+  { id: 'center-right', get label() { return t('logo.center_right') } },
+  { id: 'bottom-left', get label() { return t('logo.bottom_left') } },
+  { id: 'bottom-center', get label() { return t('logo.bottom_center') } },
+  { id: 'bottom-right', get label() { return t('logo.bottom_right') } }
 ]
 const LOGO_DEFAULTS = { position: 'bottom-right', opacity: 0.8, scale: 0.15 }
 const LOGO_LIMITS = { opacity: [0, 1], scale: [0.05, 0.5] }
 
 const STAGES = [
-  { id: 'prepare', label: 'Preparando', from: ['queued', 'probing'] },
-  { id: 'render', label: 'Renderizando', from: ['rendering'] },
-  { id: 'mux', label: 'Escribiendo MP4', from: ['validating'] },
-  { id: 'done', label: 'Listo', from: ['promoting', 'done'] }
+  { id: 'prepare', get label() { return t('stage.prepare') }, from: ['queued', 'probing'] },
+  { id: 'render', get label() { return t('stage.render') }, from: ['rendering'] },
+  { id: 'mux', get label() { return t('stage.mux') }, from: ['validating'] },
+  { id: 'done', get label() { return t('stage.done') }, from: ['promoting', 'done'] }
 ]
 
 // --------------------------------------------------------------------------- #
@@ -315,7 +1214,7 @@ function transitionLabel(style) {
 }
 
 // es-ES: decimal con coma para los textos de segundos.
-const fmtSec = (value) => String(round3(Number(value) || 0)).replace('.', ',')
+const fmtSec = (value) => String(round3(Number(value) || 0)).replace('.', LANG === 'es' ? ',' : '.')
 
 // El servicio rechaza un fundido más largo que la escena **o que la anterior**
 // (`transition is longer than the previous scene`), así que el techo real del
@@ -480,6 +1379,23 @@ function serviceToken(ctx) {
   return String(fromWindow || fromStorage || embedded || '')
 }
 
+// Pairing with the agent half: the token lives in plugin-data and is handed over
+// by RPC, so a catalog install never needs an installer to rewrite this file.
+async function pairToken(ctx) {
+  try {
+    if (!host || typeof host.request !== 'function') return ''
+    const info = await host.request('plugin.hermes-cinema.pair', {}, 15000)
+    const token = info && info.token ? String(info.token) : ''
+    const set = ctx && ctx.storage && typeof ctx.storage.set === 'function'
+    if (token && set) ctx.storage.set('service.token', token)
+    if (info && info.service && set) ctx.storage.set('service.url', info.service)
+    if (info && info.language && set) ctx.storage.set('ui.language', String(info.language))
+    return token
+  } catch (error) {
+    return ''
+  }
+}
+
 async function request(ctx, path, { method = 'GET', body, timeout = 30000 } = {}) {
   const base = serviceBase(ctx)
   const token = serviceToken(ctx)
@@ -497,9 +1413,14 @@ async function request(ctx, path, { method = 'GET', body, timeout = 30000 } = {}
       signal: controller.signal
     })
   } catch (error) {
-    throw new Offline(error && error.message ? error.message : 'sin conexión')
+    throw new Offline(error && error.message ? error.message : t('error.offline'))
   } finally {
     clearTimeout(timer)
+  }
+  if (response.status === 401 && !token) {
+    // First contact from a catalog install: ask the agent half for the token once.
+    const paired = await pairToken(ctx)
+    if (paired) return request(ctx, path, { method, body, timeout })
   }
   let payload = null
   const text = await response.text()
@@ -514,8 +1435,8 @@ async function request(ctx, path, { method = 'GET', body, timeout = 30000 } = {}
     const authHint =
       response.status === 401 || response.status === 403
         ? token
-          ? 'El servicio no acepta el token de este editor. Ejecuta activar-editor.cmd para volver a emparejarlos.'
-          : 'Este editor no tiene el token del servicio. Ejecuta activar-editor.cmd (o instalar.py) y recarga el plugin.'
+          ? t('error.token_rejected')
+          : t('error.token_missing')
         : null
     const failure = new Error(authHint || (payload && (payload.error || (payload.errors || []).join(' · '))) || `HTTP ${response.status}`)
     failure.status = response.status
@@ -583,7 +1504,7 @@ function TitlebarToggle({ getOpen, subscribe, onToggle }) {
     return subscribe(setOpen)
   }, [])
 
-  const label = open ? 'Cerrar editor de vídeo' : 'Abrir editor de vídeo'
+  const label = open ? t('titlebar.close') : t('titlebar.open')
   return h(
     'button',
     {
@@ -596,7 +1517,7 @@ function TitlebarToggle({ getOpen, subscribe, onToggle }) {
       onClick: onToggle
     },
     h(Icon, { name: 'film', size: 'sm' }),
-    h('span', null, 'Vídeo')
+    h('span', null, t('titlebar.label'))
   )
 }
 
@@ -1194,7 +2115,7 @@ function CinePanel({ ctx, onClose }) {
   const crear = async () => {
     const limpio = nombre.trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '')
     if (!limpio) {
-      setError('Ponle un nombre: minúsculas, números y guiones.')
+      setError(t('cine.name_invalid'))
       return
     }
     setCreando(true)
@@ -1237,14 +2158,14 @@ function CinePanel({ ctx, onClose }) {
     { className: 've-ov', role: 'presentation', onClick: onClose },
     h(
       'div',
-      { className: 've-dialog ve-dialog--wide', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Cine · cinematic-film', onClick: (e) => e.stopPropagation() },
+      { className: 've-dialog ve-dialog--wide', role: 'dialog', 'aria-modal': 'true', 'aria-label': t('cine.aria'), onClick: (e) => e.stopPropagation() },
       h(
         'div',
         { className: 've-cine__head' },
         h(Icon, { name: 'film' }),
-        h('h2', { className: 've-dialog__t' }, 'Cine'),
-        h('span', { className: 've-dialog__b' }, 'cinematic-film · voz, cámara y sonido'),
-        h(Btn, { variant: 'text', label: 'Cerrar', onClick: onClose })
+        h('h2', { className: 've-dialog__t' }, t('cine.title')),
+        h('span', { className: 've-dialog__b' }, t('cine.subtitle')),
+        h(Btn, { variant: 'text', label: t('common.close'), onClick: onClose })
       ),
       h(
         'div',
@@ -1253,19 +2174,19 @@ function CinePanel({ ctx, onClose }) {
           ? h(
               'p',
               { className: 've-cine__warn' },
-              `La skill no está completa. Faltan: ${(estadoSkill.faltan || []).join(', ') || 'varios scripts'}.`
+              t('cine.skill_incomplete', { list: (estadoSkill.faltan || []).join(', ') || t('cine.skill_missing') })
             )
           : null,
         error ? h('p', { className: 've-cine__error', role: 'alert' }, error) : null,
         cargando
-          ? h('p', { className: 've-cine__muted' }, 'Mirando qué hay…')
+          ? h('p', { className: 've-cine__muted' }, t('cine.scanning'))
           : h(
               'div',
               { className: 've-cine__cols' },
               h(
                 'div',
                 { className: 've-cine__col' },
-                h('h3', { className: 've-cine__h' }, 'Películas'),
+                h('h3', { className: 've-cine__h' }, t('cine.movies')),
                 proyectos.length
                   ? h(
                       'ul',
@@ -1291,24 +2212,24 @@ function CinePanel({ ctx, onClose }) {
                         )
                       )
                     )
-                  : h('p', { className: 've-cine__muted' }, 'Todavía no hay ninguna.'),
-                h('h3', { className: 've-cine__h' }, 'Nueva'),
+                  : h('p', { className: 've-cine__muted' }, t('cine.none_yet')),
+                h('h3', { className: 've-cine__h' }, t('cine.new')),
                 h('input', {
                   className: 've-input',
-                  placeholder: 'nombre (ej. lanzamiento)',
+                  placeholder: t('cine.name_placeholder'),
                   value: nombre,
                   onInput: (e) => setNombre(e.target.value)
                 }),
                 h('input', {
                   className: 've-input',
-                  placeholder: 'título visible',
+                  placeholder: t('cine.title_placeholder'),
                   value: titulo,
                   onInput: (e) => setTitulo(e.target.value)
                 }),
                 h(
                   'label',
                   { className: 've-cine__pick' },
-                  h('span', { className: 've-cine__h' }, 'Piel'),
+                  h('span', { className: 've-cine__h' }, t('cine.skin')),
                   h(
                     'select',
                     {
@@ -1327,7 +2248,7 @@ function CinePanel({ ctx, onClose }) {
                 h(Btn, {
                   variant: 'primary',
                   block: true,
-                  label: creando ? 'Creando…' : 'Crear película',
+                  label: creando ? t('cine.creating') : t('cine.create'),
                   disabled: creando,
                   onClick: crear
                 })
@@ -1336,7 +2257,7 @@ function CinePanel({ ctx, onClose }) {
                 'div',
                 { className: 've-cine__col ve-cine__col--main' },
                 !sel
-                  ? h('p', { className: 've-cine__muted' }, 'Elige una película de la izquierda.')
+                  ? h('p', { className: 've-cine__muted' }, t('cine.pick'))
                   : h(
                       'div',
                       {},
@@ -1350,13 +2271,13 @@ function CinePanel({ ctx, onClose }) {
                               : detalle.terminado
                                 ? `Lista${detalle.segundos ? ` en ${Math.round(detalle.segundos)} s` : ''}`
                                 : detalle.corriendo
-                                  ? `${detalle.etapa || 'trabajando'} · ${detalle.porcentaje || 0}%`
-                                  : 'Sin render todavía. Lanza cuando quieras.'
+                                  ? `${detalle.etapa || t('cine.working')} · ${detalle.porcentaje || 0}%`
+                                  : t('cine.no_render_yet')
                           )
                         : null,
                       h(Btn, {
                         variant: 'primary',
-                        label: lanzando ? 'Lanzando…' : detalle && detalle.corriendo ? 'Renderizando…' : 'Renderizar',
+                        label: lanzando ? t('cine.launching') : detalle && detalle.corriendo ? t('cine.rendering') : t('cine.render'),
                         disabled: lanzando || (detalle && detalle.corriendo),
                         onClick: renderizar
                       }),
@@ -1378,7 +2299,7 @@ function CinePanel({ ctx, onClose }) {
                       h(
                         'p',
                         { className: 've-cine__note' },
-                        'La película se cronometra contra la voz: primero se graba la narración y la cámara se coloca sobre ella. Un film corto tarda decenas de minutos.'
+                        t('cine.timing_note')
                       )
                     )
               )
@@ -1591,7 +2512,7 @@ function VideoPane({ ctx, onClose }) {
   const transitionOptions = useMemo(() => {
     const remote = service && Array.isArray(service.transitions) ? service.transitions.filter(Boolean).map(String) : []
     if (!remote.length) return TRANSITIONS
-    return [{ id: 'none', label: 'Sin transición' }, ...remote.map((id) => ({ id, label: transitionLabel(id) }))]
+    return [{ id: 'none', label: t('transition.none') }, ...remote.map((id) => ({ id, label: transitionLabel(id) }))]
   }, [service])
 
   const transitionList = useMemo(() => {
@@ -1700,7 +2621,7 @@ function VideoPane({ ctx, onClose }) {
           const first = payload.project.scenes && payload.project.scenes[0]
           setSelId((prev) => ((payload.project.scenes || []).some((s) => s.id === prev) ? prev : first ? first.id : null))
           setSavedAt(Date.now())
-          setNotice('Proyecto actualizado desde el chat.')
+          setNotice(t('notice.project_updated'))
         }
       } catch (error) {
         /* sin conexión: el siguiente tick reintenta */
@@ -1822,7 +2743,7 @@ function VideoPane({ ctx, onClose }) {
           setDirty(false)
           setStatus('saved')
           setSavedAt(Date.now())
-          setNotice(options.force ? 'Guardado' : '')
+          setNotice(options.force ? t('save.saved') : '')
         }
         return true
       } catch (error) {
@@ -1837,7 +2758,7 @@ function VideoPane({ ctx, onClose }) {
             setMedia(remote.media || [])
             setDirty(true)
             setStatus('idle')
-            setNotice('Se combinaron tus cambios con los del chat.')
+            setNotice(t('notice.merged'))
           } catch (mergeError) {
             const theirs = (error.payload && error.payload.current_revision) || '?'
             setDialog({ kind: 'conflict', theirs, mine: current.revision })
@@ -2002,7 +2923,7 @@ function VideoPane({ ctx, onClose }) {
     const localSrc = at.local * sceneSpeed(sel)
     const offset = Number(sel.in) + localSrc
     if (localSrc < MIN_SCENE || sceneDuration(sel) - localSrc < MIN_SCENE) {
-      setNotice('Coloca el cursor a más de 0,3 s del borde para partir.')
+      setNotice(t('notice.split_edge'))
       return
     }
     mutate((draft) => {
@@ -2020,7 +2941,7 @@ function VideoPane({ ctx, onClose }) {
       fitTransition(draft.scenes, scene)
       return draft
     })
-    setNotice('Escena partida en el cursor.')
+    setNotice(t('notice.split_done'))
   }
 
   const moveScene = (index, delta) => {
@@ -2031,7 +2952,7 @@ function VideoPane({ ctx, onClose }) {
       draft.scenes.splice(target, 0, item)
       return draft
     })
-    setNotice(`Escena ${index + 1} movida a la posición ${target + 1}`)
+    setNotice(t('notice.scene_moved', { index: index + 1, target: target + 1 }))
   }
 
   const deleteScene = (index) => {
@@ -2042,7 +2963,7 @@ function VideoPane({ ctx, onClose }) {
     })
     const nextScene = doc.scenes[index + 1] || doc.scenes[index - 1] || null
     setSelId(nextScene ? nextScene.id : null)
-    setNotice('Escena eliminada. Ctrl+Z la recupera.')
+    setNotice(t('notice.scene_deleted'))
   }
 
   const setTransitionStyle = (style) => {
@@ -2051,7 +2972,7 @@ function VideoPane({ ctx, onClose }) {
     const scenes = docRef.current && docRef.current.scenes ? docRef.current.scenes : []
     const limit = maxFadeFor(scenes, scenes.findIndex((item) => item.id === sel.id))
     if (style !== 'none' && limit < TRANSITION_MIN_S) {
-      setNotice('La escena es demasiado corta para un fundido (mínimo 0,1 s en ambas).')
+      setNotice(t('notice.fade_too_short'))
       return
     }
     const seconds = Math.min(current.seconds, Math.max(TRANSITION_MIN_S, limit))
@@ -2115,7 +3036,7 @@ function VideoPane({ ctx, onClose }) {
       }
       return draft
     })
-    setNotice('Música de fondo asignada.')
+    setNotice(t('notice.music_set'))
   }
 
   const removeMusic = () => {
@@ -2123,7 +3044,7 @@ function VideoPane({ ctx, onClose }) {
       delete draft.music
       return draft
     })
-    setNotice('Música quitada del proyecto.')
+    setNotice(t('notice.music_removed'))
   }
 
   // -------------------------------------------------------------- sonidos y voz (audioEvents)
@@ -2147,7 +3068,7 @@ function VideoPane({ ctx, onClose }) {
       if (!draft.audioEvents.length) delete draft.audioEvents
       return draft
     })
-    setNotice('Sonido quitado.')
+    setNotice(t('notice.sound_removed'))
   }
 
   const addEventAtCursor = (assetId) => {
@@ -2159,7 +3080,7 @@ function VideoPane({ ctx, onClose }) {
       ]
       return draft
     })
-    setNotice(`Sonido añadido en ${fmtTimecode(cursor)}.`)
+    setNotice(t('notice.sound_added', { time: fmtTimecode(cursor) }))
   }
 
   const setNormalize = (value) => {
@@ -2238,7 +3159,7 @@ function VideoPane({ ctx, onClose }) {
       if (scene) delete scene.filters
       return draft
     })
-    setNotice('Filtros restablecidos.')
+    setNotice(t('notice.filters_reset'))
   }
 
   // -------------------------------------------------------------- ken burns / velocidad
@@ -2317,7 +3238,7 @@ function VideoPane({ ctx, onClose }) {
       delete draft.logo
       return draft
     })
-    setNotice('Logo quitado del proyecto.')
+    setNotice(t('notice.logo_removed'))
   }
 
   const setOrientation = (value) => {
@@ -2329,7 +3250,7 @@ function VideoPane({ ctx, onClose }) {
       draft.height = target.h
       return draft
     })
-    setNotice(value === 'v' ? 'Formato vertical: el export recorta los bordes laterales.' : 'Formato horizontal.')
+    setNotice(value === 'v' ? t('notice.vertical') : t('notice.horizontal'))
   }
 
   const setMasterVolume = (value) => {
@@ -2453,7 +3374,7 @@ function VideoPane({ ctx, onClose }) {
       for (let waited = 0; savingRef.current && waited < 150; waited += 1) await new Promise((resolve) => setTimeout(resolve, 100))
       if (dirtyRef.current) {
         const saved = await save({ force: false })
-        if (saved === false) throw new Error('No se pudo guardar antes de exportar. Revisa el aviso y vuelve a intentarlo.')
+        if (saved === false) throw new Error(t('notice.save_before_export'))
       }
       const payload = await request(ctx, `/projects/${encodeURIComponent(doc.projectId)}/export`, {
         method: 'POST',
@@ -2509,7 +3430,7 @@ function VideoPane({ ctx, onClose }) {
   const importFolder = async () => {
     if (!doc) return
     if (!ctx || !ctx.files) {
-      setNotice('Este build no expone ctx.files: importa desde la carpeta concedida del servicio.')
+      setNotice(t('notice.no_files'))
       return
     }
     setImportState({ phase: 'picking' })
@@ -2576,7 +3497,7 @@ function VideoPane({ ctx, onClose }) {
     }
     setImportState({ phase: 'result', done, total: chosen.length, failures })
     setPhase('ready')
-    setNotice(done === 1 ? 'Medio importado.' : `${done} medios importados.`)
+    setNotice(done === 1 ? t('notice.media_imported') : t('notice.media_imported_many', { count: done }))
   }
 
   // -------------------------------------------------------------- teclado
@@ -2693,14 +3614,14 @@ function VideoPane({ ctx, onClose }) {
   const videoSrc = doc && activeAsset ? mediaUrl(ctx, doc.projectId, activeAsset) : null
   const savedLabel =
     status === 'saving'
-      ? 'Guardando…'
+      ? t('save.saving')
       : status === 'failed'
-        ? 'No se pudo guardar'
+        ? t('save.failed')
         : dirty
-          ? 'Cambios sin guardar'
+          ? t('save.dirty')
           : savedAt
-            ? `Guardado ${relativeTime(savedAt)}`
-            : 'Sin cambios'
+            ? t('save.saved_ago', { time: relativeTime(savedAt) })
+            : t('save.clean')
   const autosaveTone = status === 'saving' || (dirty && status !== 'failed') ? 'warn' : status === 'failed' ? 'bad' : 'good'
 
   // -------------------------------------------------------------- picker + biblioteca
@@ -2744,7 +3665,7 @@ function VideoPane({ ctx, onClose }) {
       if (scenes.length) setSelId(scenes[scenes.length - 1].id)
       setDialog(null)
       setPicker(null)
-      setNotice(`Medio añadido: ${baseName(item.path)}`)
+      setNotice(t('notice.media_added', { name: baseName(item.path) }))
     } catch (error) {
       setPicker((prev) => (prev ? { ...prev, phase: 'error', error: error.message } : prev))
     }
@@ -2763,7 +3684,7 @@ function VideoPane({ ctx, onClose }) {
     })
     setDialog(null)
     setPicker(null)
-    setNotice(`Medio reemplazado: ${baseName(item.path)} · in/out conservados`)
+    setNotice(t('notice.media_replaced', { name: baseName(item.path) }))
   }
 
   // -------------------------------------------------------------- regiones
@@ -2776,7 +3697,7 @@ function VideoPane({ ctx, onClose }) {
       'header',
       { className: 've-hdr' },
       h('span', { className: 've-plate' }, h(Icon, { name: 'film' })),
-      !narrow ? h('span', { className: 've-title' }, 'Editor de vídeo') : null,
+      !narrow ? h('span', { className: 've-title' }, t('pane.title')) : null,
       h('span', { className: 've-sep' }),
       h(
         'button',
@@ -2784,20 +3705,20 @@ function VideoPane({ ctx, onClose }) {
           type: 'button',
           className: 've-chip',
           onClick: () => setMenu(menu === 'projects' ? null : 'projects'),
-          title: doc ? `Cambiar de proyecto · revisión ${doc.revision}` : 'Elegir un proyecto',
+          title: doc ? t('header.switch_project', { revision: doc.revision }) : t('header.pick_project'),
           'aria-haspopup': 'menu',
           'aria-expanded': menu === 'projects'
         },
-        h('span', { className: 've-chip__name' }, doc ? doc.title : 'Sin proyecto'),
+        h('span', { className: 've-chip__name' }, doc ? doc.title : t('header.no_project')),
         h(Icon, { name: 'down', size: 'sm' })
       ),
       h(Btn, {
         variant: 'ghost',
         size: 'sm',
         icon: 'film',
-        label: narrow ? undefined : 'Cine',
-        title: 'Cine · la skill cinematic-film: voz, cámara y sonido',
-        ariaLabel: 'Abrir Cine',
+        label: narrow ? undefined : t('cine.title'),
+        title: t('header.cine_title'),
+        ariaLabel: t('header.open_cine'),
         onClick: () => setCineOpen(true)
       }),
       h(
@@ -2813,16 +3734,16 @@ function VideoPane({ ctx, onClose }) {
           type: 'button',
           className: 've-chip ve-chip--ghost ve-chat',
           title: sessionId
-            ? `Vinculado al chat de Hermes · ${cwd || 'sin carpeta'}`
-            : 'Sin chat vinculado: abre un chat y el editor se enlaza solo',
+            ? t('header.chat_linked', { folder: cwd || t('header.no_folder') })
+            : t('header.no_chat'),
           onClick: goChat,
           'aria-label': sessionId
-            ? `Chat ${shortChat(sessionId)}${liveBusy ? ', trabajando ahora' : ''}. Ir al chat`
-            : 'Ir al chat'
+            ? `${t('header.chat_name', { id: shortChat(sessionId) })}${liveBusy ? t('header.working_now') : ''}. ${t('header.go_chat')}`
+            : t('header.go_chat')
         },
         h(Dot, { tone: sessionId ? (liveBusy ? 'warn' : 'good') : 'bad' }),
-        h('span', { className: 've-chip__name' }, sessionId ? `Chat ${shortChat(sessionId)}` : 'Sin chat'),
-        liveBusy ? h('span', { className: 've-chat__b' }, 'trabajando') : null
+        h('span', { className: 've-chip__name' }, sessionId ? t('header.chat_name', { id: shortChat(sessionId) }) : t('header.chat_none')),
+        liveBusy ? h('span', { className: 've-chat__b' }, t('cine.working')) : null
       ),
       modelName && wide
         ? h(
@@ -2830,7 +3751,7 @@ function VideoPane({ ctx, onClose }) {
             {
               type: 'button',
               className: 've-chip ve-chip--ghost ve-model',
-              title: 'Modelo activo del chat · solo lectura',
+              title: t('header.model_readonly'),
               'aria-label': `Modelo ${modelName}. Cambia el modelo en el selector del chat`,
               onClick: () => {
                 try {
@@ -2839,7 +3760,7 @@ function VideoPane({ ctx, onClose }) {
                   console.warn('[video-editor] compositor no enfocable', error && error.message)
                 }
                 setModelTip(true)
-                setNotice('Cambia el modelo en el selector del chat.')
+                setNotice(t('header.model_tip'))
               }
             },
             h(Icon, { name: 'message', size: 'sm' }),
@@ -2847,14 +3768,14 @@ function VideoPane({ ctx, onClose }) {
           )
         : null,
       h('span', { className: 've-sep' }),
-      h(Btn, { icon: 'undo', variant: 'ghost', ariaLabel: 'Deshacer', title: 'Deshacer · Ctrl+Z', onClick: undo, disabled: !undoDepth }),
-      h(Btn, { icon: 'redo', variant: 'ghost', ariaLabel: 'Rehacer', title: 'Rehacer · Ctrl+Shift+Z', onClick: redo, disabled: !redoDepth }),
+      h(Btn, { icon: 'undo', variant: 'ghost', ariaLabel: t('header.undo'), title: t('header.undo_title'), onClick: undo, disabled: !undoDepth }),
+      h(Btn, { icon: 'redo', variant: 'ghost', ariaLabel: t('header.redo'), title: t('header.redo_title'), onClick: redo, disabled: !redoDepth }),
       !wide
         ? h(Btn, {
             icon: 'layers',
             variant: libOpen ? 'outline' : 'ghost',
-            ariaLabel: 'Medios y escenas',
-            title: 'Medios y escenas',
+            ariaLabel: t('media.title'),
+            title: t('media.title'),
             disabled: !doc,
             onClick: () => {
               setLibOpen((prev) => !prev)
@@ -2866,8 +3787,8 @@ function VideoPane({ ctx, onClose }) {
         ? h(Btn, {
             icon: 'sliders',
             variant: railOpen ? 'outline' : 'ghost',
-            ariaLabel: 'Propiedades',
-            title: 'Escenas y propiedades',
+            ariaLabel: t('header.properties'),
+            title: t('header.properties_title'),
             disabled: !doc,
             onClick: () => {
               setRailOpen((prev) => !prev)
@@ -2878,24 +3799,24 @@ function VideoPane({ ctx, onClose }) {
       h(Btn, {
         icon: 'save',
         variant: 'outline',
-        ...(wide ? { label: status === 'saving' ? 'Guardando…' : 'Guardar', title: 'Guardar · Ctrl+S' } : { ariaLabel: 'Guardar', title: 'Guardar · Ctrl+S' }),
+        ...(wide ? { label: status === 'saving' ? t('save.saving') : t('save.label'), title: t('save.title') } : { ariaLabel: t('save.label'), title: t('save.title') }),
         onClick: () => save({ force: true }),
         disabled: !doc
       }),
-      h(Btn, { icon: 'more', variant: 'ghost', ariaLabel: 'Más acciones', onClick: () => setMenu(menu === 'more' ? null : 'more') }),
+      h(Btn, { icon: 'more', variant: 'ghost', ariaLabel: t('header.more'), onClick: () => setMenu(menu === 'more' ? null : 'more') }),
       h(Btn, {
         variant: 'primary',
         icon: 'download',
-        label: narrow ? 'Exportar' : `Exportar ${doc ? `${doc.height}p · ${docFps}` : 'MP4'}`,
+        label: narrow ? t('export.label') : t('header.export_spec', { spec: doc ? `${doc.height}p · ${docFps}` : 'MP4' }),
         disabled: !canExport,
-        title: canExport ? 'Exportar MP4 (Ctrl+E)' : !(doc && (doc.scenes || []).length) ? 'Añade al menos una escena para exportar' : missing.length ? 'Falta un medio: vuelve a vincularlo' : 'Ya hay una exportación en curso',
+        title: canExport ? t('export.title') : !(doc && (doc.scenes || []).length) ? t('export.need_scene') : missing.length ? t('export.missing_media_hint') : t('export.busy'),
         onClick: () => setDialog({ kind: 'exportForm' })
       }),
       h(Btn, {
         icon: 'close',
         variant: 'ghost',
-        ariaLabel: 'Cerrar editor de vídeo (Ctrl+Shift+E)',
-        title: 'Cerrar (Ctrl+Shift+E)',
+        ariaLabel: t('toolbar.close_editor'),
+        title: t('toolbar.close_editor_title'),
         onClick: () => {
           if (typeof onClose === 'function') onClose()
         }
@@ -2909,7 +3830,7 @@ function VideoPane({ ctx, onClose }) {
         'div',
         { className: 've-stage' },
         h('div', { className: 've-skel', style: { width: '100%', height: '100%', aspectRatio: orient.ratio } }),
-        h('div', { className: 've-loadrow', style: { position: 'absolute' }, 'aria-live': 'polite' }, h(Spinner), 'Conectando con el servicio…')
+        h('div', { className: 've-loadrow', style: { position: 'absolute' }, 'aria-live': 'polite' }, h(Spinner), t('stage.connecting'))
       )
     }
     if (phase === 'loading') {
@@ -2917,7 +3838,7 @@ function VideoPane({ ctx, onClose }) {
         'div',
         { className: 've-stage' },
         h('div', { className: 've-skel', style: { width: '100%', height: '100%', aspectRatio: orient.ratio } }),
-        h('div', { className: 've-loadrow', style: { position: 'absolute' }, 'aria-live': 'polite' }, h(Spinner), 'Cargando proyecto…')
+        h('div', { className: 've-loadrow', style: { position: 'absolute' }, 'aria-live': 'polite' }, h(Spinner), t('stage.loading_project'))
       )
     }
     if (phase === 'noProject') {
@@ -2927,15 +3848,15 @@ function VideoPane({ ctx, onClose }) {
         h(
           EmptyState,
           {
-            title: projects.length ? 'Elige un proyecto' : 'Empieza tu primer vídeo',
+            title: projects.length ? t('empty.pick_project') : t('empty.start_first'),
             body: projects.length
-              ? 'Abre uno de tus proyectos o crea uno nuevo para montar tu vídeo.'
-              : 'Crea un proyecto, importa tus clips e imágenes y exporta un MP4. También puedes pedírselo a Hermes en el chat.'
+              ? t('empty.pick_body')
+              : t('empty.start_body')
           },
           projects.length
             ? h(
                 'div',
-                { className: 've-plist', role: 'list', 'aria-label': 'Tus proyectos' },
+                { className: 've-plist', role: 'list', 'aria-label': t('empty.your_projects') },
                 projects.slice(0, 8).map((item) =>
                   h(
                     'button',
@@ -2947,7 +3868,7 @@ function VideoPane({ ctx, onClose }) {
                 )
               )
             : null,
-          h('div', { className: 've-es__actions' }, h(Btn, { variant: 'primary', icon: 'plus', label: 'Crear proyecto', onClick: createProject }))
+          h('div', { className: 've-es__actions' }, h(Btn, { variant: 'primary', icon: 'plus', label: t('create_project'), onClick: createProject }))
         )
       )
     }
@@ -2958,14 +3879,14 @@ function VideoPane({ ctx, onClose }) {
         h(
           ErrorState,
           {
-            title: 'No se pudo cargar el proyecto',
+            title: t('error.load_project'),
             body:
               phase === 'offline'
-                ? `El servicio del editor no responde en ${serviceBase(ctx).replace(/^https?:\/\//, '')}. Tus medios no se han modificado.`
-                : (loadError && loadError.message) || 'Error desconocido del servicio.'
+                ? t('error.offline', { host: serviceBase(ctx).replace(/^https?:\/\//, '') })
+                : (loadError && loadError.message) || t('error.unknown')
           },
-          h(Btn, { variant: 'outline', label: 'Reintentar', onClick: () => (doc ? openProject(doc.projectId) : loadProjects()) }),
-          h(Btn, { variant: 'text', label: 'Volver al chat', onClick: goChat })
+          h(Btn, { variant: 'outline', label: t('common.retry'), onClick: () => (doc ? openProject(doc.projectId) : loadProjects()) }),
+          h(Btn, { variant: 'text', label: t('common.back_to_chat'), onClick: goChat })
         )
       )
     }
@@ -2986,9 +3907,9 @@ function VideoPane({ ctx, onClose }) {
             onDrop: onDrop
           },
           h('div', { className: 've-es__icon' }, h(Icon, { name: 'upload' })),
-          h('p', { className: 've-es__t' }, dialog === 'drop' ? 'Suelta para importar' : 'Arrastra clips, audio o capturas aquí'),
-          h('p', { className: 've-es__b' }, 'PNG, JPG, MP4, MOV, MP3 y WAV · se importa a la carpeta concedida del proyecto.'),
-          h(Btn, { variant: 'primary', label: 'Importar medios', onClick: importFolder })
+          h('p', { className: 've-es__t' }, dialog === 'drop' ? t('drop.release') : t('drop.hint')),
+          h('p', { className: 've-es__b' }, t('drop.formats')),
+          h(Btn, { variant: 'primary', label: t('import_media'), onClick: importFolder })
         )
       )
     }
@@ -2998,10 +3919,10 @@ function VideoPane({ ctx, onClose }) {
       h(
         'div',
         { className: 've-stage__bar' },
-        h('span', { className: 've-stage__name' }, currentScene ? currentScene.name || `Escena ${at.index + 1}` : 'Vista previa'),
+        h('span', { className: 've-stage__name' }, currentScene ? currentScene.name || t('scene.label', { index: at.index + 1 }) : t('preview.label')),
         h(Badge, { tone: 'accent' }, orient.short),
         h('span', { className: 've-stage__sp' }),
-        h('span', { className: 've-stage__count' }, `Escena ${at.index + 1} de ${doc.scenes.length}`)
+        h('span', { className: 've-stage__count' }, t('scene.of', { index: at.index + 1, total: doc.scenes.length }))
       ),
       h(
         'div',
@@ -3013,7 +3934,7 @@ function VideoPane({ ctx, onClose }) {
           ? activeKind === 'image'
             ? h('img', {
                 src: videoSrc,
-                alt: currentScene ? `Imagen de ${currentScene.name || 'la escena'}` : '',
+                alt: currentScene ? t('preview.image_of', { name: currentScene.name || t('preview.this_scene') }) : '',
                 draggable: false
               })
             : h('video', {
@@ -3031,7 +3952,7 @@ function VideoPane({ ctx, onClose }) {
                   /* metadatos aún no listos */
                 }
               },
-              'aria-label': `Vista previa de ${currentScene ? currentScene.name : 'la escena'}`
+              'aria-label': `Vista previa de ${currentScene ? currentScene.name : t('preview.this_scene')}`
             })
           : null,
           guides ? h('div', { className: 've-guides', 'aria-hidden': 'true' }) : null,
@@ -3077,7 +3998,7 @@ function VideoPane({ ctx, onClose }) {
           step: frameStep,
           value: cursor,
           style: { '--ve-p': `${total ? (cursor / total) * 100 : 0}%` },
-          'aria-label': 'Posición de reproducción',
+          'aria-label': t('transport.position'),
           'aria-valuetext': `${fmtTimecode(cursor)} de ${fmtTimecode(total)}`,
           onChange: (event) => setCursor(Number(event.target.value))
         })
@@ -3085,16 +4006,16 @@ function VideoPane({ ctx, onClose }) {
       h(
         'div',
         { className: 've-transport__row' },
-        h('span', { className: 've-tc', title: 'Tiempo exacto (mm:ss.ms). Escribe uno a la derecha para saltar.' }, h('b', null, fmtTimecode(cursor)), ` / ${fmtTimecode(total)}`),
+        h('span', { className: 've-tc', title: t('transport.timecode_title') }, h('b', null, fmtTimecode(cursor)), ` / ${fmtTimecode(total)}`),
         h(
           'div',
           { className: 've-transport__c' },
-          h(Btn, { icon: 'start', variant: 'ghost', ariaLabel: 'Ir al inicio', title: 'Ir al inicio · Inicio', onClick: () => setCursor(0) }),
+          h(Btn, { icon: 'start', variant: 'ghost', ariaLabel: t('transport.to_start'), title: t('transport.to_start_title'), onClick: () => setCursor(0) }),
           h(Btn, {
             icon: 'prev',
             variant: 'ghost',
-            ariaLabel: 'Escena anterior',
-            title: 'Escena anterior',
+            ariaLabel: t('transport.prev_scene'),
+            title: t('transport.prev_scene'),
             disabled: at.index <= 0,
             onClick: () => {
               const row = rows[Math.max(0, at.index - 1)]
@@ -3107,16 +4028,16 @@ function VideoPane({ ctx, onClose }) {
           h('button', {
             type: 'button',
             className: 've-btn ve-btn--icon ve-play',
-            'aria-label': playing ? 'Pausar' : 'Reproducir',
-            title: playing ? 'Pausar · Espacio' : 'Reproducir · Espacio',
+            'aria-label': playing ? t('transport.pause') : t('transport.play'),
+            title: playing ? t('transport.pause_title') : t('transport.play_title'),
             disabled: !hasScenes,
             onClick: () => setPlaying((prev) => !prev)
           }, h(Icon, { name: playing ? 'pause' : 'play' })),
           h(Btn, {
             icon: 'next',
             variant: 'ghost',
-            ariaLabel: 'Escena siguiente',
-            title: 'Escena siguiente',
+            ariaLabel: t('transport.next_scene'),
+            title: t('transport.next_scene'),
             disabled: at.index < 0 || at.index >= rows.length - 1,
             onClick: () => {
               const row = rows[Math.min(rows.length - 1, at.index + 1)]
@@ -3126,7 +4047,7 @@ function VideoPane({ ctx, onClose }) {
               }
             }
           }),
-          h(Btn, { icon: 'end', variant: 'ghost', ariaLabel: 'Ir al final', title: 'Ir al final · Fin', onClick: () => setCursor(total) })
+          h(Btn, { icon: 'end', variant: 'ghost', ariaLabel: t('transport.to_end'), title: t('transport.to_end_title'), onClick: () => setCursor(total) })
         ),
         h(
           'div',
@@ -3134,10 +4055,10 @@ function VideoPane({ ctx, onClose }) {
           h('input', {
             className: 've-goto',
             defaultValue: '',
-            placeholder: 'Ir a…',
-            title: 'Escribe un tiempo (ej. 1:23.5) y pulsa Enter para saltar',
+            placeholder: t('transport.goto'),
+            title: t('transport.goto_title'),
             inputMode: 'decimal',
-            'aria-label': 'Ir al tiempo (mm:ss.ms)',
+            'aria-label': t('transport.goto_aria'),
             onKeyDown: (event) => {
               if (event.key !== 'Enter') return
               const seconds = parseTimecode(event.target.value)
@@ -3148,8 +4069,8 @@ function VideoPane({ ctx, onClose }) {
           h(Btn, {
             icon: muted ? 'mute' : 'volume',
             variant: 'ghost',
-            ariaLabel: muted ? 'Activar sonido' : 'Silenciar',
-            title: muted ? 'Activar sonido' : 'Silenciar',
+            ariaLabel: muted ? t('transport.unmute') : t('transport.mute'),
+            title: muted ? t('transport.unmute') : t('transport.mute'),
             onClick: () => {
               const next = !muted
               setMuted(next)
@@ -3204,7 +4125,7 @@ function VideoPane({ ctx, onClose }) {
       {
         className: 've-tl__ruler',
         role: 'presentation',
-        title: 'Haz clic o arrastra para mover el cursor (Alt: sin imán)',
+        title: t('timeline.ruler_title'),
         onPointerDown: (event) => {
           scrubRef.current = event.pointerId
           try { event.currentTarget.setPointerCapture(event.pointerId) } catch (error) { /* no-op */ }
@@ -3238,7 +4159,7 @@ function VideoPane({ ctx, onClose }) {
       draft.scenes.splice(to, 0, item)
       return draft
     })
-    setNotice(`Escena ${from + 1} movida a la posición ${to + 1}`)
+    setNotice(t('notice.scene_moved', { index: from + 1, target: to + 1 }))
   }
 
   const trimLimits = (scene) => {
@@ -3386,17 +4307,17 @@ function VideoPane({ ctx, onClose }) {
       h(
         'div',
         { className: 've-tl__bar' },
-        h(Btn, { icon: 'scissors', variant: 'ghost', size: 'sm', label: layout === 'narrow' ? undefined : 'Dividir', ariaLabel: 'Partir en el cursor', title: 'Partir en el cursor · S', onClick: splitHere, disabled: !sel }),
+        h(Btn, { icon: 'scissors', variant: 'ghost', size: 'sm', label: layout === 'narrow' ? undefined : t('timeline.split'), ariaLabel: t('timeline.split_aria'), title: t('timeline.split_title'), onClick: splitHere, disabled: !sel }),
         h('span', { className: 've-sep' }),
         h('span', { className: 've-tl__sum ve-ftr__hint', 'aria-live': 'polite' }, queueLabel()),
         h('span', { className: 've-spacer' }),
         h(
           'div',
-          { className: 've-zoom', role: 'group', 'aria-label': 'Zoom de la línea de tiempo' },
-          h(Btn, { icon: 'zoomout', variant: 'ghost', size: 'sm', ariaLabel: 'Alejar', title: 'Alejar · Ctrl+rueda', disabled: zoom <= 1, onClick: () => zoomBy(1 / 1.5) }),
+          { className: 've-zoom', role: 'group', 'aria-label': t('timeline.zoom') },
+          h(Btn, { icon: 'zoomout', variant: 'ghost', size: 'sm', ariaLabel: t('timeline.zoom_out'), title: t('timeline.zoom_out_title'), disabled: zoom <= 1, onClick: () => zoomBy(1 / 1.5) }),
           h('span', { className: 've-zoom__v', 'aria-live': 'polite' }, `${Math.round(zoom * 100)} %`),
-          h(Btn, { icon: 'zoomin', variant: 'ghost', size: 'sm', ariaLabel: 'Acercar', title: 'Acercar · Ctrl+rueda', disabled: zoom >= 12, onClick: () => zoomBy(1.5) }),
-          h(Btn, { icon: 'fit', variant: 'ghost', size: 'sm', ariaLabel: 'Ajustar a la ventana', title: 'Ajustar a la ventana', disabled: zoom === 1, onClick: () => setZoom(1) })
+          h(Btn, { icon: 'zoomin', variant: 'ghost', size: 'sm', ariaLabel: t('timeline.zoom_in'), title: t('timeline.zoom_in_title'), disabled: zoom >= 12, onClick: () => zoomBy(1.5) }),
+          h(Btn, { icon: 'fit', variant: 'ghost', size: 'sm', ariaLabel: t('timeline.zoom_fit'), title: t('timeline.zoom_fit'), disabled: zoom === 1, onClick: () => setZoom(1) })
         )
       ),
       h(
@@ -3405,10 +4326,10 @@ function VideoPane({ ctx, onClose }) {
         h(
           'div',
           { className: 've-tl__heads' },
-          h('div', { className: 've-lh ve-lh--video', title: 'Vídeo y escenas' }, h(Icon, { name: 'film', size: 'sm' }), h('span', null, 'Vídeo')),
-          h('div', { className: 've-lh ve-lh--text', title: 'Texto en pantalla' }, h(Icon, { name: 'type', size: 'sm' }), h('span', null, 'Texto')),
-          h('div', { className: 've-lh ve-lh--audio', title: 'Audio de las escenas y voz' }, h(Icon, { name: 'volume', size: 'sm' }), h('span', null, 'Audio')),
-          h('div', { className: 've-lh ve-lh--music', title: 'Música de fondo' }, h(Icon, { name: 'music', size: 'sm' }), h('span', null, 'Música'))
+          h('div', { className: 've-lh ve-lh--video', title: t('lane.video') }, h(Icon, { name: 'film', size: 'sm' }), h('span', null, t('titlebar.label'))),
+          h('div', { className: 've-lh ve-lh--text', title: t('lane.text') }, h(Icon, { name: 'type', size: 'sm' }), h('span', null, t('lane.text_short'))),
+          h('div', { className: 've-lh ve-lh--audio', title: t('lane.audio') }, h(Icon, { name: 'volume', size: 'sm' }), h('span', null, t('lane.audio_short'))),
+          h('div', { className: 've-lh ve-lh--music', title: t('lane.music') }, h(Icon, { name: 'music', size: 'sm' }), h('span', null, t('lane.music_short')))
         ),
         h(
           'div',
@@ -3431,8 +4352,8 @@ function VideoPane({ ctx, onClose }) {
             ruler(),
             h(
               'div',
-              { className: tcls('video'), ref: tlRowRef, role: 'list', 'aria-label': `Línea de tiempo, ${total.toFixed(1)} segundos` },
-              empty ? h('span', { className: 've-lane-hint' }, 'Aquí aparecerán tus escenas · importa medios para empezar') : null,
+              { className: tcls('video'), ref: tlRowRef, role: 'list', 'aria-label': t('timeline.aria', { seconds: total.toFixed(1) }) },
+              empty ? h('span', { className: 've-lane-hint' }, t('lane.empty_scenes')) : null,
               rows.map((row, index) =>
                 h(
                   'button',
@@ -3458,17 +4379,17 @@ function VideoPane({ ctx, onClose }) {
                       const frac = event.detail > 0 && rect.width > 0 ? clamp((event.clientX - rect.left) / rect.width, 0, 0.999) : 0
                       setCursor(round3(row.start + frac * row.duration))
                     },
-                    'aria-label': `Escena ${index + 1}, ${row.scene.name || 'sin nombre'}, ${row.duration.toFixed(1)} segundos`,
+                    'aria-label': t('scene.row_aria', { index: index + 1, name: row.scene.name || t('scene.untitled'), seconds: row.duration.toFixed(1) }),
                     'aria-current': row.id === selId ? 'true' : undefined
                   },
                   clipThumbs(row, index),
                   h('span', { className: 've-clip__n' }, String(index + 1).padStart(2, '0')),
-                  h('span', { className: 've-clip__t' }, row.scene.name || `Escena ${index + 1}`),
+                  h('span', { className: 've-clip__t' }, row.scene.name || t('scene.label', { index: index + 1 })),
                   h('span', { className: 've-clip__d' }, `${fmtTime(dragUi && dragUi.mode === 'trim' && dragUi.id === row.id ? dragUi.dur : row.duration)}`),
                   row.id === selId
                     ? [
-                        h('span', { key: 'l', className: 've-trim ve-trim--l', role: 'presentation', title: 'Arrastra para recortar el inicio' }),
-                        h('span', { key: 'r', className: 've-trim ve-trim--r', role: 'presentation', title: 'Arrastra para recortar el final' })
+                        h('span', { key: 'l', className: 've-trim ve-trim--l', role: 'presentation', title: t('clip.trim_start') }),
+                        h('span', { key: 'r', className: 've-trim ve-trim--r', role: 'presentation', title: t('clip.trim_end') })
                       ]
                     : null,
                   row.scene.needsRelink ? h(Badge, { tone: 'warn' }, 'falta') : null
@@ -3477,7 +4398,7 @@ function VideoPane({ ctx, onClose }) {
             ),
             h(
               'div',
-              { className: tcls('text'), 'aria-label': 'Textos en pantalla' },
+              { className: tcls('text'), 'aria-label': t('lane.texts_aria') },
               rows.map((row, index) => {
                 const text = captionOf(row.scene)
                 const item = textItemOf(row.scene) || {}
@@ -3494,8 +4415,8 @@ function VideoPane({ ctx, onClose }) {
                           type: 'button',
                           className: `ve-txb${row.id === selId ? ' ve-txb--sel' : ''}`,
                           style: { left: `${from * 100}%`, width: `${(to - from) * 100}%` },
-                          title: `Texto de la escena ${index + 1}: ${text}`,
-                          'aria-label': `Texto de la escena ${index + 1}`,
+                          title: t('scene.text_aria', { index: index + 1, text }),
+                          'aria-label': t('scene.text_aria_empty', { index: index + 1 }),
                           onClick: () => {
                             setSelId(row.id)
                             setRailTab('scene')
@@ -3508,11 +4429,11 @@ function VideoPane({ ctx, onClose }) {
                     : null
                 )
               }),
-              !hasText ? h('span', { className: 've-lane-hint' }, empty ? 'Sin textos' : 'Sin textos · escríbelos en Escena › Texto en pantalla') : null
+              !hasText ? h('span', { className: 've-lane-hint' }, empty ? t('lane.no_texts') : t('lane.no_texts_hint')) : null
             ),
             h(
               'div',
-              { className: tcls('audio'), 'aria-label': 'Volumen de cada escena' },
+              { className: tcls('audio'), 'aria-label': t('lane.audio_aria') },
               rows.map((row) => {
                 const volume = clamp(Number(row.scene.audio && row.scene.audio.volume), 0, 100) || 0
                 return h(
@@ -3521,7 +4442,7 @@ function VideoPane({ ctx, onClose }) {
                     key: row.id,
                     className: `ve-ab${row.id === selId ? ' ve-ab--sel' : ''}`,
                     style: { flex: `${Math.max(row.duration, 0.1)} 1 0%` },
-                    title: `Escena ${rows.indexOf(row) + 1}: audio al ${volume} %`
+                    title: t('scene.audio_aria', { index: rows.indexOf(row) + 1, volume })
                   },
                   h('i', { style: { height: `${Math.max(volume, volume ? 8 : 0)}%` } }),
                   h('small', null, volume === 0 ? 'mudo' : `${volume} %`)
@@ -3555,11 +4476,11 @@ function VideoPane({ ctx, onClose }) {
               music && musicAsset
                 ? h(
                     'div',
-                    { className: 've-mrow', title: `Música de fondo: ${baseName(musicAsset.path)} · ${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %` },
+                    { className: 've-mrow', title: t('music.aria', { name: baseName(musicAsset.path), volume: typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume }) },
                     h(Icon, { name: 'music', size: 'sm' }),
                     h('span', null, `${baseName(musicAsset.path)} · ${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %`)
                   )
-                : h('span', { className: 've-lane-hint' }, 'Sin música · elige una pista en Audio')
+                : h('span', { className: 've-lane-hint' }, t('lane.no_music'))
             ),
             snapT !== null ? h('div', { className: 've-snapline', style: { '--ve-sn': `${pct(snapT)}%` }, 'aria-hidden': 'true' }) : null,
             h('div', { className: 've-playhead', style: { '--ve-ph': `${pct(cursor)}%` }, 'aria-hidden': 'true' })
@@ -3579,7 +4500,7 @@ function VideoPane({ ctx, onClose }) {
       scenesList.length
         ? h(
             'div',
-            { className: 've-scenes', role: 'group', 'aria-label': 'Lista de escenas' },
+            { className: 've-scenes', role: 'group', 'aria-label': t('scenes.list') },
             scenesList.map((scene, index) =>
               h(
                 'div',
@@ -3590,7 +4511,7 @@ function VideoPane({ ctx, onClose }) {
                     type: 'button',
                     className: 've-scene',
                     'aria-current': scene.id === selId ? 'true' : undefined,
-                    'aria-label': `Escena ${index + 1}, ${scene.name || 'sin nombre'}, ${fmtTime(visibleDuration(scene))}`,
+                    'aria-label': t('scene.list_aria', { index: index + 1, name: scene.name || t('scene.untitled'), duration: fmtTime(visibleDuration(scene)) }),
                     onClick: () => {
                       setSelId(scene.id)
                       const row = rows[index]
@@ -3603,20 +4524,20 @@ function VideoPane({ ctx, onClose }) {
                   h(
                     'span',
                     { className: 've-scene__m' },
-                    h('span', { className: 've-scene__name' }, scene.name || `Escena ${index + 1}`),
-                    h('span', { className: 've-scene__dur' }, `${fmtTime(visibleDuration(scene))}${captionOf(scene) ? ' · con texto' : ''}${scene.needsRelink ? ' · falta medio' : ''}`)
+                    h('span', { className: 've-scene__name' }, scene.name || t('scene.label', { index: index + 1 })),
+                    h('span', { className: 've-scene__dur' }, `${fmtTime(visibleDuration(scene))}${captionOf(scene) ? t('scene.has_text') : ''}${scene.needsRelink ? t('scene.missing_media') : ''}`)
                   )
                 ),
                 h(
                   'div',
                   { className: 've-scene-row__mv' },
-                  h('button', { type: 'button', className: 've-mv', 'aria-label': `Subir escena ${index + 1}`, title: 'Subir (Alt+↑)', disabled: index === 0, onClick: () => moveScene(index, -1) }, h(Icon, { name: 'up', size: 'sm' })),
-                  h('button', { type: 'button', className: 've-mv', 'aria-label': `Bajar escena ${index + 1}`, title: 'Bajar (Alt+↓)', disabled: index === scenesList.length - 1, onClick: () => moveScene(index, 1) }, h(Icon, { name: 'down', size: 'sm' }))
+                  h('button', { type: 'button', className: 've-mv', 'aria-label': t('scene.move_up_aria', { n: index + 1 }), title: t('scene.move_up'), disabled: index === 0, onClick: () => moveScene(index, -1) }, h(Icon, { name: 'up', size: 'sm' })),
+                  h('button', { type: 'button', className: 've-mv', 'aria-label': t('scene.move_down_aria', { n: index + 1 }), title: t('scene.move_down'), disabled: index === scenesList.length - 1, onClick: () => moveScene(index, 1) }, h(Icon, { name: 'down', size: 'sm' }))
                 )
               )
             )
           )
-        : h('p', { className: 've-lib__empty' }, 'Aún no hay escenas. Importa un clip, una imagen o una captura y aparecerá aquí.')
+        : h('p', { className: 've-lib__empty' }, t('scenes.empty'))
     const mediaList = () =>
       media.length
         ? h(
@@ -3637,7 +4558,7 @@ function VideoPane({ ctx, onClose }) {
                       const target = (doc.scenes || []).find((scene) => (scene.source && scene.source.assetId) === item.id)
                       if (target) setSelId(target.id)
                       if (drawer) setLibOpen(false)
-                      setNotice(`Medio seleccionado: ${baseName(item.path)}`)
+                      setNotice(t('notice.media_selected', { name: baseName(item.path) }))
                     }
                   },
                   h(Thumb, { src: item.exists === false ? null : mediaUrl(ctx, doc.projectId, item.id), kind: item.kind, at: 0.1 }),
@@ -3645,30 +4566,30 @@ function VideoPane({ ctx, onClose }) {
                     'span',
                     { className: 've-lib__m' },
                     h('span', { className: 've-lib__n' }, baseName(item.path)),
-                    h('span', { className: 've-lib__s' }, `${item.kind || 'medio'}${item.exists === false ? ' · falta' : ''}${item.bytes ? ` · ${fmtBytes(item.bytes)}` : ''}`)
+                    h('span', { className: 've-lib__s' }, `${item.kind || t('media.kind_default')}${item.exists === false ? t('media.missing') : ''}${item.bytes ? ` · ${fmtBytes(item.bytes)}` : ''}`)
                   )
                 ),
                 item.kind !== 'audio'
-                  ? h('button', { type: 'button', className: 've-mv', 'aria-label': `Añadir ${baseName(item.path)} como escena`, title: 'Añadir como escena', onClick: () => applyAdd(item) }, h(Icon, { name: 'plus', size: 'sm' }))
+                  ? h('button', { type: 'button', className: 've-mv', 'aria-label': t('media.add_as_scene_aria', { name: baseName(item.path) }), title: t('media.add_as_scene'), onClick: () => applyAdd(item) }, h(Icon, { name: 'plus', size: 'sm' }))
                   : null
               )
             )
           )
-        : h('p', { className: 've-lib__empty' }, 'Sin medios todavía. Pulsa «Importar medios» para traer archivos de la carpeta concedida.')
+        : h('p', { className: 've-lib__empty' }, t('media.empty'))
     return h(
       'aside',
-      { className: 've-side', 'aria-label': 'Medios y escenas' },
+      { className: 've-side', 'aria-label': t('media.title') },
       drawer
-        ? h('div', { className: 've-pt' }, h('span', { className: 've-pt__t' }, 'Medios y escenas'), h('span', { className: 've-spacer' }), h(Btn, { icon: 'close', variant: 'ghost', ariaLabel: 'Cerrar medios y escenas', onClick: () => setLibOpen(false) }))
+        ? h('div', { className: 've-pt' }, h('span', { className: 've-pt__t' }, t('media.title')), h('span', { className: 've-spacer' }), h(Btn, { icon: 'close', variant: 'ghost', ariaLabel: t('media.close'), onClick: () => setLibOpen(false) }))
         : null,
       h(
         'div',
-        { className: 've-segtabs', role: 'group', 'aria-label': 'Ver' },
-        h('button', { type: 'button', id: 've-ltab-scenes', 'aria-pressed': leftTab === 'scenes', onClick: () => setLeftTab('scenes') }, h(Icon, { name: 'layers', size: 'sm' }), 'Escenas', h('em', { 'aria-hidden': 'true' }, String(scenesList.length))),
-        h('button', { type: 'button', id: 've-ltab-media', 'aria-pressed': leftTab === 'media', onClick: () => setLeftTab('media') }, h(Icon, { name: 'image', size: 'sm' }), 'Medios', h('em', { 'aria-hidden': 'true' }, String(media.length)))
+        { className: 've-segtabs', role: 'group', 'aria-label': t('media.view') },
+        h('button', { type: 'button', id: 've-ltab-scenes', 'aria-pressed': leftTab === 'scenes', onClick: () => setLeftTab('scenes') }, h(Icon, { name: 'layers', size: 'sm' }), t('media.tab_scenes'), h('em', { 'aria-hidden': 'true' }, String(scenesList.length))),
+        h('button', { type: 'button', id: 've-ltab-media', 'aria-pressed': leftTab === 'media', onClick: () => setLeftTab('media') }, h(Icon, { name: 'image', size: 'sm' }), t('media.tab_media'), h('em', { 'aria-hidden': 'true' }, String(media.length)))
       ),
       leftTab === 'media' ? mediaList() : sceneList(),
-      h('div', { className: 've-side__foot' }, h(Btn, { variant: 'outline', icon: 'upload', label: 'Importar medios', block: true, onClick: importFolder, disabled: !doc }))
+      h('div', { className: 've-side__foot' }, h(Btn, { variant: 'outline', icon: 'upload', label: t('import_media'), block: true, onClick: importFolder, disabled: !doc }))
     )
   }
 
@@ -3687,7 +4608,7 @@ function VideoPane({ ctx, onClose }) {
             { key: notice, className: `ve-toast ve-toast--${tone}` },
             h(Icon, { name: tone === 'bad' ? 'alert' : tone === 'ok' ? 'checkcircle' : 'info' }),
             h('span', { className: 've-toast__m' }, notice),
-            h(Btn, { icon: 'close', variant: 'ghost', size: 'sm', ariaLabel: 'Cerrar aviso', onClick: () => setNotice('') })
+            h(Btn, { icon: 'close', variant: 'ghost', size: 'sm', ariaLabel: t('toast.close'), onClick: () => setNotice('') })
           )
         : null,
       busy
@@ -3698,20 +4619,20 @@ function VideoPane({ ctx, onClose }) {
             h(
               'span',
               { className: 've-toast__m' },
-              typeof job.progress === 'number' ? `Exportando… ${Math.round(job.progress)} %` : 'Exportando…',
+              typeof job.progress === 'number' ? t('export.progress', { percent: Math.round(job.progress) }) : t('export.exporting'),
               h('span', { className: 've-toast__bar' }, h('i', { style: { width: `${clamp(Number(job.progress) || 4, 2, 100)}%` } }))
             ),
-            h(Btn, { variant: 'text', size: 'sm', label: 'Ver', onClick: () => setDialog({ kind: 'export', phase: 'running', jobId: job.jobId, captions: incCaptions }) })
+            h(Btn, { variant: 'text', size: 'sm', label: t('media.view'), onClick: () => setDialog({ kind: 'export', phase: 'running', jobId: job.jobId, captions: incCaptions }) })
           )
         : null
     )
   }
 
   const railTabs = [
-    { id: 'scene', label: 'Escena', icon: 'film' },
-    { id: 'fx', label: 'Efectos', icon: 'sparkle' },
-    { id: 'audio', label: 'Audio', icon: 'volume' },
-    { id: 'project', label: 'Proyecto', icon: 'sliders' }
+    { id: 'scene', label: t('tab.scene'), icon: 'film' },
+    { id: 'fx', label: t('tab.effects'), icon: 'sparkle' },
+    { id: 'audio', label: t('lane.audio_short'), icon: 'volume' },
+    { id: 'project', label: t('tab.project'), icon: 'sliders' }
   ]
 
   const setSceneName = (value) => {
@@ -3735,13 +4656,13 @@ function VideoPane({ ctx, onClose }) {
     h(
       'label',
       { className: 've-f' },
-      h('span', { className: 've-f__l' }, 'Nombre de la escena'),
+      h('span', { className: 've-f__l' }, t('field.scene_name')),
       h('input', {
         className: 've-input',
         value: sel.name || '',
         maxLength: 120,
-        placeholder: `Escena ${selIndex + 1}`,
-        'aria-label': 'Nombre de la escena',
+        placeholder: t('scene.name_placeholder', { index: selIndex + 1 }),
+        'aria-label': t('field.scene_name'),
         onChange: (event) => setSceneName(event.target.value),
         onBlur: saveSoon
       })
@@ -3751,12 +4672,12 @@ function VideoPane({ ctx, onClose }) {
               h(
       'label',
       { className: 've-f' },
-      h('span', { className: 've-f__l' }, 'Texto en pantalla', h('span', { className: 've-counter' }, `${captionOf(sel).length}/${MAX_CAPTION}`)),
+      h('span', { className: 've-f__l' }, t('lane.text'), h('span', { className: 've-counter' }, `${captionOf(sel).length}/${MAX_CAPTION}`)),
       h('textarea', {
         className: 've-textarea',
         value: captionOf(sel),
         maxLength: MAX_CAPTION,
-        placeholder: 'Escribe lo que se verá en pantalla durante la escena',
+        placeholder: t('field.caption_placeholder'),
         onChange: (event) => writeCaption(event.target.value),
         onBlur: saveSoon
       })
@@ -3780,7 +4701,7 @@ function VideoPane({ ctx, onClose }) {
           step: 1,
           decimals: 0,
           disabled: !hasText,
-          title: hasText ? undefined : 'Escribe un texto en la escena para darle estilo',
+          title: hasText ? undefined : t('field.caption_disabled'),
           ariaLabel: aria,
           onCommit: (value) => setTextStyle({ [key]: Math.round(value) }),
           onBlur: saveSoon
@@ -3806,10 +4727,10 @@ function VideoPane({ ctx, onClose }) {
     return h(
       'div',
       { className: 've-f' },
-      h('span', { className: 've-f__l' }, 'Posición y estilo del texto'),
+      h('span', { className: 've-f__l' }, t('field.text_style')),
       h(
         'div',
-        { className: 've-seg', role: 'group', 'aria-label': 'Posición del texto' },
+        { className: 've-seg', role: 'group', 'aria-label': t('field.text_position') },
         TEXT_POSITIONS.map((opt) =>
           h(
             'button',
@@ -3827,25 +4748,25 @@ function VideoPane({ ctx, onClose }) {
       h(
         'div',
         { className: 've-tex' },
-        num('size', 'Tamaño', TEXT_SIZE, 'Tamaño del texto en puntos'),
+        num('size', t('field.size'), TEXT_SIZE, t('field.size_title')),
         styleField(
           'color',
-          'Color',
+          t('field.color'),
           h('input', {
             className: 've-tex__in',
             type: 'color',
             value: hexOr(item.color, TEXT_COLOR_DEFAULT),
             disabled: !hasText,
-            'aria-label': 'Color del texto',
+            'aria-label': t('field.color_aria'),
             onChange: (event) => setTextStyle({ color: hexOr(event.target.value, TEXT_COLOR_DEFAULT) }),
             onBlur: saveSoon
           })
         ),
-        num('border', 'Borde', TEXT_BORDER, 'Grosor del borde del texto'),
-        num('shadow', 'Sombra', TEXT_SHADOW, 'Grosor de la sombra del texto')
+        num('border', t('field.border'), TEXT_BORDER, t('field.border_title')),
+        num('shadow', t('field.shadow'), TEXT_SHADOW, t('field.shadow_title'))
       ),
-      h('div', { className: 've-f__row' }, anims('in', 'Entrada', 'Animación de entrada del texto'), anims('out', 'Salida', 'Animación de salida del texto')),
-      h('span', { className: 've-f__h' }, hasText ? 'El texto aparece durante toda la escena.' : 'Escribe un texto para darle estilo.')
+      h('div', { className: 've-f__row' }, anims('in', t('field.in'), t('field.in_title')), anims('out', t('field.out'), t('field.out_title'))),
+      h('span', { className: 've-f__h' }, hasText ? t('field.text_whole_scene') : t('field.text_style_hint'))
     )
   }
 
@@ -3853,14 +4774,14 @@ function VideoPane({ ctx, onClose }) {
     h(
       'div',
       { className: 've-f' },
-      h('span', { className: 've-f__l' }, 'Recorte del clip'),
+      h('span', { className: 've-f__l' }, t('field.trim')),
       h(
         'div',
         { className: 've-f__row' },
         h(
           'label',
           { className: 've-tex__f' },
-          h('span', { className: 've-tex__k' }, 'Entrada'),
+          h('span', { className: 've-tex__k' }, t('field.in')),
           h(
             'span',
             { className: 've-tcout' },
@@ -3869,7 +4790,7 @@ function VideoPane({ ctx, onClose }) {
               min: 0,
               max: Math.max(0, Number(sel.out) - MIN_SCENE),
               step: 0.1,
-              ariaLabel: 'Entrada de la escena en segundos',
+              ariaLabel: t('field.in_seconds'),
               onCommit: setIn,
               onBlur: saveSoon
             }),
@@ -3879,7 +4800,7 @@ function VideoPane({ ctx, onClose }) {
         h(
           'label',
           { className: 've-tex__f' },
-          h('span', { className: 've-tex__k' }, 'Salida'),
+          h('span', { className: 've-tex__k' }, t('field.out')),
           h(
             'span',
             { className: 've-tcout' },
@@ -3887,7 +4808,7 @@ function VideoPane({ ctx, onClose }) {
               value: Number(sel.out),
               min: Number(sel.in) + MIN_SCENE,
               step: 0.1,
-              ariaLabel: 'Salida de la escena en segundos',
+              ariaLabel: t('field.out_seconds'),
               onCommit: setOut,
               onBlur: saveSoon
             }),
@@ -3896,8 +4817,10 @@ function VideoPane({ ctx, onClose }) {
         )
       ),
       sceneDuration(sel) < MIN_SCENE
-        ? h('span', { className: 've-f__err', role: 'alert' }, 'La salida debe ser al menos 0,3 s después de la entrada.')
-        : h('span', { className: 've-f__h' }, `Dura ${fmtTime(sceneDuration(sel))}${sceneSpeed(sel) !== 1 ? ` · ${fmtTime(visibleDuration(sel))} en pantalla a ×${fmtNum(sceneSpeed(sel))}` : ''}. También puedes arrastrar los bordes del clip en la línea de tiempo.`)
+        ? h('span', { className: 've-f__err', role: 'alert' }, t('field.out_error'))
+        : h('span', { className: 've-f__h' }, sceneSpeed(sel) !== 1
+          ? t('scene.hint_speed', { dur: fmtTime(sceneDuration(sel)), vis: fmtTime(visibleDuration(sel)), speed: fmtNum(sceneSpeed(sel)) })
+          : t('scene.hint', { dur: fmtTime(sceneDuration(sel)) }))
     )
 
   const pMissing = () => (
@@ -3905,8 +4828,8 @@ function VideoPane({ ctx, onClose }) {
       ? h(
           'div',
           { className: 've-f' },
-          h(Badge, { tone: 'warn' }, `Falta ${missing.length} medio${missing.length > 1 ? 's' : ''}`),
-          h(Btn, { variant: 'text', label: 'Volver a vincular', onClick: importFolder })
+          h(Badge, { tone: 'warn' }, t(missing.length > 1 ? 'missing.count_many' : 'missing.count_one', { count: missing.length })),
+          h(Btn, { variant: 'text', label: t('field.relink'), onClick: importFolder })
         )
       : null
   )
@@ -3918,20 +4841,20 @@ function VideoPane({ ctx, onClose }) {
       h(Btn, {
         variant: 'outline',
         size: 'sm',
-        label: 'Reemplazar medio',
-        title: 'Cambia el archivo de la escena sin tocar la entrada y la salida',
+        label: t('field.replace_media'),
+        title: t('field.replace_media_title'),
         onClick: () => {
           setDialog({ kind: 'picker' })
           openPicker('replace', sel.id)
         }
       }),
-      h(Btn, { variant: 'outline', size: 'sm', label: 'Restablecer escena', title: 'Quita texto, transición y ajustes de audio de esta escena', onClick: () => resetScene(sel) }),
+      h(Btn, { variant: 'outline', size: 'sm', label: t('field.reset_scene'), title: t('field.reset_scene_title'), onClick: () => resetScene(sel) }),
       h(Btn, {
         variant: 'outline',
         size: 'sm',
         icon: 'trash',
-        label: 'Eliminar escena',
-        title: 'Elimina la escena (Supr). Ctrl+Z la recupera',
+        label: t('field.delete_scene'),
+        title: t('field.delete_scene_title'),
         onClick: () => deleteScene(selIndex)
       })
     )
@@ -3941,7 +4864,7 @@ function VideoPane({ ctx, onClose }) {
               h(
       'div',
       { className: 've-f' },
-      h('span', { className: 've-f__l' }, 'Volumen'),
+      h('span', { className: 've-f__l' }, t('field.volume')),
       h(
         'div',
         { className: 've-volrow' },
@@ -3952,7 +4875,7 @@ function VideoPane({ ctx, onClose }) {
           step: 5,
           value: (sel.audio && sel.audio.volume) || 0,
           style: { '--ve-p': `${(sel.audio && sel.audio.volume) || 0}%` },
-          'aria-label': 'Volumen de la escena',
+          'aria-label': t('field.volume_aria'),
           'aria-valuetext': `${(sel.audio && sel.audio.volume) || 0} %`,
           onChange: (event) => setSceneVolume(event.target.value)
         }),
@@ -3961,8 +4884,8 @@ function VideoPane({ ctx, onClose }) {
       h(Btn, {
         variant: 'text',
         size: 'sm',
-        label: ((sel.audio && sel.audio.volume) || 0) === 0 ? 'Activar el sonido de la escena' : 'Silenciar la escena',
-        ariaLabel: ((sel.audio && sel.audio.volume) || 0) === 0 ? 'Activar el sonido de la escena' : 'Silenciar la escena',
+        label: ((sel.audio && sel.audio.volume) || 0) === 0 ? t('field.scene_unmute') : t('field.scene_mute'),
+        ariaLabel: ((sel.audio && sel.audio.volume) || 0) === 0 ? t('field.scene_unmute') : t('field.scene_mute'),
         onClick: () => setSceneVolume(((sel.audio && sel.audio.volume) || 0) === 0 ? 100 : 0)
       })
     )
@@ -3971,15 +4894,15 @@ function VideoPane({ ctx, onClose }) {
               h(
       'div',
       { className: 've-f' },
-      h('span', { className: 've-f__l' }, 'Transición de entrada'),
+      h('span', { className: 've-f__l' }, t('field.transition')),
       h(
         'select',
         {
           className: 've-select',
           value: parseTransition(sel.transition).style,
           disabled: selIndex === 0,
-          'aria-label': 'Estilo de la transición de entrada',
-          title: selIndex === 0 ? 'La primera escena no tiene transición de entrada' : undefined,
+          'aria-label': t('field.transition_style'),
+          title: selIndex === 0 ? t('field.transition_first') : undefined,
           onChange: (event) => setTransitionStyle(event.target.value)
         },
         transitionList.map((item) => h('option', { key: item.id, value: item.id }, item.label))
@@ -3994,7 +4917,7 @@ function VideoPane({ ctx, onClose }) {
           step: 0.1,
           value: Math.min(parseTransition(sel.transition).seconds, Math.max(TRANSITION_MIN_S, fadeLimit)),
           disabled: selIndex === 0 || parseTransition(sel.transition).style === 'none' || fadeLimit < TRANSITION_MIN_S,
-          'aria-label': 'Duración de la transición en segundos',
+          'aria-label': t('field.transition_seconds'),
           'aria-valuetext': `${fmtSec(parseTransition(sel.transition).seconds)} s`,
           onChange: (event) => setTransitionSeconds(event.target.value)
         }),
@@ -4004,12 +4927,12 @@ function VideoPane({ ctx, onClose }) {
         'span',
         { className: 've-f__h' },
         selIndex === 0
-          ? 'La escena 1 no lleva transición de entrada.'
+          ? t('field.transition_first_hint')
           : fadeLimit < TRANSITION_MIN_S
-            ? 'La escena es demasiado corta para cruzarse con la anterior.'
+            ? t('field.transition_too_short')
             : parseTransition(sel.transition).style === 'none'
-              ? 'Corte seco: entra sin cruce.'
-              : `Se cruza con la escena anterior durante ${fmtSec(parseTransition(sel.transition).seconds)} s (máximo ${fmtSec(fadeLimit)} s aquí).`
+              ? t('field.transition_cut')
+              : t('field.transition_cross', { seconds: fmtSec(parseTransition(sel.transition).seconds), limit: fmtSec(fadeLimit) })
       )
     )
   )
@@ -4020,7 +4943,7 @@ function VideoPane({ ctx, onClose }) {
       return h(
         'div',
         { className: 've-f' },
-        h('span', { className: 've-f__l' }, 'Filtros', active ? h(Badge, { outline: true }, String(active)) : null),
+        h('span', { className: 've-f__l' }, t('field.filters'), active ? h(Badge, { outline: true }, String(active)) : null),
         FILTER_SLIDERS.map((slider) => {
           const raw = filters[slider.key]
           const value = Number.isFinite(Number(raw)) ? Number(raw) : FILTER_DEFAULTS[slider.key]
@@ -4039,7 +4962,7 @@ function VideoPane({ ctx, onClose }) {
                 step: slider.step,
                 value,
                 style: { '--ve-p': fillPercent(value, slider.min, slider.max) },
-                'aria-label': `${slider.label} de la escena`,
+                'aria-label': t('field.for_scene', { label: slider.label }),
                 'aria-valuetext': text,
                 onChange: (event) => setFilter(slider.key, event.target.value),
                 onBlur: saveSoon
@@ -4068,7 +4991,7 @@ function VideoPane({ ctx, onClose }) {
         h(Btn, {
           variant: 'text',
           size: 'sm',
-          label: 'Restablecer filtros',
+          label: t('field.reset_filters'),
           disabled: !active,
           onClick: resetFilters
         })
@@ -4084,28 +5007,28 @@ function VideoPane({ ctx, onClose }) {
       return h(
         'div',
         { className: 've-f' },
-        h('span', { className: 've-f__l' }, 'Movimiento y velocidad'),
+        h('span', { className: 've-f__l' }, t('field.motion')),
         h(
           'label',
           {
             className: `ve-mus__chk${selIsImage ? '' : ' ve-mus__chk--off'}`,
-            title: selIsImage ? 'Zoom lento sobre la imagen' : 'Solo imágenes'
+            title: selIsImage ? t('field.kenburns_title') : t('field.only_images')
           },
           h('input', {
             type: 'checkbox',
             checked: !!motion,
             disabled: !selIsImage,
-            'aria-label': 'Ken Burns en la imagen',
+            'aria-label': t('field.kenburns_aria'),
             onChange: (event) => toggleKenBurns(event.target.checked)
           }),
-          h('span', null, 'Ken Burns')
+          h('span', null, t('field.kenburns'))
         ),
         selIsImage
           ? motion
             ? h(
                 'div',
                 { className: 've-f' },
-                h('span', { className: 've-f__l' }, 'Zoom'),
+                h('span', { className: 've-f__l' }, t('transition.zoom')),
                 h(
                   'div',
                   { className: 've-volrow' },
@@ -4116,7 +5039,7 @@ function VideoPane({ ctx, onClose }) {
                     step: 0.05,
                     value: zoom,
                     style: { '--ve-p': fillPercent(zoom, KEN_BURNS.minZoom, KEN_BURNS.maxZoom) },
-                    'aria-label': 'Zoom de Ken Burns',
+                    'aria-label': t('field.kenburns_zoom'),
                     'aria-valuetext': `×${fmtNum(zoom)}`,
                     onChange: (event) => setKenBurns({ zoom: event.target.value }),
                     onBlur: saveSoon
@@ -4126,25 +5049,25 @@ function VideoPane({ ctx, onClose }) {
                 h(
                   'label',
                   { className: 've-f' },
-                  h('span', { className: 've-f__l' }, 'Desplazamiento'),
+                  h('span', { className: 've-f__l' }, t('field.pan')),
                   h(
                     'select',
                     {
                       className: 've-select',
                       value: motion.pan || KEN_BURNS.pan,
-                      'aria-label': 'Dirección del desplazamiento de Ken Burns',
+                      'aria-label': t('field.pan_aria'),
                       onChange: (event) => setKenBurns({ pan: event.target.value })
                     },
                     PAN_OPTIONS.map((opt) => h('option', { key: opt.id, value: opt.id }, opt.label))
                   )
                 )
               )
-            : h('span', { className: 've-f__h' }, 'Actívalo para un zoom lento sobre la imagen.')
-          : h('span', { className: 've-f__h' }, 'Solo imágenes'),
+            : h('span', { className: 've-f__h' }, t('field.kenburns_hint'))
+          : h('span', { className: 've-f__h' }, t('field.only_images')),
         h(
           'div',
           { className: 've-f' },
-          h('span', { className: 've-f__l' }, 'Velocidad'),
+          h('span', { className: 've-f__l' }, t('field.speed')),
           h(
             'div',
             { className: 've-volrow' },
@@ -4155,14 +5078,14 @@ function VideoPane({ ctx, onClose }) {
               step: 0.05,
               value: speed,
               style: { '--ve-p': fillPercent(speed, SCENE_SPEED.min, SCENE_SPEED.max) },
-              'aria-label': 'Velocidad de la escena',
+              'aria-label': t('field.speed_aria'),
               'aria-valuetext': `×${fmtNum(speed)}`,
               onChange: (event) => setSpeed(event.target.value),
               onBlur: saveSoon
             }),
             h('span', { className: 've-volval' }, `×${fmtNum(speed)}`)
           ),
-          h('span', { className: 've-f__h' }, `Duración visible ${fmtTime(visible)} a esta velocidad.`)
+          h('span', { className: 've-f__h' }, t('field.duration_visible', { time: fmtTime(visible) }))
         )
       )
     })()
@@ -4171,10 +5094,10 @@ function VideoPane({ ctx, onClose }) {
               h(
       'div',
       { className: 've-f' },
-      h('span', { className: 've-f__l' }, 'Orientación'),
+      h('span', { className: 've-f__l' }, t('field.orientation')),
       h(
         'div',
-        { className: 've-seg', role: 'group', 'aria-label': 'Orientación del vídeo' },
+        { className: 've-seg', role: 'group', 'aria-label': t('field.orientation_aria') },
         ['h', 'v'].map((id) =>
           h(
             'button',
@@ -4188,24 +5111,24 @@ function VideoPane({ ctx, onClose }) {
           )
         )
       ),
-      h('span', { className: 've-f__h' }, 'Vertical recorta los bordes laterales.')
+      h('span', { className: 've-f__h' }, t('field.orientation_hint'))
     )
   )
   const pProjectInfo = () =>
     h(
       'div',
       { className: 've-f' },
-      h('span', { className: 've-f__l' }, 'Resumen del proyecto'),
+      h('span', { className: 've-f__l' }, t('field.summary')),
       h(
         'dl',
         { className: 've-facts' },
-        h('dt', null, 'Resolución'),
+        h('dt', null, t('field.resolution')),
         h('dd', null, `${doc.width}×${doc.height} · ${docFps} fps`),
-        h('dt', null, 'Escenas'),
+        h('dt', null, t('media.tab_scenes')),
         h('dd', null, String((doc.scenes || []).length)),
-        h('dt', null, 'Suma de escenas'),
+        h('dt', null, t('field.scenes_sum')),
         h('dd', null, fmtTime(total)),
-        h('dt', null, 'Vídeo final'),
+        h('dt', null, t('field.final_video')),
         h('dd', null, `${fmtTime(finalDuration(doc))}${finalDuration(doc) !== total ? ' (las transiciones se solapan)' : ''}`)
       )
     )
@@ -4213,23 +5136,23 @@ function VideoPane({ ctx, onClose }) {
   const sfxSection = () => (
       h(
       'div',
-      { className: 've-rail__sec ve-sfx', 'aria-label': 'Sonidos y voz' },
+      { className: 've-rail__sec ve-sfx', 'aria-label': t('field.sfx') },
       h(
         'div',
         { className: 've-rail__h' },
-        h('span', { className: 've-rail__t' }, 'Sonidos y voz'),
+        h('span', { className: 've-rail__t' }, t('field.sfx')),
         h(Badge, { outline: true }, String(sfxEvents.length))
       ),
       h(
         'div',
         { className: 've-props' },
         !audioAssets.length
-          ? h('span', { className: 've-f__h' }, 'Importa o genera audios para colocarlos en la línea de tiempo.')
+          ? h('span', { className: 've-f__h' }, t('field.sfx_hint'))
           : h(Btn, {
               variant: 'outline',
               size: 'sm',
-              label: `Añadir sonido en ${fmtTimecode(cursor)}`,
-              ariaLabel: 'Añadir sonido en el cursor',
+              label: t('field.add_sound_at', { time: fmtTimecode(cursor) }),
+              ariaLabel: t('field.add_sound'),
               onClick: () => addEventAtCursor((audioAssets.find((item) => !music || item.id !== music.assetId) || audioAssets[0]).id)
             }),
         sfxEvents.map((ev, index) =>
@@ -4254,7 +5177,7 @@ function VideoPane({ ctx, onClose }) {
             h(
               'div',
               { className: 've-f' },
-              h('span', { className: 've-f__l' }, 'Empieza en (mm:ss.ms)'),
+              h('span', { className: 've-f__l' }, t('field.starts_at')),
               h('input', {
                 key: `${ev.id}:${ev.at}`,
                 className: 've-goto',
@@ -4271,7 +5194,7 @@ function VideoPane({ ctx, onClose }) {
             h(
               'div',
               { className: 've-f' },
-              h('span', { className: 've-f__l' }, 'Volumen'),
+              h('span', { className: 've-f__l' }, t('field.volume')),
               h(
                 'div',
                 { className: 've-volrow' },
@@ -4281,13 +5204,13 @@ function VideoPane({ ctx, onClose }) {
                   max: 100,
                   step: 5,
                   value: ev.volume == null ? 100 : ev.volume,
-                  'aria-label': `Volumen del sonido ${index + 1}`,
+                  'aria-label': t('field.sound_volume', { index: index + 1 }),
                   onChange: (event) => setEvent(ev.id, { volume: clamp(Math.round(Number(event.target.value) / 5) * 5, 0, 100) })
                 }),
                 h('span', { className: 've-volval' }, `${ev.volume == null ? 100 : ev.volume} %`)
               )
             ),
-            h(Btn, { variant: 'text', size: 'sm', label: 'Quitar sonido', ariaLabel: `Quitar sonido ${index + 1}`, onClick: () => removeEvent(ev.id) })
+            h(Btn, { variant: 'text', size: 'sm', label: t('field.remove_sound'), ariaLabel: t('field.remove_sound_n', { index: index + 1 }), onClick: () => removeEvent(ev.id) })
           )
         )
       )
@@ -4296,19 +5219,19 @@ function VideoPane({ ctx, onClose }) {
   const musicSection = () => (
       h(
       'div',
-      { className: 've-rail__sec ve-mus', 'aria-label': 'Música de fondo' },
+      { className: 've-rail__sec ve-mus', 'aria-label': t('lane.music') },
       h(
         'div',
         { className: 've-rail__h' },
-        h('span', { className: 've-rail__t' }, 'Música'),
-        h(Badge, { outline: true }, music ? 'Fondo' : '—')
+        h('span', { className: 've-rail__t' }, t('lane.music_short')),
+        h(Badge, { outline: true }, music ? t('badge.background') : '—')
       ),
       !audioAssets.length
         ? h(
             'div',
             { className: 've-mus__empty' },
-            h('span', { className: 've-f__h' }, 'Importa un audio para usarlo como música.'),
-            h(Btn, { variant: 'outline', size: 'sm', label: 'Importar medios', onClick: importFolder, disabled: !doc })
+            h('span', { className: 've-f__h' }, t('music.hint')),
+            h(Btn, { variant: 'outline', size: 'sm', label: t('import_media'), onClick: importFolder, disabled: !doc })
           )
         : h(
             'div',
@@ -4316,7 +5239,7 @@ function VideoPane({ ctx, onClose }) {
             h(
               'label',
               { className: 've-f' },
-              h('span', { className: 've-f__l' }, 'Pista'),
+              h('span', { className: 've-f__l' }, t('field.track')),
               h(
                 'select',
                 {
@@ -4325,20 +5248,20 @@ function VideoPane({ ctx, onClose }) {
                   'aria-label': 'Música de fondo del proyecto',
                   onChange: (event) => chooseMusic(event.target.value)
                 },
-                h('option', { value: '' }, 'Sin música'),
+                h('option', { value: '' }, t('field.no_music')),
                 audioAssets.map((item) =>
                   h('option', { key: item.id, value: item.id }, baseName(item.path) || item.id)
                 )
               ),
               music
                 ? h('span', { className: 've-f__h' }, `Suena de fondo durante ${fmtTime(total)}.`)
-                : h('span', { className: 've-f__h' }, 'Sin música: el vídeo lleva solo el audio de las escenas.')
+                : h('span', { className: 've-f__h' }, t('field.no_music_hint'))
             ),
             music
               ? h(
                   'div',
                   { className: 've-f' },
-                  h('span', { className: 've-f__l' }, 'Volumen de la música'),
+                  h('span', { className: 've-f__l' }, t('field.music_volume')),
                   h(
                     'div',
                     { className: 've-volrow' },
@@ -4348,7 +5271,7 @@ function VideoPane({ ctx, onClose }) {
                       max: 100,
                       step: 5,
                       value: typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume,
-                      'aria-label': 'Volumen de la música',
+                      'aria-label': t('field.music_volume'),
                       'aria-valuetext': `${typeof music.volume === 'number' ? music.volume : MUSIC_DEFAULTS.volume} %`,
                       onChange: (event) => setMusic({ volume: clamp(Math.round(Number(event.target.value) / 5) * 5, 0, 100) })
                     }),
@@ -4360,7 +5283,7 @@ function VideoPane({ ctx, onClose }) {
               ? h(
                   'div',
                   { className: 've-f' },
-                  h('span', { className: 've-f__l' }, 'Fundido de entrada / salida'),
+                  h('span', { className: 've-f__l' }, t('field.music_fades')),
                   h(
                     'div',
                     { className: 've-f__row' },
@@ -4373,7 +5296,7 @@ function VideoPane({ ctx, onClose }) {
                         max: 10,
                         step: 0.5,
                         format: fmtSec,
-                        ariaLabel: 'Fundido de entrada de la música en segundos',
+                        ariaLabel: t('field.music_fade_in'),
                         onCommit: (value) => setMusicFade('fadeIn', value),
                         onBlur: saveSoon
                       }),
@@ -4388,14 +5311,14 @@ function VideoPane({ ctx, onClose }) {
                         max: 10,
                         step: 0.5,
                         format: fmtSec,
-                        ariaLabel: 'Fundido de salida de la música en segundos',
+                        ariaLabel: t('field.music_fade_out'),
                         onCommit: (value) => setMusicFade('fadeOut', value),
                         onBlur: saveSoon
                       }),
                       h('small', null, 's')
                     )
                   ),
-                  h('span', { className: 've-f__h' }, 'De 0 a 10 s; 0 la deja sin fundido.')
+                  h('span', { className: 've-f__h' }, t('field.music_fades_hint'))
                 )
               : null,
             music
@@ -4410,7 +5333,7 @@ function VideoPane({ ctx, onClose }) {
                       checked: !!music.loop,
                       onChange: (event) => setMusic({ loop: event.target.checked })
                     }),
-                    h('span', null, 'Repetir en bucle')
+                    h('span', null, t('field.loop'))
                   ),
                   h(
                     'label',
@@ -4420,7 +5343,7 @@ function VideoPane({ ctx, onClose }) {
                       checked: !!music.ducking,
                       onChange: (event) => setMusic({ ducking: event.target.checked })
                     }),
-                    h('span', null, 'Bajar bajo la voz (ducking)')
+                    h('span', null, t('field.ducking'))
                   )
                 )
               : null,
@@ -4432,13 +5355,13 @@ function VideoPane({ ctx, onClose }) {
                 checked: !!(doc.audio && doc.audio.normalize),
                 onChange: (event) => setNormalize(event.target.checked)
               }),
-              h('span', null, 'Normalizar audio del proyecto')
+              h('span', null, t('field.normalize'))
             ),
             h(Btn, {
               variant: 'text',
-              label: 'Quitar música',
+              label: t('field.remove_music'),
               disabled: !music,
-              title: music ? 'Elimina la música del proyecto' : 'No hay música asignada',
+              title: music ? t('field.remove_music_title') : t('field.no_music_set'),
               onClick: removeMusic
             })
           )
@@ -4447,19 +5370,19 @@ function VideoPane({ ctx, onClose }) {
   const logoSection = () => (
       h(
       'div',
-      { className: 've-rail__sec', 'aria-label': 'Logo del proyecto' },
+      { className: 've-rail__sec', 'aria-label': t('field.logo_section') },
       h(
         'div',
         { className: 've-rail__h' },
-        h('span', { className: 've-rail__t' }, 'Logo'),
-        h(Badge, { outline: true }, logo ? 'Marca' : '—')
+        h('span', { className: 've-rail__t' }, t('field.logo')),
+        h(Badge, { outline: true }, logo ? t('badge.brand') : '—')
       ),
       !imageAssets.length
         ? h(
             'div',
             { className: 've-mus__empty' },
-            h('span', { className: 've-f__h' }, 'Importa una imagen para usarla como logo.'),
-            h(Btn, { variant: 'outline', size: 'sm', label: 'Importar medios', onClick: importFolder, disabled: !doc })
+            h('span', { className: 've-f__h' }, t('field.logo_hint')),
+            h(Btn, { variant: 'outline', size: 'sm', label: t('import_media'), onClick: importFolder, disabled: !doc })
           )
         : h(
             'div',
@@ -4467,34 +5390,34 @@ function VideoPane({ ctx, onClose }) {
             h(
               'label',
               { className: 've-f' },
-              h('span', { className: 've-f__l' }, 'Imagen'),
+              h('span', { className: 've-f__l' }, t('field.image')),
               h(
                 'select',
                 {
                   className: 've-select',
                   value: logo ? logo.assetId : '',
-                  'aria-label': 'Imagen del logo del proyecto',
+                  'aria-label': t('field.logo_image_aria'),
                   onChange: (event) => {
                     if (event.target.value) setLogo({ assetId: event.target.value })
                     else removeLogo()
                   }
                 },
-                h('option', { value: '' }, 'Sin logo'),
+                h('option', { value: '' }, t('field.no_logo')),
                 imageAssets.map((item) => h('option', { key: item.id, value: item.id }, baseName(item.path) || item.id))
               ),
-              h('span', { className: 've-f__h' }, 'Marca de agua sobre todo el vídeo.')
+              h('span', { className: 've-f__h' }, t('field.logo_watermark_hint'))
             ),
             logo
               ? h(
                   'label',
                   { className: 've-f' },
-                  h('span', { className: 've-f__l' }, 'Posición'),
+                  h('span', { className: 've-f__l' }, t('field.position')),
                   h(
                     'select',
                     {
                       className: 've-select',
                       value: logo.position || LOGO_DEFAULTS.position,
-                      'aria-label': 'Posición del logo',
+                      'aria-label': t('field.logo_position_aria'),
                       onChange: (event) => setLogo({ position: event.target.value })
                     },
                     LOGO_POSITIONS.map((opt) => h('option', { key: opt.id, value: opt.id }, opt.label))
@@ -4505,7 +5428,7 @@ function VideoPane({ ctx, onClose }) {
               ? h(
                   'div',
                   { className: 've-f' },
-                  h('span', { className: 've-f__l' }, 'Opacidad'),
+                  h('span', { className: 've-f__l' }, t('field.opacity')),
                   h(
                     'div',
                     { className: 've-volrow' },
@@ -4522,7 +5445,7 @@ function VideoPane({ ctx, onClose }) {
                           LOGO_LIMITS.opacity[1]
                         )
                       },
-                      'aria-label': 'Opacidad del logo',
+                      'aria-label': t('field.logo_opacity_aria'),
                       'aria-valuetext': `${Math.round((typeof logo.opacity === 'number' ? logo.opacity : LOGO_DEFAULTS.opacity) * 100)} %`,
                       onChange: (event) => setLogo({ opacity: event.target.value }),
                       onBlur: saveSoon
@@ -4539,7 +5462,7 @@ function VideoPane({ ctx, onClose }) {
               ? h(
                   'div',
                   { className: 've-f' },
-                  h('span', { className: 've-f__l' }, 'Escala'),
+                  h('span', { className: 've-f__l' }, t('field.scale')),
                   h(
                     'div',
                     { className: 've-volrow' },
@@ -4556,7 +5479,7 @@ function VideoPane({ ctx, onClose }) {
                           LOGO_LIMITS.scale[1]
                         )
                       },
-                      'aria-label': 'Escala del logo',
+                      'aria-label': t('field.logo_scale_aria'),
                       'aria-valuetext': `${Math.round((typeof logo.scale === 'number' ? logo.scale : LOGO_DEFAULTS.scale) * 100)} %`,
                       onChange: (event) => setLogo({ scale: event.target.value }),
                       onBlur: saveSoon
@@ -4569,7 +5492,7 @@ function VideoPane({ ctx, onClose }) {
                   )
                 )
               : null,
-            h(Btn, { variant: 'text', label: 'Quitar logo', disabled: !logo, onClick: removeLogo })
+            h(Btn, { variant: 'text', label: t('field.remove_logo'), disabled: !logo, onClick: removeLogo })
           )
     )
   )
@@ -4580,8 +5503,8 @@ function VideoPane({ ctx, onClose }) {
       sel
         ? children
         : h(EmptyState, {
-            title: 'Elige una escena',
-            body: 'Selecciona una escena de la lista o de la línea de tiempo para editarla.'
+            title: t('rail.pick_scene'),
+            body: t('rail.pick_scene_body')
           })
     let body = null
     if (railTab === 'scene') body = needScene([pMissing && sel ? pMissing() : null, sel ? pName() : null, sel ? pCaption() : null, sel ? pTextStyle() : null, sel ? pInOut() : null, sel ? pActions() : null])
@@ -4598,18 +5521,18 @@ function VideoPane({ ctx, onClose }) {
     }
     return h(
       'aside',
-      { className: 've-rail', 'aria-label': 'Propiedades de la escena', style: compact && !railOpen ? { display: 'none' } : undefined },
+      { className: 've-rail', 'aria-label': t('rail.props_aria'), style: compact && !railOpen ? { display: 'none' } : undefined },
       h(
         'div',
         { className: 've-rail__top' },
-        h('span', { className: 've-rail__t' }, 'Propiedades'),
-        sel ? h('span', { className: 've-rail__who' }, `· ${sel.name || `Escena ${selIndex + 1}`}`) : null,
+        h('span', { className: 've-rail__t' }, t('header.properties')),
+        sel ? h('span', { className: 've-rail__who' }, `· ${sel.name || t('scene.name_placeholder', { index: selIndex + 1 })}`) : null,
         h('span', { className: 've-spacer' }),
-        compact ? h(Btn, { icon: 'close', variant: 'ghost', ariaLabel: 'Cerrar propiedades', onClick: () => setRailOpen(false) }) : null
+        compact ? h(Btn, { icon: 'close', variant: 'ghost', ariaLabel: t('rail.close'), onClick: () => setRailOpen(false) }) : null
       ),
       h(
         'div',
-        { className: 've-tabs', role: 'tablist', 'aria-label': 'Propiedades' },
+        { className: 've-tabs', role: 'tablist', 'aria-label': t('header.properties') },
         railTabs.map((tab, index) =>
           h(
             'button',
@@ -4642,19 +5565,19 @@ function VideoPane({ ctx, onClose }) {
       target.text = []
       return draft
     })
-    setNotice('Escena restablecida.')
+    setNotice(t('notice.scene_reset'))
   }
 
   function queueLabel() {
     if (job && ['queued', 'running', 'probing', 'rendering', 'validating', 'promoting'].includes(job.state)) {
-      return typeof job.progress === 'number' ? `Exportando ${Math.round(job.progress)} %` : 'Exportando…'
+      return typeof job.progress === 'number' ? t('export.progress_bare', { percent: Math.round(job.progress) }) : t('export.exporting')
     }
-    if (job && job.state === 'failed') return 'La exportación falló'
+    if (job && job.state === 'failed') return t('export.failed')
     if (!doc) return ''
     const count = (doc.scenes || []).length
     if (!count) return 'Sin escenas todavía'
     const finalLen = finalDuration(doc)
-    return `${count} escena${count === 1 ? '' : 's'} · vídeo final ${fmtTime(finalLen)}`
+    return count === 1 ? t('queue.count_one', { time: fmtTime(finalLen) }) : t('queue.count_many', { count, time: fmtTime(finalLen) })
   }
 
   useEffect(() => {
@@ -4669,12 +5592,12 @@ function VideoPane({ ctx, onClose }) {
     try {
       if (host && host.composer && typeof host.composer.focus === 'function') {
         host.composer.focus(null)
-        setNotice('Chat enfocado. El editor sigue abierto.')
+        setNotice(t('notice.chat_focused'))
       } else {
-        setNotice('Escribe en el chat de arriba; el editor sigue abierto.')
+        setNotice(t('notice.chat_hint'))
       }
     } catch (error) {
-      setNotice('Escribe en el chat de arriba; el editor sigue abierto.')
+      setNotice(t('notice.chat_hint'))
     }
   }
 
@@ -4691,11 +5614,11 @@ function VideoPane({ ctx, onClose }) {
   function exportSummary() {
     const path = (job && job.outputPath) || ''
     const bytes = (job && job.outputBytes) || 0
-    const lines = ['Vídeo exportado con el editor de Hermes']
-    if (doc) lines.push(`${doc.title || 'Vídeo'} — ${fmtTime(total)}, ${doc.width}×${doc.height}, ${docFps} fps`)
-    if (bytes) lines.push(`Tamaño: ${fmtBytes(bytes)}`)
-    if (path) lines.push(`Archivo: ${path}`)
-    if (doc) lines.push(`Proyecto: ${doc.projectId} · revisión ${doc.revision}`)
+    const lines = [t('chat.summary_title')]
+    if (doc) lines.push(`${doc.title || t('chat.untitled_video')} — ${fmtTime(total)}, ${doc.width}×${doc.height}, ${docFps} fps`)
+    if (bytes) lines.push(t('chat.size', { size: fmtBytes(bytes) }))
+    if (path) lines.push(t('chat.file', { path }))
+    if (doc) lines.push(t('chat.project', { id: doc.projectId, revision: doc.revision }))
     return lines.join('\n')
   }
 
@@ -4704,45 +5627,45 @@ function VideoPane({ ctx, onClose }) {
     if (!body) return
     const composer = host && host.composer
     if (!composer || typeof composer.insertText !== 'function') {
-      setChatMsg('Esta versión de Hermes no expone el compositor del chat; copia la ruta y pégala.')
+      setChatMsg(t('chat.no_composer'))
       return
     }
     try {
       const ok = await composer.insertText(sessionId, body, { mode: 'block' })
       if (!ok) {
-        setChatMsg('No hay un chat abierto donde insertar. Abre un chat y reintenta.')
+        setChatMsg(t('chat.no_target'))
         return
       }
-      setChatMsg('Añadido al chat de Hermes. Revísalo y pulsa enviar.')
+      setChatMsg(t('chat.inserted'))
       if (typeof composer.focus === 'function') composer.focus(sessionId)
     } catch (error) {
-      setChatMsg(`No se pudo insertar en el chat: ${(error && error.message) || error}`)
+      setChatMsg(t('chat.insert_failed', { error: (error && error.message) || error }))
     }
   }
 
   async function copyText(text) {
     if (!text) {
-      setChatMsg('Todavía no hay una ruta que copiar.')
+      setChatMsg(t('chat.nothing_to_copy'))
       return
     }
     const door = ctx && ctx.os
     if (door && typeof door.writeClipboard === 'function') {
       try {
         const ok = await door.writeClipboard(String(text))
-        setChatMsg(ok ? 'Ruta copiada al portapapeles.' : 'El sistema no permitió copiar la ruta.')
+        setChatMsg(ok ? t('chat.copied') : t('chat.copy_denied'))
       } catch (error) {
         setChatMsg(`No se pudo copiar: ${(error && error.message) || error}`)
       }
       return
     }
-    setChatMsg('Esta versión no permite copiar desde el panel; selecciona la ruta.')
+    setChatMsg(t('chat.copy_manual'))
   }
 
   async function createProject() {
     try {
       const payload = await request(ctx, '/projects', {
         method: 'POST',
-        body: { title: 'Vídeo sin título', session_id: sessionId, cwd }
+        body: { title: t('chat.untitled_video'), session_id: sessionId, cwd }
       })
       await loadProjects()
       await openProject(payload.projectId)
@@ -4758,10 +5681,10 @@ function VideoPane({ ctx, onClose }) {
     if (!files.length) return
     const allowed = /\.(png|jpe?g|mp4|mov|m4v|mp3|wav)$/i
     const rejected = files.filter((file) => !allowed.test(file.name))
-    if (rejected.length) setNotice(`Formato no admitido: ${rejected.map((f) => f.name.split('.').pop()).join(', ')}`)
+    if (rejected.length) setNotice(t('notice.format_unsupported', { list: rejected.map((f) => f.name.split('.').pop()).join(', ') }))
     const usable = files.filter((file) => allowed.test(file.name) && file.path)
     if (!usable.length) {
-      if (!rejected.length) setNotice('Este build no expone la ruta del archivo: usa «Importar medios».')
+      if (!rejected.length) setNotice(t('notice.use_import'))
       return
     }
     ;(async () => {
@@ -4792,11 +5715,11 @@ function VideoPane({ ctx, onClose }) {
       return h(
         Dialog,
         {
-          title: 'Tus proyectos',
+          title: t('empty.your_projects'),
           onClose: () => setDialog(null),
           footer: [
-            h(Btn, { key: 'c', variant: 'text', label: 'Cerrar', onClick: () => setDialog(null) }),
-            h(Btn, { key: 'n', variant: 'primary', label: 'Crear proyecto', onClick: createProject })
+            h(Btn, { key: 'c', variant: 'text', label: t('common.close'), onClick: () => setDialog(null) }),
+            h(Btn, { key: 'n', variant: 'primary', label: t('create_project'), onClick: createProject })
           ]
         },
         h(
@@ -4817,10 +5740,10 @@ function VideoPane({ ctx, onClose }) {
                   },
                   h(Icon, { name: 'film', size: 'sm' }),
                   h('span', { className: 've-file__n' }, item.title || item.projectId),
-                  h('span', { className: 've-file__s' }, `Rev ${item.revision}`)
+                  h('span', { className: 've-file__s' }, t('project.rev', { revision: item.revision }))
                 )
               )
-            : h('p', { className: 've-dialog__b', style: { padding: '8px' } }, 'No hay proyectos todavía.')
+            : h('p', { className: 've-dialog__b', style: { padding: '8px' } }, t('dialog.no_projects'))
         )
       )
     }
@@ -4828,17 +5751,17 @@ function VideoPane({ ctx, onClose }) {
       return h(
         Dialog,
         {
-          title: 'Exportar vídeo',
-          body: `Dura ${fmtTime(finalDuration(doc))}${finalDuration(doc) !== total ? ' (las transiciones solapan escenas)' : ''} · ${doc.width}×${doc.height} · ${docFps} fps · MP4 (H.264 + AAC)`,
+          title: t('dialog.export_title'),
+          body: `${t('export.duration', { time: fmtTime(finalDuration(doc)) })}${finalDuration(doc) !== total ? t('dialog.transitions_overlap') : ''} · ${doc.width}×${doc.height} · ${docFps} fps · MP4 (H.264 + AAC)`,
           onClose: () => setDialog(null),
           footer: [
-            h(Btn, { key: 'c', variant: 'outline', label: 'Cancelar', onClick: () => setDialog(null) }),
+            h(Btn, { key: 'c', variant: 'outline', label: t('common.cancel'), onClick: () => setDialog(null) }),
             h(Btn, {
               key: 'e',
               variant: 'primary',
-              label: 'Exportar',
+              label: t('export.label'),
               disabled: !!(presetPicked && presetPicked.disabled),
-              title: presetPicked && presetPicked.disabled ? 'Ese preset no está disponible en este servicio' : 'Exportar MP4',
+              title: presetPicked && presetPicked.disabled ? t('dialog.preset_unavailable') : t('dialog.export_mp4'),
               onClick: () => startExport({ captions: incCaptions, openWhenDone: false, preset: exportPreset })
             })
           ]
@@ -4849,13 +5772,13 @@ function VideoPane({ ctx, onClose }) {
           h(
             'label',
             { className: 've-f' },
-            h('span', { className: 've-f__l' }, 'Formato de exportación'),
+            h('span', { className: 've-f__l' }, t('dialog.export_format')),
             h(
               'select',
               {
                 className: 've-select',
                 value: exportPreset,
-                'aria-label': 'Formato de exportación',
+                'aria-label': t('dialog.export_format'),
                 onChange: (event) => setExportPreset(event.target.value)
               },
               presetOptions.map((item) =>
@@ -4863,20 +5786,20 @@ function VideoPane({ ctx, onClose }) {
               )
             ),
             presetPicked && presetPicked.disabled
-              ? h('span', { className: 've-f__err', role: 'alert' }, 'Este formato no está disponible en tu servicio. Elige otro.')
+              ? h('span', { className: 've-f__err', role: 'alert' }, t('dialog.export_format_error'))
               : h(
                   'span',
                   { className: 've-f__h' },
-                  'El archivo se guarda en la carpeta del proyecto y podrás enviarlo al chat.'
+                  t('dialog.export_saved_hint')
                 )
           ),
           h(
             'label',
             { className: 've-file', style: { cursor: 'pointer' } },
             h('input', { type: 'checkbox', checked: incCaptions, onChange: (event) => setIncCaptions(event.target.checked) }),
-            h('span', { className: 've-file__n' }, 'Incluir subtítulos')
+            h('span', { className: 've-file__n' }, t('dialog.include_captions'))
           ),
-          h('span', { className: 've-f__h' }, `${(doc.scenes || []).length} escenas · ${missing.length ? 'faltan medios' : 'medios vinculados'}`)
+          h('span', { className: 've-f__h' }, `${t('export.scenes', { count: (doc.scenes || []).length })} · ${missing.length ? t('dialog.missing_media') : t('dialog.linked_media')}`)
         )
       )
     }
@@ -4888,20 +5811,20 @@ function VideoPane({ ctx, onClose }) {
       return h(
         Dialog,
         {
-          title: dialog.phase === 'done' ? 'Exportación terminada' : dialog.phase === 'failed' ? 'La exportación falló' : 'Exportando vídeo',
+          title: dialog.phase === 'done' ? t('export.done_title') : dialog.phase === 'failed' ? t('export.failed') : t('export.running_title'),
           onClose: running ? undefined : () => setDialog(null),
           footer: running
-            ? [h(Btn, { key: 'c', variant: 'outline', label: dialog.phase === 'cancelling' ? 'Cancelando…' : 'Cancelar exportación', onClick: cancelExport })]
+            ? [h(Btn, { key: 'c', variant: 'outline', label: dialog.phase === 'cancelling' ? t('export.cancelling') : t('export.cancel'), onClick: cancelExport })]
             : [
-                h(Btn, { key: 'r', variant: 'outline', label: 'Reintentar', onClick: () => startExport({ captions: incCaptions, openWhenDone: false }) }),
-                h(Btn, { key: 'c', variant: 'primary', label: 'Cerrar', onClick: () => setDialog(null) })
+                h(Btn, { key: 'r', variant: 'outline', label: t('common.retry'), onClick: () => startExport({ captions: incCaptions, openWhenDone: false }) }),
+                h(Btn, { key: 'c', variant: 'primary', label: t('common.close'), onClick: () => setDialog(null) })
               ]
         },
         h(
           'div',
           { className: 've-props', 'aria-busy': running ? 'true' : 'false' },
           dialog.phase === 'failed'
-            ? h(ErrorState, { title: 'No se generó el MP4', body: (live && live.error) || 'El servicio devolvió un error.' })
+            ? h(ErrorState, { title: t('export.no_mp4'), body: (live && live.error) || t('export.service_error') })
             : h(
                 'ul',
                 { className: 've-stages' },
@@ -4931,7 +5854,10 @@ function VideoPane({ ctx, onClose }) {
                 h(
                   'p',
                   { className: 've-dialog__b' },
-                  `Listo · ${(live && live.artifacts && live.artifacts[0]) || 'output.mp4'}${live && live.outputBytes ? ` · ${fmtBytes(live.outputBytes)}` : ''}`
+                  t('status.ready', {
+                    artifact: (live && live.artifacts && live.artifacts[0]) || 'output.mp4',
+                    bytes: live && live.outputBytes ? ` · ${fmtBytes(live.outputBytes)}` : ''
+                  })
                 ),
                 live && live.jobId
                   ? h('video', {
@@ -4939,7 +5865,7 @@ function VideoPane({ ctx, onClose }) {
                       controls: true,
                       preload: 'metadata',
                       src: `${serviceBase(ctx)}/jobs/${encodeURIComponent(live.jobId)}/output`,
-                      'aria-label': 'Vídeo exportado: reproducir aquí'
+                      'aria-label': t('export.player_aria')
                     })
                   : null,
                 h('code', { className: 've-out__p' }, (live && live.outputPath) || 'ruta no disponible'),
@@ -4949,14 +5875,14 @@ function VideoPane({ ctx, onClose }) {
                   h(Btn, {
                     icon: 'message',
                     variant: 'primary',
-                    label: 'Agregar al chat',
-                    title: 'Inserta el resultado en el chat activo para que Hermes lo use',
+                    label: t('export.add_to_chat'),
+                    title: t('export.add_to_chat_title'),
                     onClick: () => addToChat(exportSummary())
                   }),
                   h(Btn, {
                     icon: 'copy',
                     variant: 'outline',
-                    label: 'Copiar ruta',
+                    label: t('export.copy_path'),
                     onClick: () => copyText((live && live.outputPath) || '')
                   })
                 ),
@@ -4970,15 +5896,15 @@ function VideoPane({ ctx, onClose }) {
       return h(
         Dialog,
         {
-          title: 'Hay cambios más nuevos',
-          body: `La revisión ${dialog.theirs} se guardó en otro lugar. Tu copia es la ${dialog.mine}.`,
+          title: t('conflict.title'),
+          body: t('conflict.body', { theirs: dialog.theirs, mine: dialog.mine }),
           onClose: () => setDialog(null),
           footer: [
-            h(Btn, { key: 'c', variant: 'text', label: 'Cancelar', onClick: () => setDialog(null) }),
+            h(Btn, { key: 'c', variant: 'text', label: t('common.cancel'), onClick: () => setDialog(null) }),
             h(Btn, {
               key: 'r',
               variant: 'outline',
-              label: 'Recargar y perder mis cambios',
+              label: t('conflict.reload'),
               onClick: () => {
                 setDialog(null)
                 openProject(doc.projectId)
@@ -4986,35 +5912,35 @@ function VideoPane({ ctx, onClose }) {
             })
           ]
         },
-        h('p', { className: 've-f__h' }, 'Nada se sobrescribe en silencio: recargar trae la revisión más nueva.')
+        h('p', { className: 've-f__h' }, t('conflict.note'))
       )
     }
     if (dialog.kind === 'import') {
       const state = importState
       if (!state) return null
       if (state.phase === 'picking') {
-        return h(Dialog, { title: 'Importar medios', onClose: () => setDialog(null) }, h('div', { className: 've-loadrow' }, h(Spinner), 'Abriendo la carpeta concedida…'))
+        return h(Dialog, { title: t('import_media'), onClose: () => setDialog(null) }, h('div', { className: 've-loadrow' }, h(Spinner), t('import.opening_folder')))
       }
       if (state.phase === 'error') {
         return h(
           Dialog,
-          { title: 'No se pudo importar', onClose: () => setDialog(null), footer: h(Btn, { variant: 'text', label: 'Cerrar', onClick: () => setDialog(null) }) },
-          h(ErrorState, { title: 'La carpeta no está disponible', body: state.error })
+          { title: t('import.failed'), onClose: () => setDialog(null), footer: h(Btn, { variant: 'text', label: t('common.close'), onClick: () => setDialog(null) }) },
+          h(ErrorState, { title: t('import.folder_unavailable'), body: state.error })
         )
       }
       if (state.phase === 'list') {
         return h(
           Dialog,
           {
-            title: 'Importar medios',
+            title: t('import_media'),
             body: `${state.entries.length} archivos admitidos · solo se importa lo que marques`,
             onClose: () => setDialog(null),
             footer: [
-              h(Btn, { key: 'c', variant: 'outline', label: 'Cancelar', onClick: () => setDialog(null) }),
+              h(Btn, { key: 'c', variant: 'outline', label: t('common.cancel'), onClick: () => setDialog(null) }),
               h(Btn, {
                 key: 'i',
                 variant: 'primary',
-                label: 'Importar seleccionados',
+                label: t('import.import_selected'),
                 disabled: !Object.values(state.chosen).some(Boolean),
                 onClick: doImport
               })
@@ -5043,16 +5969,16 @@ function VideoPane({ ctx, onClose }) {
       if (state.phase === 'importing') {
         return h(
           Dialog,
-          { title: 'Importando medios', onClose: () => {}, footer: null },
+          { title: t('import.running'), onClose: () => {}, footer: null },
           h('div', { className: 've-props', 'aria-live': 'polite' }, h('div', { className: 've-loadrow' }, h(Spinner), `${state.done} de ${state.total}`))
         )
       }
       return h(
         Dialog,
         {
-          title: 'Importación terminada',
+          title: t('import.done'),
           onClose: () => setDialog(null),
-          footer: h(Btn, { variant: 'primary', label: 'Cerrar', onClick: () => setDialog(null) })
+          footer: h(Btn, { variant: 'primary', label: t('common.close'), onClick: () => setDialog(null) })
         },
         h(
           'p',
@@ -5074,17 +6000,17 @@ function VideoPane({ ctx, onClose }) {
       return h(
         Dialog,
         {
-          title: replacing ? 'Reemplazar el medio de la escena' : 'Añadir medio',
+          title: replacing ? t('import.replace_scene_media') : t('import.add_media'),
           body: replacing
-            ? 'Se conservan la entrada y la salida de la escena; solo cambia el archivo.'
-            : 'Elige un medio de la biblioteca del proyecto.',
+            ? t('import.replace_note')
+            : t('import.pick_media'),
           onClose: close,
           footer: [
-            h(Btn, { key: 'c', variant: 'outline', label: 'Cancelar', onClick: close }),
+            h(Btn, { key: 'c', variant: 'outline', label: t('common.cancel'), onClick: close }),
             h(Btn, {
               key: 'f',
               variant: 'text',
-              label: 'Otra carpeta…',
+              label: t('import.other_folder'),
               onClick: () => {
                 close()
                 importFolder()
@@ -5093,13 +6019,13 @@ function VideoPane({ ctx, onClose }) {
           ]
         },
         state.phase === 'loading'
-          ? h('div', { className: 've-loadrow' }, h(Spinner), 'Leyendo la biblioteca…')
+          ? h('div', { className: 've-loadrow' }, h(Spinner), t('import.reading'))
           : state.phase === 'error'
-            ? h(ErrorState, { title: 'No se pudo leer la biblioteca', body: state.error })
+            ? h(ErrorState, { title: t('import.read_failed'), body: state.error })
             : h(
                 'div',
                 { className: 've-list', 'aria-busy': busy ? 'true' : 'false' },
-                busy ? h('div', { className: 've-loadrow' }, h(Spinner), 'Vinculando el medio…') : null,
+                busy ? h('div', { className: 've-loadrow' }, h(Spinner), t('import.linking')) : null,
                 state.items.length
                   ? state.items.map((item) =>
                       h(
@@ -5116,34 +6042,34 @@ function VideoPane({ ctx, onClose }) {
                         h(
                           'span',
                           { className: 've-file__s' },
-                          `${item.kind || 'medio'}${item.exists === false ? ' · falta' : ''}`
+                          `${item.kind || t('media.kind_default')}${item.exists === false ? t('media.missing') : ''}`
                         )
                       )
                     )
-                  : h('p', { className: 've-dialog__b' }, 'La biblioteca está vacía. Usa «Otra carpeta…» para traer archivos de la carpeta concedida.')
+                  : h('p', { className: 've-dialog__b' }, t('import.empty_library'))
               )
       )
     }
     if (dialog.kind === 'service') {
       const lines = []
       if (job) {
-        lines.push(`Trabajo ${job.jobId || ''}: ${job.state || 'sin estado'}`)
-        if (job.stage) lines.push(`Etapa: ${job.stage}`)
-        if (typeof job.progress === 'number') lines.push(`Progreso: ${Math.round(job.progress)} %`)
-        if (job.error) lines.push(`Error: ${job.error}`)
+        lines.push(t('status.job', { id: job.jobId || '', state: job.state || t('status.no_state') }))
+        if (job.stage) lines.push(t('status.stage', { stage: job.stage }))
+        if (typeof job.progress === 'number') lines.push(t('status.progress', { percent: Math.round(job.progress) }))
+        if (job.error) lines.push(t('status.error', { error: job.error }))
         if (job.outputPath) {
-          lines.push(`Salida: ${job.outputPath}${job.outputBytes ? ` (${fmtBytes(job.outputBytes)})` : ''}`)
+          lines.push(t('status.output', { path: job.outputPath, size: job.outputBytes ? ` (${fmtBytes(job.outputBytes)})` : '' }))
         }
       } else {
-        lines.push('Sin trabajos de exportación en esta sesión.')
+        lines.push(t('export.no_jobs'))
       }
-      if (loadError && loadError.message) lines.push(`Último error de carga: ${loadError.message}`)
+      if (loadError && loadError.message) lines.push(t('status.last_error', { error: loadError.message }))
       return h(
         Dialog,
         {
-          title: 'Estado del servicio',
+          title: t('dialog.service_status'),
           onClose: () => setDialog(null),
-          footer: h(Btn, { variant: 'text', label: 'Cerrar', onClick: () => setDialog(null) })
+          footer: h(Btn, { variant: 'text', label: t('common.close'), onClick: () => setDialog(null) })
         },
         h('div', { className: 've-log' }, lines.join('\n'))
       )
@@ -5157,13 +6083,13 @@ function VideoPane({ ctx, onClose }) {
     return h(
       'div',
       { className: 've-menu', style: { right: '12px', top: '52px' }, role: 'menu' },
-      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); setDialog({ kind: 'service' }) } }, 'Estado del servicio'),
+      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); setDialog({ kind: 'service' }) } }, t('dialog.service_status')),
       h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); setGuides((prev) => { if (ctx?.storage?.set) ctx.storage.set('preview.guides', !prev); return !prev }) } },
-        `${guides ? 'Ocultar' : 'Mostrar'} guías de zona segura`),
-      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); save({ force: true }) } }, 'Guardar ahora (Ctrl+S)'),
-      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); addToChat(exportSummary()) } }, 'Agregar el resultado al chat'),
-      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); copyText((job && job.outputPath) || '') } }, 'Copiar ruta del MP4'),
-      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); goChat() } }, 'Volver al chat')
+        t('menu.guides_toggle', { action: guides ? t('menu.guides_hide') : t('menu.guides_show') })),
+      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); save({ force: true }) } }, t('menu.save_now')),
+      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); addToChat(exportSummary()) } }, t('menu.add_result')),
+      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); copyText((job && job.outputPath) || '') } }, t('menu.copy_mp4')),
+      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); goChat() } }, t('common.back_to_chat'))
     )
   }
 
@@ -5184,11 +6110,11 @@ function VideoPane({ ctx, onClose }) {
                   openProject(item.projectId)
                 }
               },
-              `${item.title || item.projectId} · Rev ${item.revision}`
+              `${item.title || item.projectId} · ${t('project.rev', { revision: item.revision })}`
             )
           )
-        : h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); setDialog({ kind: 'projects' }) } }, 'Ver proyectos…'),
-      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); createProject() } }, 'Crear proyecto…')
+        : h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); setDialog({ kind: 'projects' }) } }, t('menu.view_projects')),
+      h('button', { type: 'button', role: 'menuitem', onClick: () => { setMenu(null); createProject() } }, t('menu.create_project'))
     )
   }
 
@@ -5199,7 +6125,7 @@ function VideoPane({ ctx, onClose }) {
     {
       className: 've-root',
       ref: rootRef,
-      lang: 'es',
+      lang: LANG,
       tabIndex: -1,
       'data-ve-pane': '1',
       'data-compact': compact ? '1' : '0',
@@ -5233,7 +6159,7 @@ function VideoPane({ ctx, onClose }) {
     menus(),
     dialogs(),
     cineOpen ? jsx(CinePanel, { ctx, onClose: () => setCineOpen(false) }) : null,
-    modelTip ? h('div', { className: 've-tip', role: 'status' }, 'Cambia el modelo en el selector del chat.') : null,
+    modelTip ? h('div', { className: 've-tip', role: 'status' }, t('header.model_tip')) : null,
     h('div', { className: 've-sr', role: 'status', 'aria-live': 'polite' }, notice)
   )
 }
@@ -5244,9 +6170,14 @@ function VideoPane({ ctx, onClose }) {
 
 export default {
   id: 'video-editor-v2',
-  name: 'Editor de vídeo',
+  get name() {
+    return t('pane.title')
+  },
   defaultEnabled: true,
   register(ctx) {
+    // Idioma: 'ui.language' de ctx.storage manda; 'en' por defecto y 'es' si la
+    // persona lo eligió; cualquier otro valor cae a inglés.
+    LANG = languageFrom(ctx)
     // Estado de apertura: `ui.open` en ctx.storage manda; el pane es solo una
     // consecuencia. Titlebar, paleta y atajo existen siempre, abierto o no.
     let open = readOpen(ctx)
@@ -5280,7 +6211,7 @@ export default {
       paneDisposer = ctx.register({
         id: 'pane',
         area: 'panes',
-        title: 'Editor de vídeo',
+        title: t('pane.title'),
         data: { placement: 'right', dock: { pane: 'workspace', pos: 'right' }, width: '64%' },
         render: () => jsx(VideoPane, { ctx, onClose: () => setOpen(false) })
       })
@@ -5331,9 +6262,9 @@ export default {
       area: PALETTE_AREA,
       data: {
         id: 'video-editor.toggle',
-        label: 'Abrir/Cerrar editor de vídeo',
+        label: t('palette.toggle'),
         action: 'videoEditor.toggle',
-        keywords: ['video', 'editor', 'pane', 'abrir', 'cerrar'],
+        keywords: ['video', 'editor', 'pane', 'open', 'close', 'abrir', 'cerrar'],
         run: toggle
       }
     })
@@ -5345,7 +6276,7 @@ export default {
       data: {
         id: 'videoEditor.toggle',
         category: 'view',
-        label: 'Abrir/Cerrar editor de vídeo',
+        label: t('palette.toggle'),
         defaults: ['mod+shift+e'],
         run: toggle
       }

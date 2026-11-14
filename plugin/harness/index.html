@@ -57,6 +57,9 @@
 
       const store = new Map()
       if (params.get('open')) store.set('lastProjectId', params.get('open'))
+      // La interfaz es inglesa por defecto; ?lang=es fija el español para los tests.
+      const lang = params.get('lang')
+      if (lang === 'en' || lang === 'es') store.set('ui.language', lang)
 
       let files = null
       if (params.get('media')) {

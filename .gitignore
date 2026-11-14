@@ -25,3 +25,11 @@ demo/plugin-videos/*/frames/
 # 1.5 GB de material de demo/spike: fuera del paquete (ver review cc473c6)
 /demo/
 /spike/
+
+# copia generada por plugin/harness/setup_fixtures.py (el pane vive en desktop/)
+/plugin/plugin.js
+
+# artefactos de los tests E2E del pane
+/e2e-*.png
+/shot-*.png
+/pane_ui_export.mp4

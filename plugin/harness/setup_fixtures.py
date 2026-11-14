@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -109,6 +110,12 @@ def main(argv: list[str] | None = None) -> int:
     TOKEN_PATH = (token_file if not args.reuse else
                   Path(os.environ.get("LOCALAPPDATA", Path.home()))
                   / "hermes" / "video-editor" / "service.token")
+
+    # El pane vive en desktop/plugin.js; el harness lo importa como ../plugin.js.
+    pane_src = ROOT / "desktop" / "plugin.js"
+    pane_copy = HERE.parent / "plugin.js"
+    if pane_src.is_file():
+        shutil.copy2(pane_src, pane_copy)
 
     clips = [
         ("intro.mp4", ["-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=30:duration=3",

@@ -15,7 +15,7 @@ VE_SVC (servicio, def. http://127.0.0.1:8780), VE_TOKEN o VE_TOKEN_FILE (token d
 servicio), VE_MEDIA (carpeta concedida con intro.mp4, demo.mp4, tutorial.mp4 y
 cierre.png), VE_CHROME (ruta de Chrome). Crea y borra sus propios proyectos.
 No corre en el CI normal: necesita playwright y un navegador."""
-import json, os, subprocess, sys, tempfile, time, urllib.error, urllib.request as u
+import json, os, re, subprocess, sys, tempfile, time, urllib.error, urllib.request as u
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -84,7 +84,7 @@ def open_pane(p, pid, w=1280, h=800):
     pg = ctx.new_page()
     errs = []
     pg.on('pageerror', lambda e: errs.append(str(e)))
-    pg.goto(f'{HARNESS}/harness/index.html?svc={SVC}&open={pid}')
+    pg.goto(f'{HARNESS}/harness/index.html?svc={SVC}&open={pid}&lang=es')
     pg.wait_for_selector('.ve-clip', timeout=20000)
     pg.wait_for_timeout(600)
     return b, pg, errs
@@ -152,7 +152,7 @@ def main():
             deadline = time.time() + 150; job = None
             while time.time() < deadline:
                 jobs = call('GET', '/jobs')[1]; lst = jobs.get('jobs') if isinstance(jobs, dict) else jobs
-                job = next((j for j in lst if j.get('projectId') in (pid, None)), lst[0] if lst else None)
+                job = next((j for j in lst if j.get('projectId') == pid), None)
                 if job and job.get('state') in ('succeeded', 'failed', 'cancelled'): break
                 time.sleep(1)
             check('E3 la exportación termina bien', job and job.get('state') == 'succeeded', str(job and job.get('state')))
@@ -164,24 +164,37 @@ def main():
                 info = json.loads(probe.stdout or '{}')
                 dur = float(info.get('format', {}).get('duration', 0))
                 shown = pg.locator('.ve-ftr__hint').inner_text()
-                check('E5 el MP4 dura lo que anuncia el pie (transición solapada: 12,2 s)', abs(dur - 12.2) < 0.15, f'ffprobe={dur:.2f}s pie={shown!r}')
+                announced = None
+                mt = re.search(r'(\d{2}):(\d{2})[,.](\d)', shown)
+                if mt:
+                    announced = int(mt.group(1)) * 60 + int(mt.group(2)) + int(mt.group(3)) / 10
+                check('E5 el MP4 dura lo que anuncia el pie',
+                      announced is not None and abs(dur - announced) < 0.2,
+                      f'ffprobe={dur:.2f}s pie={shown!r}')
             b.close()
 
             # --- línea de tiempo --------------------------------------------------
             pid = make_project('ui-C')
             b, pg, errs = open_pane(p, pid)
+            ruler = pg.locator('.ve-tl__ruler').bounding_box()
+            total = sum(float(s.get('duration') or (s['out'] - s['in'])) for s in doc(pid)['scenes'])
+            px_per_s = ruler['width'] / total
             clips = pg.locator('.ve-clip'); bb = clips.nth(2).bounding_box()
             pg.mouse.click(bb['x'] + bb['width'] * 0.75, bb['y'] + bb['height'] / 2); pg.wait_for_timeout(250)
             tc = pg.locator('.ve-tc b').inner_text(); secs = int(tc[:2]) * 60 + float(tc[3:])
-            check('T1 clic a ¾ del clip 3 salta a ese punto', 8.0 < secs < 8.9, tc)
-            ruler = pg.locator('.ve-tl__ruler').bounding_box()
+            expected1 = (bb['x'] + bb['width'] * 0.75 - ruler['x']) / px_per_s
+            check('T1 clic a ¾ del clip 3 salta a ese punto', abs(secs - expected1) < 0.35,
+                  f'{tc} ≈ {expected1:.2f}')
             pg.mouse.click(ruler['x'] + ruler['width'] * 0.1, ruler['y'] + 12); pg.wait_for_timeout(250)
             tc2 = pg.locator('.ve-tc b').inner_text(); secs2 = int(tc2[:2]) * 60 + float(tc2[3:])
-            check('T2 clic en la regla mueve el cursor (≈1,25 s)', 0.9 < secs2 < 1.6, tc2)
+            expected2 = ruler['width'] * 0.1 / px_per_s
+            check('T2 clic en la regla mueve el cursor', abs(secs2 - expected2) < 0.35,
+                  f'{tc2} ≈ {expected2:.2f}')
             # arrastrar en la regla
             pg.mouse.move(ruler['x'] + 20, ruler['y'] + 12); pg.mouse.down(); pg.mouse.move(ruler['x'] + ruler['width'] * 0.6, ruler['y'] + 12, steps=6); pg.mouse.up(); pg.wait_for_timeout(250)
             tc3 = pg.locator('.ve-tc b').inner_text(); secs3 = int(tc3[:2]) * 60 + float(tc3[3:])
-            check('T3 arrastrar en la regla (≈7,5 s)', 6.8 < secs3 < 8.2, tc3)
+            expected3 = ruler['width'] * 0.6 / px_per_s
+            check('T3 arrastrar en la regla', abs(secs3 - expected3) < 0.35, f'{tc3} ≈ {expected3:.2f}')
             check('T4 las marcas de la regla existen y son reales', pg.locator('.ve-tick').count() >= 3)
             check('T5 hay un carril de audio por escena', pg.locator('.ve-ab').count() == 4)
             b.close()

@@ -7,13 +7,25 @@ import os
 HARNESS=os.environ.get('VE_HARNESS','http://127.0.0.1:8795')
 pid=os.environ['VE_PID']
 SVC=os.environ.get('VE_SVC','http://127.0.0.1:8780')
+CHROME=os.environ.get('VE_CHROME','/usr/bin/google-chrome')
+def TOKEN():
+    if os.environ.get('VE_TOKEN'): return os.environ['VE_TOKEN'].strip()
+    from pathlib import Path
+    p=Path(os.environ.get('VE_TOKEN_FILE') or str(Path(os.environ.get('LOCALAPPDATA',Path.home()))/'hermes'/'video-editor'/'service.token'))
+    try: return p.read_text(encoding='utf-8').strip()
+    except OSError: return ''
 def doc():
-    d=json.loads(u.urlopen(f'{SVC}/projects/{pid}').read()); return d['project']
+    req=u.Request(f'{SVC}/projects/{pid}')
+    tok=TOKEN()
+    if tok: req.add_header('X-VE-Token',tok)
+    d=json.loads(u.urlopen(req).read()); return d['project']
 def summary(d): return [(s['name'],s['in'],s['out']) for s in d['scenes']]
-url=f"{HARNESS}/harness/index.html?svc={SVC}&open={pid}"
+url=f"{HARNESS}/harness/index.html?svc={SVC}&open={pid}&lang=es"
 with sync_playwright() as p:
-    b=p.chromium.launch(executable_path='/usr/bin/google-chrome',args=['--no-sandbox'])
-    pg=b.new_page(viewport={'width':1280,'height':800})
+    b=p.chromium.launch(executable_path=CHROME,args=['--no-sandbox'])
+    ctx=b.new_context(viewport={'width':1280,'height':800})
+    ctx.add_init_script(f"window.__VE_TOKEN__='{TOKEN()}'")
+    pg=ctx.new_page()
     errs=[]; pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('console',lambda m: errs.append(m.text) if m.type=='error' else None)
     pg.goto(url); pg.wait_for_selector('.ve-clip',timeout=15000)
     print('before',summary(doc()))

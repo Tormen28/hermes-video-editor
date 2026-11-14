@@ -29,7 +29,10 @@ def rich_project(title):
     names = ['Apertura', 'Demo', 'Tutorial', 'Cierre']
     for i, s in enumerate(d['scenes']):
         s['name'] = names[i]
-    d['scenes'][2]['text'] = [{'at': 0.2, 'until': 3.0, 'position': 'top', 'content': 'Paso 1', 'size': 40}]
+    target = d['scenes'][2]
+    span = float(target.get('duration') or (target['out'] - target['in']))
+    target['text'] = [{'at': 0.2, 'until': round(min(3.0, span - 0.2), 2),
+                       'position': 'top', 'content': 'Paso 1', 'size': 40}]
     d['scenes'][1]['audio']['volume'] = 40
     cur = call('GET', f'/projects/{pid}')[1]
     status, r = call('PUT', f'/projects/{pid}', {'revision': cur['revision'], 'project': d})
@@ -81,8 +84,9 @@ def main():
             w2 = pg.locator('.ve-tl__inner').evaluate('e=>e.getBoundingClientRect().width')
             check('D15 «Ajustar» vuelve al 100 %', abs(w2 - w0) < 2 and pg.locator('.ve-zoom__v').inner_text().strip() == '100 %')
             # imán: soltar a ≤7 px de un borde de escena salta exactamente al borde (3,0 s)
-            ruler = pg.locator('.ve-tl__ruler').bounding_box(); total = 12.2
-            x3 = ruler['x'] + ruler['width'] * (3.0 / 12.5) + 4   # ~4 px a la derecha del borde
+            ruler = pg.locator('.ve-tl__ruler').bounding_box()
+            total = sum(float(s.get('duration') or (s['out'] - s['in'])) for s in doc(pid)['scenes'])
+            x3 = ruler['x'] + ruler['width'] * (3.0 / total) + 4   # ~4 px a la derecha del borde
             pg.mouse.click(x3, ruler['y'] + 12); pg.wait_for_timeout(250)
             tc = pg.locator('.ve-tc b').inner_text()
             check('D16 imán: a 4 px del borde el cursor cae en el borde de la escena', abs(seconds(tc) - 3.0) < 0.02, tc)
@@ -136,7 +140,7 @@ def main():
             b = p.chromium.launch(executable_path=base.CHROME, args=['--no-sandbox'])
             ctx = b.new_context(viewport={'width': 1280, 'height': 800})
             ctx.add_init_script(f"window.__VE_TOKEN__='{base.TOKEN}'")
-            pg = ctx.new_page(); pg.goto(f'{base.HARNESS}/harness/index.html?svc={base.SVC}'); pg.wait_for_selector('.ve-es', timeout=15000); pg.wait_for_timeout(300)
+            pg = ctx.new_page(); pg.goto(f'{base.HARNESS}/harness/index.html?svc={base.SVC}&lang=es'); pg.wait_for_selector('.ve-es', timeout=15000); pg.wait_for_timeout(300)
             box = pg.locator('.ve-es').bounding_box()
             check('D34 sin proyecto: el estado vacío queda centrado', box is not None and 400 < box['x'] + box['width'] / 2 < 880, str(box))
             b.close()
