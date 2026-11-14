@@ -73,5 +73,49 @@ class LocalGeneration(ServiceTestCase):
         self.assertEqual(self.run_gen(pid, {"kind": "image", "provider": "local", "prompt": "ok"})["state"], "succeeded")
 
 
+class ProviderReplySafety(unittest.TestCase):
+    """A provider reply must not reach outside: https only, path inside the job."""
+
+    def test_download_refuses_anything_but_https(self):
+        for url in ("file:///C:/Windows/win.ini", "http://127.0.0.1:1/x", "ftp://x/y", "//x/y"):
+            with self.assertRaises(generate.GenerationError) as ctx:
+                generate._download(url)
+            self.assertIn("https", str(ctx.exception))
+
+    def test_provider_path_outside_the_job_is_refused(self):
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+
+        job = Path(tempfile.mkdtemp(prefix="ve-job-"))
+        outside = job.parent / "ve-secret.txt"
+        outside.write_text("nope", encoding="utf-8")
+        req = {"kind": "image", "prompt": "x", "duration": 1.0, "options": {}}
+        with mock.patch.object(generate, "provider_url", return_value="https://provider.invalid/gen"), \
+             mock.patch.object(generate, "provider_key", return_value="k"), \
+             mock.patch.object(generate, "_post_json",
+                               return_value=(json.dumps({"path": str(outside)}).encode(), "application/json")):
+            with self.assertRaises(generate.GenerationError) as ctx:
+                generate.generate_http(req, job / "out.png", job_dir=job)
+        self.assertIn("fuera de la carpeta del trabajo", str(ctx.exception))
+
+    def test_provider_path_inside_the_job_is_accepted(self):
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+
+        job = Path(tempfile.mkdtemp(prefix="ve-job-"))
+        inside = job / "made.png"
+        inside.write_bytes(b"PNG")
+        req = {"kind": "image", "prompt": "x", "duration": 1.0, "options": {}}
+        with mock.patch.object(generate, "provider_url", return_value="https://provider.invalid/gen"), \
+             mock.patch.object(generate, "provider_key", return_value="k"), \
+             mock.patch.object(generate, "_post_json",
+                               return_value=(json.dumps({"path": str(inside)}).encode(), "application/json")):
+            note = generate.generate_http(req, job / "out.png", job_dir=job)
+        self.assertEqual((job / "out.png").read_bytes(), b"PNG")
+        self.assertTrue(note)
+
+
 if __name__ == "__main__":
     unittest.main()

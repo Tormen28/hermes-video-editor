@@ -623,6 +623,11 @@ def _post_json(url: str, payload: dict, *, key: str) -> tuple[bytes, str]:
 
 
 def _download(url: str) -> bytes:
+    # Only https: a provider reply must never make us read file:// or talk to
+    # plain http / link-local metadata endpoints.
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise GenerationError("el proveedor devolvió una URL que no es https")
     try:
         with urllib.request.urlopen(url, timeout=HTTP_TIMEOUT_S) as response:
             data = response.read(MAX_DOWNLOAD_BYTES + 1)
@@ -669,8 +674,15 @@ def generate_http(request: dict, path: Path, *, job_dir: Path) -> str:
         elif isinstance(envelope.get("url"), str):
             data = _download(envelope["url"])
         elif isinstance(envelope.get("path"), str):
-            # A provider that writes the file itself (local gateway).
-            candidate = Path(envelope["path"])
+            # A provider that writes the file itself (local gateway), but only
+            # inside this job: a reply must not read arbitrary files.
+            try:
+                candidate = Path(envelope["path"]).resolve()
+                inside = candidate.is_relative_to(job_dir.resolve())
+            except OSError:
+                inside = False
+            if not inside:
+                raise GenerationError("el proveedor devolvió un path fuera de la carpeta del trabajo")
             if not candidate.is_file():
                 raise GenerationError("el proveedor HTTP devolvió un path que no existe")
             data = candidate.read_bytes()

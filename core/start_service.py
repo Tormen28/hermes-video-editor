@@ -105,19 +105,26 @@ def main() -> int:
     if args.token_file:
         cmd += ["--token-file", str(Path(args.token_file).expanduser().resolve())]
 
-    base_flags = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
-    # Primero intenta salir del Job Object del proceso que lanza (si no,
-    # Windows mata el servicio al cerrar el terminal del agente). Si el job
-    # no permite breakaway, cae al modo simple.
-    attempts = (base_flags | CREATE_BREAKAWAY_FROM_JOB, base_flags)
+    if os.name == "nt":
+        base_flags = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
+        # Primero intenta salir del Job Object del proceso que lanza (si no,
+        # Windows mata el servicio al cerrar el terminal del agente). Si el job
+        # no permite breakaway, cae al modo simple.
+        attempts = (base_flags | CREATE_BREAKAWAY_FROM_JOB, base_flags)
+    else:
+        # POSIX no tiene creationflags: un grupo de sesión nuevo basta para que el
+        # servicio sobreviva al proceso que lo lanzó.
+        attempts = (0,)
     last_error: OSError | None = None
     proc = None
     for flags in attempts:
         try:
             with open(LOG, "ab") as log:
+                detached = ({"creationflags": flags} if os.name == "nt"
+                            else {"start_new_session": True})
                 proc = subprocess.Popen(
                     cmd, cwd=str(HERE), stdout=log, stderr=log,
-                    stdin=subprocess.DEVNULL, creationflags=flags, close_fds=True,
+                    stdin=subprocess.DEVNULL, close_fds=True, **detached,
                 )
             break
         except OSError as exc:  # job sin permiso de breakaway

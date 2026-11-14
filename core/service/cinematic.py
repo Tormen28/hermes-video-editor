@@ -51,11 +51,29 @@ VOZ_WINDOWS = (
     "$s.Speak([IO.File]::ReadAllText('{txt}')); $s.Dispose()\""
 )
 
+# La voz local depende del sistema. Si no hay ninguna, la etapa se omite con un
+# aviso en vez de dejar el render a medias (la película se arma igual, sin voz).
+VOZ_MACOS = "say -f {txt} -o {out}"
+
+
+def _voz_local() -> str:
+    if os.name == "nt":
+        return VOZ_WINDOWS
+    if sys.platform == "darwin" and shutil.which("say"):
+        return VOZ_MACOS
+    for exe in ("espeak-ng", "espeak"):
+        if shutil.which(exe):
+            return exe + " -f {txt} -w {out}"
+    return ""
+
+
+VOZ_LOCAL = _voz_local()
+
 # El orden lo manda el skill: no hay imagen sin voz, porque la pelicula se
 # cronometra contra la narracion (timing.json). Ojo: mix_soundtrack.py devuelve
 # AUDIO, no video; el MP4 final se arma aparte, uniendo imagen y mezcla.
 ETAPAS = (
-    ("voz", "tts_say.py", ("--cmd", VOZ_WINDOWS)),
+    ("voz", "tts_say.py", ("--cmd", VOZ_LOCAL)),
     ("cortes", "split_takes.py", ()),
     ("narracion", "build_narration.py", ()),
     ("assets", "prep_assets.py", ()),
@@ -260,6 +278,9 @@ def _renderizar(carpeta: Path) -> None:
     _en_curso[carpeta.name] = datos
     try:
         for i, (etapa, script, extra) in enumerate(ETAPAS, start=1):
+            if etapa == "voz" and not VOZ_LOCAL:
+                datos["aviso"] = f"sin voz local en {sys.platform}: se omite la narración"
+                continue
             datos["etapa"] = etapa
             datos["porcentaje"] = round((i - 1) / len(ETAPAS) * 100)
             _escribir_estado(carpeta, {**datos, "corriendo": True})

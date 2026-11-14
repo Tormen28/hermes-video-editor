@@ -121,7 +121,10 @@ def set_autostart(enable: bool, config_path: Path) -> None:
 def install(args: argparse.Namespace) -> int:
     hermes_home = Path(args.hermes_home).expanduser().resolve()
     plugin_target = hermes_home / "desktop-plugins" / PLUGIN_ID / "plugin.js"
-    source = HERE / "plugin" / "plugin.js"
+    # The pane lives in desktop/plugin.js; plugin/plugin.js is the old layout.
+    source = HERE / "desktop" / "plugin.js"
+    if not source.is_file():
+        source = HERE / "plugin" / "plugin.js"
     if not source.is_file():
         print(f"ERROR: no encuentro {source}")
         return 1
